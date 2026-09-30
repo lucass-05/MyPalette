@@ -20,11 +20,9 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(projects.shared)
+            implementation(project(":shared"))
 
             implementation(libs.compose.ui)
-            implementation(libs.coil.compose)
-            implementation(libs.coil.network.ktor)
         }
     }
 }

@@ -5,20 +5,26 @@ plugins {
     alias(libs.plugins.composeCompiler)
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_11
+    }
+}
 dependencies {
-    implementation(projects.shared)
+    implementation(project(":shared"))
+
     implementation(libs.androidx.activity.compose)
+
     implementation(libs.compose.uiToolingPreview)
-    implementation(libs.compose.foundation)
-    implementation(libs.ktor.client.okhttp)
+    debugImplementation(libs.compose.uiTooling)
 }
 
 android {
-    namespace = "com.jetbrains.kmpapp"
+    namespace = "com.example.palette2"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.jetbrains.kmpapp"
+        applicationId = "com.example.palette2"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
@@ -30,18 +36,19 @@ android {
         }
     }
     buildTypes {
-        getByName("release") {
+        release {
             isMinifyEnabled = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-}
-
-kotlin {
-    compilerOptions {
-        jvmTarget = JvmTarget.JVM_11
+    buildFeatures {
+        compose = true
     }
 }

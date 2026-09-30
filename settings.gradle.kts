@@ -1,5 +1,4 @@
-rootProject.name = "KMP-App-Template"
-enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
+rootProject.name = "Palette2"
 
 pluginManagement {
     repositories {
@@ -32,7 +31,7 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
-include(":shared")
 include(":androidApp")
 include(":desktopApp")
+include(":shared")
 include(":webApp")

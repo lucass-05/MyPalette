@@ -7,21 +7,21 @@ plugins {
 }
 
 dependencies {
-    implementation(projects.shared)
+    implementation(project(":shared"))
 
     implementation(compose.desktop.currentOs)
-    implementation(libs.kotlinx.coroutines.swing)
+    implementation(libs.kotlinx.coroutinesSwing)
 
     implementation(libs.compose.uiToolingPreview)
 }
 
 compose.desktop {
     application {
-        mainClass = "com.jetbrains.kmpapp.MainKt"
+        mainClass = "com.example.palette2.MainKt"
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "com.jetbrains.kmpapp"
+            packageName = "com.example.palette2"
             packageVersion = "1.0.0"
         }
     }
