@@ -1,4 +1,4 @@
-rootProject.name = "Palette2"
+rootProject.name = "Palette"
 
 pluginManagement {
     repositories {

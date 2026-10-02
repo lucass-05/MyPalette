@@ -33,7 +33,7 @@ kotlin {
     }
     
     android {
-       namespace = "com.example.palette2.shared"
+       namespace = "com.example.palette.shared"
        compileSdk = libs.versions.android.compileSdk.get().toInt()
        minSdk = libs.versions.android.minSdk.get().toInt()
     

@@ -20,11 +20,11 @@ dependencies {
 }
 
 android {
-    namespace = "com.example.palette2"
+    namespace = "com.example.palette"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.example.palette2"
+        applicationId = "com.example.palette"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
