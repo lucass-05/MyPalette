@@ -57,6 +57,16 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
+            implementation("io.ktor:ktor-client-okhttp:3.1.0")
+        }
+        jvmMain.dependencies {
+            implementation("io.ktor:ktor-client-okhttp:3.1.0")
+        }
+        iosMain.dependencies {
+            implementation("io.ktor:ktor-client-darwin:3.1.0")
+        }
+        wasmJsMain.dependencies {
+            implementation("io.ktor:ktor-client-js:3.1.0")
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -67,12 +77,15 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            implementation("io.coil-kt.coil3:coil-compose:3.6.3")
+            implementation("io.coil-kt.coil3:coil-network-ktor3:3.6.3")
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
         jsMain.dependencies {
             implementation(libs.wrappers.browser)
+            implementation("io.ktor:ktor-client-js:3.1.0")
         }
     }
 }
