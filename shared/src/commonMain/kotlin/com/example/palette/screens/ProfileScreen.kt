@@ -2,6 +2,8 @@ package com.example.palette.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -21,7 +23,9 @@ fun ProfileScreen(
     modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // --- CONTENEDOR DE HEADER Y FOTO DE PERFIL ---
@@ -76,6 +80,7 @@ fun ProfileScreen(
         // --- SECCIÓN FAVORITOS ---
         Column(
             modifier = Modifier
+                .widthIn(max = 500.dp)
                 .fillMaxWidth()
                 .padding(horizontal = 40.dp)
         ) {
