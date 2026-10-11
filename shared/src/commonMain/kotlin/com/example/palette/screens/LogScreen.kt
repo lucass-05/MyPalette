@@ -35,7 +35,7 @@ private val mediaList = listOf(
     Media(
         "The Dark Side of the Moon",
         "Álbum",
-        "https://upload.wikimedia.org/wikipedia/en/3/3b/Dark_Side_of_the_Moon.png"
+        "https://coverartarchive.org/release-group/f5093c06-23e3-404f-aeaa-40f72885ee3a/front-250"
     ),
     Media(
         "El nombre del viento",
@@ -45,7 +45,7 @@ private val mediaList = listOf(
     Media(
         "The Legend of Zelda: Breath of the Wild",
         "Videojuego",
-        "https://media.rawg.io/media/games/618/618c2031a07bb3f6c202f8e4cc1b6a05.jpg"
+        "https://images.igdb.com/igdb/image/upload/t_cover_big/co3p2d.jpg"
     )
 )
 
