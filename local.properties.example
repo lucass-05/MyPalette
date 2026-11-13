@@ -1,0 +1,8 @@
+# copia este fichero como local.properties y rellena los dos valores.
+# local.properties no se sube a git: cada persona tiene el suyo.
+
+# ruta del sdk de android en tu ordenador (android studio la pone sola al abrir el proyecto)
+sdk.dir=C\:\\Users\\TU_USUARIO\\AppData\\Local\\Android\\Sdk
+
+# clave gratuita de tmdb: themoviedb.org > ajustes > api
+TMDB_API_KEY=
