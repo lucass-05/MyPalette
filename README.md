@@ -1,46 +1,138 @@
-This is a Kotlin Multiplatform project targeting Android, iOS, Web, Desktop (JVM).
+<div align="center">
 
-* [/iosApp](./iosApp/iosApp) contains an iOS application. Even if you’re sharing your UI with Compose Multiplatform,
-  you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
+# MyPalette
 
-* [/shared](./shared/src) is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-  - [commonMain](./shared/src/commonMain/kotlin) is for code that’s common for all targets.
-  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-    the [iosMain](./shared/src/iosMain/kotlin) folder would be the right place for such calls.
-    Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./shared/src/jvmMain/kotlin)
-    folder is the appropriate location.
+### Tu diario de pelis, series, juegos, música y libros, convertido en una paleta de color.
 
-### Running the apps
+Puntúa lo último que has visto, jugado, leído o escuchado, escribe una reseña si te apetece<br>
+y mira cómo tu perfil se llena de manchas de pintura con tus gustos.
 
-Use the run configurations provided by the run widget in your IDE's toolbar. You can also use these commands and options:
+![Kotlin](https://img.shields.io/badge/Kotlin-2.4.20-7f52ff)
+![Compose Multiplatform](https://img.shields.io/badge/Compose_Multiplatform-1.12.1-4285f4)
+![Plataformas](https://img.shields.io/badge/Android_%7C_iOS_%7C_Escritorio_%7C_Web-una_sola_base_de_código-12a679)
+![Licencia](https://img.shields.io/badge/licencia-AGPL--3.0-lightgrey)
 
-- Android app: `./gradlew :androidApp:assembleDebug`
-- Desktop app:
-  - Hot reload: `./gradlew :desktopApp:hotRun --auto`
-  - Standard run: `./gradlew :desktopApp:run`
-- Web app:
-  - Wasm target (faster, modern browsers): `./gradlew :webApp:wasmJsBrowserDevelopmentRun`
-  - JS target (slower, supports older browsers): `./gradlew :webApp:jsBrowserDevelopmentRun`
-- iOS app: open the [/iosApp](./iosApp) directory in Xcode and run it from there.
+</div>
 
-### Running tests
+<br>
 
-Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
+## Qué puedes hacer
 
-- Android tests: `./gradlew :shared:testAndroidHostTest`
-- Desktop tests: `./gradlew :shared:jvmTest`
-- Web tests:
-  - Wasm target: `./gradlew :shared:wasmJsTest`
-  - JS target: `./gradlew :shared:jsTest`
-- iOS tests: `./gradlew :shared:iosSimulatorArm64Test`
+- **Registrar.** Un único buscador para películas, series, videojuegos, álbumes, canciones y libros. Eliges, pones de media a cinco estrellas y, si quieres, una reseña.
+- **Tu paleta.** Cada cosa que registras es una mancha con su portada. Se ordena por favoritos o por fecha, como un diario. Puedes fijar lo que más te define y ocultar lo que no quieras enseñar.
+- **Inicio.** Lo último que han registrado tus amigos, y sus historias arriba, rodeadas de su color favorito.
+- **Descubrir.** Recomendaciones a partir de lo que has puntuado con cuatro estrellas o más, sin repetir lo que ya tienes.
+- **Fichas con contexto.** Reparto y duración en una película, temporadas en una serie, plataformas en un juego, la lista de canciones en un álbum.
+- **Mensajes y grupos.** Comparte una ficha o una reseña con un amigo o con un grupo y coméntala ahí mismo.
+- **Pendientes.** Guarda lo que quieres ver, jugar, leer o escuchar más adelante. Tú decides si los demás la ven.
+- **Todo a tu color.** Color favorito, fondo de tu perfil y los colores de toda la app, elegidos entre todos los posibles.
 
----
+## Cómo está hecha
 
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html),
-[Compose Multiplatform](https://kotlinlang.org/compose-multiplatform/),
-[Kotlin/Wasm](https://kotl.in/wasm/)…
+Una sola base de código en **Kotlin Multiplatform** con la interfaz en **Compose Multiplatform**. El mismo código
+da la app de Android, la de iOS, la de escritorio y la web.
 
-We would appreciate your feedback on Compose/Web and Kotlin/Wasm in the public Slack channel [#compose-web](https://slack-chats.kotlinlang.org/c/compose-web).
-If you face any issues, please report them on [YouTrack](https://youtrack.jetbrains.com/newIssue?project=CMP).
+| Parte | Con qué |
+|---|---|
+| Interfaz | Compose Multiplatform 1.12, Material 3 |
+| Red | Ktor |
+| Imágenes | Coil 3 |
+| Servidor | Supabase: cuentas, base de datos Postgres, almacenamiento y funciones |
+| Películas y series | [TMDB](https://www.themoviedb.org) |
+| Videojuegos | [IGDB](https://www.igdb.com) |
+| Música | iTunes Search |
+| Libros | [Open Library](https://openlibrary.org) |
+
+En pantallas anchas (escritorio, web, tablet) la barra de navegación pasa al lateral y las listas se reparten en columnas.
+
+## Para desarrolladores
+
+### Requisitos
+
+- JDK 17 o superior
+- Android Studio o IntelliJ IDEA con el plugin de Kotlin Multiplatform
+- Xcode, solo para la app de iOS
+
+### Ejecutar
+
+```bash
+./gradlew :desktopApp:run                        # escritorio
+./gradlew :androidApp:assembleDebug              # Android
+./gradlew :webApp:wasmJsBrowserDevelopmentRun    # web (Wasm)
+./gradlew :webApp:jsBrowserDevelopmentRun        # web (JS)
+./gradlew :shared:jvmTest                        # tests
+```
+
+iOS: abre `iosApp` en Xcode y ejecuta desde ahí.
+
+Si la compilación web en JS falla con *Lock file was changed*, ejecuta una vez `./gradlew kotlinUpgradeYarnLock`.
+
+### Clave de TMDB
+
+Las películas y las series necesitan una clave gratuita de TMDB (*Ajustes > API* en themoviedb.org).
+Va en `local.properties`, en la raíz del proyecto, que no se sube al repositorio:
+
+```properties
+TMDB_API_KEY=la_tuya
+```
+
+Mientras falte, esos dos tipos no aparecen en el buscador. Música y libros no necesitan nada.
+
+### Servidor
+
+Para montar tu propio servidor en un proyecto de Supabase:
+
+1. **Base de datos.** En *SQL Editor*, ejecuta en orden los ficheros de `supabase/` (`001` a `004`).
+   El `002` y el `004` llevan dentro la URL del proyecto: cámbiala por la tuya.
+2. **Registro.** En *Authentication > Sign In / Providers > Email*, desactiva *Confirm email*.
+3. **Videojuegos.** Crea una *Edge Function* llamada `igdb` con el contenido de `supabase/functions/igdb/index.ts`
+   y añade los secretos `IGDB_CLIENT_ID` e `IGDB_CLIENT_SECRET` (de una app registrada en la consola de desarrolladores de Twitch).
+4. **Conexión.** Pon la URL del proyecto y su clave publicable al principio de `data/remote/Supabase.kt`.
+
+### Dónde va cada credencial
+
+| Credencial | Dónde vive | ¿En el repositorio? |
+|---|---|---|
+| Clave de TMDB | `local.properties` de cada desarrollador | No |
+| Client ID y Client Secret de IGDB | Secretos de la función en Supabase | No |
+| *Secret key* de Supabase | Solo en el panel de Supabase | No |
+| URL y clave publicable de Supabase | `data/remote/Supabase.kt` | Sí: es pública por diseño |
+
+Lo que puede hacer cada usuario no depende de la clave publicable sino de las reglas de la base de datos
+(*row level security*): cada uno solo modifica lo suyo, los registros ocultos y los pendientes privados no salen
+del servidor, y un mensaje solo lo ven quienes participan en la conversación.
+
+### Estructura
+
+Todo el código de la app está en `shared/src/commonMain/kotlin/com/example/palette`:
+
+| Carpeta | Contenido |
+|---|---|
+| `data/` | Modelos y `PaletteStore`, el estado de la app: aplica cada cambio en local y lo sube al servidor |
+| `data/remote/` | Un fichero por servicio externo. `Catalog` es lo único que usan las pantallas para buscar |
+| `ui/` | Tema, colores, iconos y componentes: manchas, estrellas, portadas, selector de color y de foto |
+| `navigation/` | Pestañas, pantallas apiladas y la barra de cristal |
+| `screens/` | Una pantalla por fichero. `DetailScreen` es la ficha genérica de cualquier contenido |
+
+Lo específico de cada plataforma (guardado local y selector de fotos) está en `androidMain`, `iosMain`, `jvmMain`,
+`jsMain` y `wasmJsMain`. Los colores no se escriben a mano en las pantallas: salen siempre de `Pigment` (`ui/Theme.kt`).
+
+## Estado del proyecto
+
+Palette es un proyecto sin ánimo de lucro. Antes de publicarla en una tienda o de ganar dinero con ella haría falta,
+como mínimo: licencia comercial de TMDB e IGDB, otra fuente para las carátulas de música, política de privacidad y
+términos de uso, y poder denunciar y bloquear usuarios. En iOS falta además el selector de fotos.
+
+## Créditos
+
+- Datos e imágenes de [TMDB](https://www.themoviedb.org), [IGDB](https://www.igdb.com), iTunes y [Open Library](https://openlibrary.org).
+  Este producto usa la API de TMDB pero no está avalado ni certificado por TMDB.
+- Iconos de [Lucide](https://lucide.dev) (licencia ISC).
+- Tipografía [Young Serif](https://github.com/noirblancrouge/YoungSerif) (SIL Open Font License, en `licenses/`).
+
+## Licencia
+
+© 2026 Lucas Suárez y colaboradores. Código publicado bajo la licencia **[GNU AGPL-3.0](LICENSE)**.
+
+Puedes usar y estudiar Palette libremente. Si copias o modificas el código y lo distribuyes o lo publicas como web o app,
+debes mantener el aviso de autoría y publicar tu código completo bajo la misma licencia.

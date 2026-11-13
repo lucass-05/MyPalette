@@ -1,12 +1,12 @@
 package com.example.palette
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import com.example.palette.navigation.AppNavigation
+import com.example.palette.ui.PaletteTheme
 
 @Composable
 fun App() {
-    MaterialTheme {
+    PaletteTheme {
         AppNavigation()
     }
 }
