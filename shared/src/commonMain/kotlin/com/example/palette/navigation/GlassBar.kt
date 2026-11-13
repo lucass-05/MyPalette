@@ -45,10 +45,10 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.dp
 import com.example.palette.ui.Pigment
-import com.example.palette.ui.drawSplat
-import com.example.palette.ui.readable
+import com.example.palette.ui.pintarSalpicadura
+import com.example.palette.ui.legible
 
-val Screen.pigment: Color
+val Screen.pigmento: Color
     get() = when (this) {
         Screen.HOME -> Pigment.Cadmium
         Screen.DISCOVER -> Pigment.Violet
@@ -73,26 +73,26 @@ private val Screen.label: String
  */
 @Composable
 fun GlassBar(
-    backdrop: GraphicsLayer,
-    backdropOrigin: Offset,
+    fondo: GraphicsLayer,
+    origenFondo: Offset,
     current: Screen,
     unread: Int,
-    onSelect: (Screen) -> Unit,
+    alElegirPantalla: (Screen) -> Unit,
     modifier: Modifier = Modifier,
     vertical: Boolean = false,
 ) {
     val shape = RoundedCornerShape(50)
-    var position by remember { mutableStateOf(Offset.Zero) }
+    var posicion by remember { mutableStateOf(Offset.Zero) }
     // abajo y a lo ancho en el movil; a la izquierda y en columna en pantallas anchas
-    val frame = if (vertical) {
+    val marco = if (vertical) {
         modifier.padding(start = 20.dp).width(70.dp).height(392.dp)
     } else {
         modifier.navigationBarsPadding().padding(start = 22.dp, end = 22.dp, bottom = 14.dp).fillMaxWidth().height(66.dp)
     }
 
     Box(
-        frame
-            .onGloballyPositioned { position = it.positionInRoot() - backdropOrigin }
+        marco
+            .onGloballyPositioned { posicion = it.positionInRoot() - origenFondo }
             .clip(shape),
     ) {
         Box(
@@ -101,7 +101,7 @@ fun GlassBar(
                     renderEffect = BlurEffect(22.dp.toPx(), 22.dp.toPx(), TileMode.Clamp)
                     clip = true
                 }
-                .drawBehind { translate(-position.x, -position.y) { drawLayer(backdrop) } }
+                .drawBehind { translate(-posicion.x, -posicion.y) { drawLayer(fondo) } }
         )
         Box(
             Modifier.matchParentSize()
@@ -110,14 +110,14 @@ fun GlassBar(
         )
         if (vertical) {
             Column(Modifier.matchParentSize().padding(vertical = 6.dp)) {
-                Screen.entries.forEach { screen ->
-                    BarItem(screen, screen == current, dot = screen == Screen.ACTIVITY && unread > 0, onClick = { onSelect(screen) }, modifier = Modifier.weight(1f).fillMaxWidth())
+                Screen.entries.forEach { pantalla ->
+                    BarItem(pantalla, pantalla == current, dot = pantalla == Screen.ACTIVITY && unread > 0, onClick = { alElegirPantalla(pantalla) }, modifier = Modifier.weight(1f).fillMaxWidth())
                 }
             }
         } else {
             Row(Modifier.matchParentSize().padding(horizontal = 6.dp)) {
-                Screen.entries.forEach { screen ->
-                    BarItem(screen, screen == current, dot = screen == Screen.ACTIVITY && unread > 0, onClick = { onSelect(screen) }, modifier = Modifier.weight(1f).fillMaxHeight())
+                Screen.entries.forEach { pantalla ->
+                    BarItem(pantalla, pantalla == current, dot = pantalla == Screen.ACTIVITY && unread > 0, onClick = { alElegirPantalla(pantalla) }, modifier = Modifier.weight(1f).fillMaxHeight())
                 }
             }
         }
@@ -125,25 +125,25 @@ fun GlassBar(
 }
 
 @Composable
-private fun BarItem(screen: Screen, selected: Boolean, dot: Boolean, onClick: () -> Unit, modifier: Modifier) {
+private fun BarItem(pantalla: Screen, selected: Boolean, dot: Boolean, onClick: () -> Unit, modifier: Modifier) {
     // la mancha de color crece al entrar en la pestaña
-    val grow by animateFloatAsState(if (selected) 1f else 0f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow))
+    val crecer by animateFloatAsState(if (selected) 1f else 0f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow))
     Box(
         modifier.clickable(
             interactionSource = remember { MutableInteractionSource() },
             indication = null,
-            onClickLabel = screen.label,
+            onClickLabel = pantalla.label,
             onClick = onClick,
         ),
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.size(50.dp)) {
-            if (grow > 0.01f) scale(grow) { drawSplat(screen.ordinal + 11, screen.pigment) }
+            if (crecer > 0.01f) scale(crecer) { pintarSalpicadura(pantalla.ordinal + 11, pantalla.pigmento) }
         }
         Icon(
-            getIconForScreen(screen),
-            contentDescription = screen.label,
-            tint = if (selected) screen.pigment.readable() else Pigment.Ink,
+            getIconForScreen(pantalla),
+            contentDescription = pantalla.label,
+            tint = if (selected) pantalla.pigmento.legible() else Pigment.Ink,
             modifier = Modifier.size(23.dp),
         )
         if (dot && !selected) {

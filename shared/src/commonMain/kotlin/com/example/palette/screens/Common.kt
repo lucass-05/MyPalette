@@ -34,13 +34,13 @@ import com.example.palette.ui.Avatar
 import com.example.palette.ui.CoverByHeight
 import com.example.palette.ui.Pigment
 import com.example.palette.ui.PillButton
-import com.example.palette.ui.coverRatio
-import com.example.palette.ui.display
+import com.example.palette.ui.proporcion
+import com.example.palette.ui.titular
 
 /** "pelicula, 2014, christopher nolan" */
-fun Media.byline(): String = listOfNotNull(type.label, year?.toString(), creator).joinToString(", ")
+fun Media.subtitulo(): String = listOfNotNull(type.label, year?.toString(), creator).joinToString(", ")
 
-val MediaType.verb: String
+val MediaType.verbo: String
     get() = when (this) {
         MediaType.MOVIE, MediaType.SERIES -> "ha visto"
         MediaType.GAME -> "ha jugado a"
@@ -55,17 +55,17 @@ fun SectionTitle(text: String, modifier: Modifier = Modifier, dot: Color? = null
             Box(Modifier.size(9.dp).clip(CircleShape).background(dot))
             Spacer(Modifier.width(9.dp))
         }
-        Text(text, style = display(19.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(text, style = titular(19.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }
 
 /** tira horizontal de portadas con su titulo debajo. */
 @Composable
 fun MediaRow(items: List<Media>, modifier: Modifier = Modifier, coverHeight: Int = 168) {
-    val nav = LocalPalette.current.nav
+    val navegacion = LocalPalette.current.navegacion
     LazyRow(modifier, contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         items(items, key = { it.id }) { media ->
-            Column(Modifier.width((coverHeight * media.type.coverRatio).dp).clickable { nav.open(Dest.Detail(media)) }) {
+            Column(Modifier.width((coverHeight * media.type.proporcion).dp).clickable { navegacion.abrir(Dest.Detail(media)) }) {
                 CoverByHeight(media, coverHeight.dp)
                 Spacer(Modifier.height(7.dp))
                 Text(media.title, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 2, lineHeight = 16.sp, overflow = TextOverflow.Ellipsis)
@@ -90,11 +90,11 @@ fun UserRow(user: User, modifier: Modifier = Modifier, onClick: () -> Unit, trai
 
 @Composable
 fun FollowButton(userId: String, modifier: Modifier = Modifier) {
-    val store = LocalPalette.current.store
-    val following = store.isFollowing(userId)
+    val almacen = LocalPalette.current.almacen
+    val following = almacen.sigoA(userId)
     PillButton(
         text = if (following) "Siguiendo" else "Seguir",
-        onClick = { store.toggleFollow(userId) },
+        onClick = { almacen.alternarSeguir(userId) },
         filled = !following,
         color = if (following) Pigment.Ink else Pigment.Accent,
         modifier = modifier,
@@ -106,20 +106,20 @@ fun FollowButton(userId: String, modifier: Modifier = Modifier) {
 fun Segments(
     options: List<String>,
     selected: Int,
-    onSelect: (Int) -> Unit,
+    alElegirPantalla: (Int) -> Unit,
     color: Color,
     modifier: Modifier = Modifier,
     ink: Color = Pigment.Ink,
-    soft: Color = Pigment.Graphite,
+    suave: Color = Pigment.Graphite,
 ) {
     Row(modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(22.dp)) {
         options.forEachIndexed { i, label ->
-            Column(Modifier.clickable { onSelect(i) }.padding(vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(Modifier.clickable { alElegirPantalla(i) }.padding(vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     label,
                     fontSize = 15.sp,
                     fontWeight = if (i == selected) FontWeight.SemiBold else FontWeight.Normal,
-                    color = if (i == selected) ink else soft,
+                    color = if (i == selected) ink else suave,
                 )
                 Spacer(Modifier.height(5.dp))
                 Box(Modifier.size(width = 22.dp, height = 4.dp).clip(CircleShape).background(if (i == selected) color else Color.Transparent))

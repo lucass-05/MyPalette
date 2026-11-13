@@ -11,10 +11,10 @@ import androidx.compose.ui.unit.dp
 // iconos de lucide (https://lucide.dev), licencia isc. el texto completo de la licencia
 // esta en navigation/lucideicons.kt. aqui van como path data para no repetir un builder por icono.
 object Icons {
-    private val cache = mutableMapOf<String, ImageVector>()
+    private val memoria = mutableMapOf<String, ImageVector>()
 
     private fun icon(name: String, vararg paths: String, filled: Boolean = false): ImageVector =
-        cache.getOrPut(name) {
+        memoria.getOrPut(name) {
             ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f).apply {
                 paths.forEach { d ->
                     addPath(

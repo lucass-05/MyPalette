@@ -17,24 +17,24 @@ import kotlinx.serialization.builtins.ListSerializer
  */
 internal class Igdb {
 
-    private suspend fun games(query: String): List<Game> =
-        json.decodeFromString(ListSerializer(Game.serializer()), supabase.call("igdb", query))
+    private suspend fun juegos(consulta: String): List<Game> =
+        json.decodeFromString(ListSerializer(Game.serializer()), supabase.llamarFuncion("igdb", consulta))
 
-    suspend fun search(query: String): List<Media> {
-        val text = query.replace("\\", " ").replace("\"", " ")
+    suspend fun buscar(consulta: String): List<Media> {
+        val text = consulta.replace("\\", " ").replace("\"", " ")
         // version_parent = null quita las ediciones "deluxe", "goty"... del mismo juego
-        return games("search \"$text\"; fields $FIELDS; where version_parent = null; limit 12;").map { it.toMedia() }
+        return juegos("search \"$text\"; fields $FIELDS; where version_parent = null; limit 12;").map { it.toMedia() }
     }
 
-    suspend fun details(media: Media): Media {
-        val game = games("fields $FIELDS,involved_companies.developer,involved_companies.company.name; where id = ${idOf(media)};")
+    suspend fun detalles(media: Media): Media {
+        val game = juegos("fields $FIELDS,involved_companies.developer,involved_companies.company.name; where id = ${idDe(media)};")
             .firstOrNull() ?: return media
         return game.toMedia().copy(creator = game.companies.firstOrNull { it.developer }?.company?.name)
     }
 
     suspend fun extras(media: Media): Extras {
-        val game = games(
-            "fields first_release_date,platforms.name,game_modes.name,involved_companies.developer,involved_companies.publisher,involved_companies.company.name; where id = ${idOf(media)};"
+        val game = juegos(
+            "fields first_release_date,platforms.name,game_modes.name,involved_companies.developer,involved_companies.publisher,involved_companies.company.name; where id = ${idDe(media)};"
         ).firstOrNull() ?: return Extras()
         return Extras(
             listOfNotNull(
@@ -48,12 +48,12 @@ internal class Igdb {
     }
 
     suspend fun similar(media: Media): List<Media> {
-        val nested = FIELDS.split(",").joinToString(",") { "similar_games.$it" }
-        val game = games("fields $nested; where id = ${idOf(media)};").firstOrNull() ?: return emptyList()
+        val anidados = FIELDS.split(",").joinToString(",") { "similar_games.$it" }
+        val game = juegos("fields $anidados; where id = ${idDe(media)};").firstOrNull() ?: return emptyList()
         return game.similar.map { it.toMedia() }
     }
 
-    private fun idOf(media: Media) = media.id.substringAfter(':').toLongOrNull() ?: 0
+    private fun idDe(media: Media) = media.id.substringAfter(':').toLongOrNull() ?: 0
 
     private fun Game.toMedia() = Media(
         id = "igdb:$id",

@@ -39,55 +39,55 @@ import kotlinx.coroutines.coroutineScope
  */
 @Composable
 fun DiscoverScreen(modifier: Modifier = Modifier) {
-    val palette = LocalPalette.current
-    val store = palette.store
-    val cache = palette.discover
+    val app = LocalPalette.current
+    val almacen = app.almacen
+    val memoria = app.descubrir
 
-    val loved = store.data.logs.filter { it.stars >= 4f }.sortedWith(compareByDescending<LogEntry> { it.stars }.thenByDescending { it.createdAt }).take(6)
-    val key = loved.joinToString("|") { it.media.id }
-    var loading by remember { mutableStateOf(cache.key != key) }
+    val favoritos = almacen.estado.logs.filter { it.stars >= 4f }.sortedWith(compareByDescending<LogEntry> { it.stars }.thenByDescending { it.createdAt }).take(6)
+    val key = favoritos.joinToString("|") { it.media.id }
+    var cargando by remember { mutableStateOf(memoria.key != key) }
 
     LaunchedEffect(key) {
-        if (cache.key == key) return@LaunchedEffect
-        loading = true
-        val known = (store.data.logs.map { it.media.id } + store.data.watchlist.map { it.id }).toSet()
-        val rows = coroutineScope {
-            loved.map { log ->
-                async { "Porque te gustó ${log.media.title}" to palette.catalog.similar(log.media).filter { it.id !in known && it.imageUrl != null } }
+        if (memoria.key == key) return@LaunchedEffect
+        cargando = true
+        val conocidos = (almacen.estado.logs.map { it.media.id } + almacen.estado.watchlist.map { it.id }).toSet()
+        val filas = coroutineScope {
+            favoritos.map { log ->
+                async { "Porque te gustó ${log.media.title}" to app.catalogo.similar(log.media).filter { it.id !in conocidos && it.imageUrl != null } }
             }.awaitAll()
         }.filter { it.second.isNotEmpty() }.toMutableList()
-        val trending = palette.catalog.trending().filter { it.id !in known }
-        if (trending.isNotEmpty()) rows += "Lo más visto esta semana" to trending
-        cache.rows = rows
-        cache.key = key
-        loading = false
+        val tendencias = app.catalogo.tendencias().filter { it.id !in conocidos }
+        if (tendencias.isNotEmpty()) filas += "Lo más visto esta semana" to tendencias
+        memoria.filas = filas
+        memoria.key = key
+        cargando = false
     }
 
     // las filas se calculan una vez y se guardan, pero lo que ya esta en mi perfil o en pendientes
     // se quita cada vez que se pinta: si guardo algo desde aqui, desaparece al momento
-    val mine = (store.data.logs.map { it.media.id } + store.data.watchlist.map { it.id }).toSet()
-    val rows = cache.rows.map { (title, items) -> title to items.filter { it.id !in mine } }.filter { it.second.isNotEmpty() }
+    val mio = (almacen.estado.logs.map { it.media.id } + almacen.estado.watchlist.map { it.id }).toSet()
+    val filas = memoria.filas.map { (title, items) -> title to items.filter { it.id !in mio } }.filter { it.second.isNotEmpty() }
 
     LazyColumn(modifier, contentPadding = PaddingValues(bottom = BarSpace)) {
         item { ScreenTitle("Descubrir") }
         when {
-            loading && rows.isEmpty() -> item {
+            cargando && filas.isEmpty() -> item {
                 Box(Modifier.fillMaxWidth().padding(top = 80.dp), contentAlignment = Alignment.Center) {
                     Text("Mezclando colores…", color = Pigment.Graphite, fontSize = 14.sp)
                 }
             }
-            rows.isEmpty() -> item {
+            filas.isEmpty() -> item {
                 EmptyState(
-                    title = if (loved.isEmpty()) "Todavía no sé qué te gusta" else "No he encontrado nada parecido",
-                    body = if (loved.isEmpty()) "Puntúa algo con 4 estrellas o más y aquí saldrán cosas en la misma línea."
+                    title = if (favoritos.isEmpty()) "Todavía no sé qué te gusta" else "No he encontrado nada parecido",
+                    cuerpo = if (favoritos.isEmpty()) "Puntúa algo con 4 estrellas o más y aquí saldrán cosas en la misma línea."
                     else "Prueba a registrar algo más: cuantos más favoritos, mejores recomendaciones.",
                     color = Pigment.Violet,
-                    seed = 21,
+                    semilla = 21,
                 ) {
-                    PillButton("Registrar algo", { palette.nav.switchTo(Screen.LOG) }, icon = Icons.Plus)
+                    PillButton("Registrar algo", { app.navegacion.irA(Screen.LOG) }, icon = Icons.Plus)
                 }
             }
-            else -> items(rows) { (title, media) ->
+            else -> items(filas) { (title, media) ->
                 DiscoverRow(title, media)
             }
         }

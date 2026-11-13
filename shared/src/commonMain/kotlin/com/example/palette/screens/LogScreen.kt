@@ -46,35 +46,39 @@ import com.example.palette.ui.Pigment
 import com.example.palette.ui.ScreenTitle
 import com.example.palette.ui.SearchField
 import com.example.palette.ui.icon
-import com.example.palette.ui.scoreLabel
+import com.example.palette.ui.notaTexto
 import kotlinx.coroutines.delay
+
+// LaunchedEffect(clave) ejecuta su bloque cuando la clave cambia y cancela el anterior.
+// aqui la clave es el texto del buscador: si se sigue escribiendo, la busqueda pendiente se cancela
+// sola antes de salir (el delay hace de espera). es la manera habitual de buscar "mientras se escribe".
 
 @Composable
 fun LogScreen(modifier: Modifier = Modifier) {
-    val palette = LocalPalette.current
-    val nav = palette.nav
-    var query by rememberSaveable { mutableStateOf("") }
-    var types by remember { mutableStateOf(emptySet<MediaType>()) }
+    val app = LocalPalette.current
+    val navegacion = app.navegacion
+    var consulta by rememberSaveable { mutableStateOf("") }
+    var tipos by remember { mutableStateOf(emptySet<MediaType>()) }
     var results by remember { mutableStateOf<List<Media>?>(null) }
-    var searching by remember { mutableStateOf(false) }
+    var buscando by remember { mutableStateOf(false) }
 
     // se busca mientras se escribe, esperando un momento para no lanzar una peticion por letra
-    LaunchedEffect(query, types) {
-        val text = query.trim()
+    LaunchedEffect(consulta, tipos) {
+        val text = consulta.trim()
         if (text.length < 2) {
             results = null
-            searching = false
+            buscando = false
             return@LaunchedEffect
         }
-        searching = true
+        buscando = true
         delay(350)
-        results = palette.catalog.search(text, types)
-        searching = false
+        results = app.catalogo.buscar(text, tipos)
+        buscando = false
     }
 
     Column(modifier) {
         ScreenTitle("Registrar")
-        SearchField(query, { query = it }, "Pelis, series, juegos, música, libros…", Modifier.padding(horizontal = 20.dp).widthIn(max = 720.dp))
+        SearchField(consulta, { consulta = it }, "Pelis, series, juegos, música, libros…", Modifier.padding(horizontal = 20.dp).widthIn(max = 720.dp))
         Row(
             Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -82,28 +86,28 @@ fun LogScreen(modifier: Modifier = Modifier) {
             MediaType.entries.forEach { type ->
                 Chip(
                     text = type.plural,
-                    selected = type in types,
+                    selected = type in tipos,
                     color = Pigment.of(type),
                     icon = type.icon,
-                    onClick = { types = if (type in types) types - type else types + type },
+                    onClick = { tipos = if (type in tipos) tipos - type else tipos + type },
                 )
             }
         }
 
-        val found = results
+        val encontrados = results
         LazyVerticalGrid(GridCells.Adaptive(380.dp), contentPadding = PaddingValues(bottom = BarSpace)) {
             when {
-                found == null -> item(span = { GridItemSpan(maxLineSpan) }) { SearchHint(palette.catalog.unavailable) }
-                found.isEmpty() && !searching -> item(span = { GridItemSpan(maxLineSpan) }) {
+                encontrados == null -> item(span = { GridItemSpan(maxLineSpan) }) { SearchHint(app.catalogo.noDisponibles) }
+                encontrados.isEmpty() && !buscando -> item(span = { GridItemSpan(maxLineSpan) }) {
                     EmptyState(
                         title = "Sin resultados",
-                        body = "No hay nada que se llame así" + (if (types.isEmpty()) "." else " en lo que tienes marcado. Prueba a quitar filtros."),
+                        cuerpo = "No hay nada que se llame así" + (if (tipos.isEmpty()) "." else " en lo que tienes marcado. Prueba a quitar filtros."),
                         color = Pigment.Ochre,
-                        seed = 13,
+                        semilla = 13,
                     )
                 }
-                else -> items(found, key = { it.id }) { media ->
-                    ResultRow(media) { nav.open(Dest.Detail(media)) }
+                else -> items(encontrados, key = { it.id }) { media ->
+                    ResultRow(media) { navegacion.abrir(Dest.Detail(media)) }
                 }
             }
         }
@@ -121,27 +125,27 @@ private fun ResultRow(media: Media, onClick: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(media.type.icon, contentDescription = null, tint = Pigment.of(media.type), modifier = Modifier.size(13.dp))
                 Spacer(Modifier.width(6.dp))
-                Text(media.byline(), color = Pigment.Graphite, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(media.subtitulo(), color = Pigment.Graphite, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
         media.score?.let {
             Spacer(Modifier.width(10.dp))
             Icon(Icons.StarFilled, contentDescription = null, tint = Pigment.Star, modifier = Modifier.size(12.dp))
             Spacer(Modifier.width(4.dp))
-            Text(scoreLabel(it), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            Text(notaTexto(it), fontSize = 13.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
 
 @Composable
-private fun SearchHint(unavailable: Set<MediaType>) {
+private fun SearchHint(noDisponibles: Set<MediaType>) {
     Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
         Text("Busca lo último que has visto, jugado, leído o escuchado para puntuarlo o guardarlo en pendientes.", color = Pigment.Graphite, fontSize = 14.sp, lineHeight = 20.sp)
-        if (unavailable.isNotEmpty()) {
+        if (noDisponibles.isNotEmpty()) {
             // aviso para desarrollo: desaparece en cuanto las claves estan en local.properties
             Spacer(Modifier.height(14.dp))
             Text(
-                "Falta la clave de TMDB: sin ella no salen " + unavailable.joinToString(" ni ") { it.plural.lowercase() } + ". Mira el README para añadirla.",
+                "Falta la clave de TMDB: sin ella no salen " + noDisponibles.joinToString(" ni ") { it.plural.lowercase() } + ". Mira el README para añadirla.",
                 color = Pigment.Cadmium,
                 fontSize = 13.sp,
                 lineHeight = 18.sp,

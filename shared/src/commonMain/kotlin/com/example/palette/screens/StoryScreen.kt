@@ -40,7 +40,7 @@ import androidx.compose.ui.unit.sp
 import com.example.palette.navigation.Dest
 import com.example.palette.navigation.LocalPalette
 import com.example.palette.navigation.Outgoing
-import com.example.palette.data.timeAgo
+import com.example.palette.data.haceCuanto
 import com.example.palette.ui.Avatar
 import com.example.palette.ui.CoverByHeight
 import com.example.palette.ui.IconAction
@@ -48,61 +48,61 @@ import com.example.palette.ui.Icons
 import com.example.palette.ui.Pigment
 import com.example.palette.ui.PillButton
 import com.example.palette.ui.Stars
-import com.example.palette.ui.display
-import com.example.palette.ui.readable
+import com.example.palette.ui.titular
+import com.example.palette.ui.legible
 
 /** los ultimos logs de un amigo a pantalla completa, uno detras de otro. */
 @Composable
-fun StoryScreen(userId: String, queue: List<String>, modifier: Modifier = Modifier) {
-    val palette = LocalPalette.current
-    val store = palette.store
-    val nav = palette.nav
-    val user = store.user(userId)
+fun StoryScreen(userId: String, cola: List<String>, modifier: Modifier = Modifier) {
+    val app = LocalPalette.current
+    val almacen = app.almacen
+    val navegacion = app.navegacion
+    val user = almacen.user(userId)
     // se congela la lista al abrir: marcar como visto no debe moverla
-    val logs = remember(userId) { store.storyOf(userId) }
+    val logs = remember(userId) { almacen.historiaDe(userId) }
     if (user == null || logs.isEmpty()) {
-        LaunchedEffect(Unit) { nav.back() }
+        LaunchedEffect(Unit) { navegacion.volver() }
         return
     }
 
     var index by remember { mutableIntStateOf(0) }
-    val place = queue.indexOf(userId)
+    val puesto = cola.indexOf(userId)
 
     // como en instagram: al acabar los logs de una persona se pasa a la siguiente historia de la fila
-    fun next() {
-        val following = queue.getOrNull(place + 1)
+    fun siguiente() {
+        val following = cola.getOrNull(puesto + 1)
         when {
             index < logs.lastIndex -> index++
-            following != null -> nav.replaceTop(Dest.Story(following, queue))
-            else -> nav.back()
+            following != null -> navegacion.sustituirCima(Dest.Story(following, cola))
+            else -> navegacion.volver()
         }
     }
 
-    fun previous() {
-        val before = queue.getOrNull(place - 1)
+    fun anterior() {
+        val before = cola.getOrNull(puesto - 1)
         when {
             index > 0 -> index--
-            before != null -> nav.replaceTop(Dest.Story(before, queue))
+            before != null -> navegacion.sustituirCima(Dest.Story(before, cola))
         }
     }
 
-    val progress = remember { Animatable(0f) }
+    val progreso = remember { Animatable(0f) }
     val log = logs[index]
     val media = log.media
     val tint = Pigment.of(media.type)
-    val ink = tint.readable()
+    val ink = tint.legible()
 
     LaunchedEffect(index) {
-        store.markStorySeen(userId, log.createdAt)
-        progress.snapTo(0f)
-        progress.animateTo(1f, tween(6000, easing = LinearEasing))
-        next()
+        almacen.marcarHistoriaVista(userId, log.createdAt)
+        progreso.snapTo(0f)
+        progreso.animateTo(1f, tween(6000, easing = LinearEasing))
+        siguiente()
     }
 
     Box(
         modifier.background(tint).pointerInput(logs.size) {
             // tocar la parte derecha avanza; el tercio izquierdo vuelve atras
-            detectTapGestures { offset -> if (offset.x > size.width / 3) next() else previous() }
+            detectTapGestures { offset -> if (offset.x > size.width / 3) siguiente() else anterior() }
         },
     ) {
         Column(Modifier.align(Alignment.TopCenter).widthIn(max = 560.dp).fillMaxSize().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp)) {
@@ -110,7 +110,7 @@ fun StoryScreen(userId: String, queue: List<String>, modifier: Modifier = Modifi
                 logs.forEachIndexed { i, _ ->
                     val filled = when {
                         i < index -> 1f
-                        i == index -> progress.value
+                        i == index -> progreso.value
                         else -> 0f
                     }
                     Box(Modifier.weight(1f).height(3.dp).clip(CircleShape).background(ink.copy(alpha = 0.3f))) {
@@ -120,21 +120,21 @@ fun StoryScreen(userId: String, queue: List<String>, modifier: Modifier = Modifi
             }
             Spacer(Modifier.height(10.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Row(Modifier.weight(1f).clickable { nav.back(); nav.open(Dest.Profile(userId)) }, verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.weight(1f).clickable { navegacion.volver(); navegacion.abrir(Dest.Profile(userId)) }, verticalAlignment = Alignment.CenterVertically) {
                     Avatar(user, 36.dp)
                     Spacer(Modifier.width(10.dp))
                     Column {
                         Text(user.name, color = ink, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                        Text("${media.type.verb} hace ${timeAgo(log.createdAt)}".replace("hace ahora", "ahora mismo"), color = ink.copy(alpha = 0.8f), fontSize = 12.sp)
+                        Text("${media.type.verbo} hace ${haceCuanto(log.createdAt)}".replace("hace ahora", "ahora mismo"), color = ink.copy(alpha = 0.8f), fontSize = 12.sp)
                     }
                 }
-                IconAction(Icons.Close, "Cerrar", { nav.back() }, tint = ink)
+                IconAction(Icons.Close, "Cerrar", { navegacion.volver() }, tint = ink)
             }
 
             Column(Modifier.weight(1f).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 CoverByHeight(media, 290.dp, Modifier.clip(RoundedCornerShape(10.dp)))
                 Spacer(Modifier.height(22.dp))
-                Text(media.title, style = display(28.sp, ink), textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(media.title, style = titular(28.sp, ink), textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(10.dp))
                 Box(Modifier.clip(RoundedCornerShape(50)).background(Pigment.Paper).padding(horizontal = 12.dp, vertical = 7.dp)) {
                     Stars(log.stars, size = 18.dp)
@@ -146,8 +146,8 @@ fun StoryScreen(userId: String, queue: List<String>, modifier: Modifier = Modifi
             }
 
             Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)) {
-                PillButton("Ver ficha", { nav.back(); nav.open(Dest.Detail(media)) }, color = ink)
-                PillButton("Responder", { nav.back(); nav.open(Dest.Chat(userId)) }, color = ink, icon = Icons.Send)
+                PillButton("Ver ficha", { navegacion.volver(); navegacion.abrir(Dest.Detail(media)) }, color = ink)
+                PillButton("Responder", { navegacion.volver(); navegacion.abrir(Dest.Chat(userId)) }, color = ink, icon = Icons.Send)
             }
         }
     }

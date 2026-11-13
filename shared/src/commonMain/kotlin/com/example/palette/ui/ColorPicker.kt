@@ -51,24 +51,24 @@ private fun Color.toHsv(): Triple<Float, Float, Float> {
     val max = maxOf(red, green, blue)
     val min = minOf(red, green, blue)
     val delta = max - min
-    val hue = when {
+    val tono = when {
         delta == 0f -> 0f
         max == red -> 60f * (((green - blue) / delta).mod(6f))
         max == green -> 60f * ((blue - red) / delta + 2f)
         else -> 60f * ((red - green) / delta + 4f)
     }
-    return Triple(hue, if (max == 0f) 0f else delta / max, max)
+    return Triple(tono, if (max == 0f) 0f else delta / max, max)
 }
 
 fun Color.toHex(): String = "#" + (toArgb() and 0xFFFFFF).toString(16).uppercase().padStart(6, '0')
 
-private fun parseHex(text: String): Color? {
-    val digits = text.trim().removePrefix("#")
-    if (digits.length != 6) return null
-    return digits.toLongOrNull(16)?.let { Color(0xFF000000 or it) }
+private fun leerHex(text: String): Color? {
+    val digitos = text.trim().removePrefix("#")
+    if (digitos.length != 6) return null
+    return digitos.toLongOrNull(16)?.let { Color(0xFF000000 or it) }
 }
 
-private fun DrawScope.thumb(at: Offset, fill: Color) {
+private fun DrawScope.tirador(at: Offset, fill: Color) {
     drawCircle(Color.White, 11.dp.toPx(), at)
     drawCircle(Color.Black.copy(alpha = 0.25f), 11.dp.toPx(), at, style = Stroke(1.dp.toPx()))
     drawCircle(fill, 8.dp.toPx(), at)
@@ -79,20 +79,20 @@ private fun DrawScope.thumb(at: Offset, fill: Color) {
  * y el codigo hexadecimal por si se quiere pegar uno exacto.
  */
 @Composable
-fun ColorPicker(color: Color, onChange: (Color) -> Unit, modifier: Modifier = Modifier) {
+fun ColorPicker(color: Color, alCambiar: (Color) -> Unit, modifier: Modifier = Modifier) {
     // el tono se guarda aparte: un gris o un negro no tienen tono y al arrastrar se perderia
     val start = remember { color.toHsv() }
-    var hue by remember { mutableFloatStateOf(start.first) }
-    var sat by remember { mutableFloatStateOf(start.second) }
+    var tono by remember { mutableFloatStateOf(start.first) }
+    var saturacion by remember { mutableFloatStateOf(start.second) }
     var value by remember { mutableFloatStateOf(start.third) }
     var hex by remember { mutableStateOf(color.toHex()) }
     // los gestos se registran una sola vez, asi que tienen que llamar siempre al onchange mas reciente
-    val report by rememberUpdatedState(onChange)
+    val avisar by rememberUpdatedState(alCambiar)
 
-    fun emit() {
-        val picked = Color.hsv(hue, sat, value)
-        hex = picked.toHex()
-        report(picked)
+    fun emitir() {
+        val elegida = Color.hsv(tono, saturacion, value)
+        hex = elegida.toHex()
+        avisar(elegida)
     }
 
     Column(modifier) {
@@ -100,38 +100,38 @@ fun ColorPicker(color: Color, onChange: (Color) -> Unit, modifier: Modifier = Mo
             Modifier.fillMaxWidth().height(190.dp).clip(RoundedCornerShape(14.dp)).pointerInput(Unit) {
                 awaitEachGesture {
                     fun pick(at: Offset) {
-                        sat = (at.x / size.width).coerceIn(0f, 1f)
+                        saturacion = (at.x / size.width).coerceIn(0f, 1f)
                         value = 1f - (at.y / size.height).coerceIn(0f, 1f)
-                        emit()
+                        emitir()
                     }
                     val down = awaitFirstDown()
                     down.consume()
                     pick(down.position)
-                    drag(down.id) { change ->
-                        change.consume()
-                        pick(change.position)
+                    drag(down.id) { cambio ->
+                        cambio.consume()
+                        pick(cambio.position)
                     }
                 }
             },
         ) {
-            drawRect(Brush.horizontalGradient(listOf(Color.White, Color.hsv(hue, 1f, 1f))))
+            drawRect(Brush.horizontalGradient(listOf(Color.White, Color.hsv(tono, 1f, 1f))))
             drawRect(Brush.verticalGradient(listOf(Color.Transparent, Color.Black)))
-            thumb(Offset(sat * size.width, (1f - value) * size.height), Color.hsv(hue, sat, value))
+            tirador(Offset(saturacion * size.width, (1f - value) * size.height), Color.hsv(tono, saturacion, value))
         }
         Spacer(Modifier.height(14.dp))
         Canvas(
             Modifier.fillMaxWidth().height(26.dp).pointerInput(Unit) {
                 awaitEachGesture {
                     fun pick(at: Offset) {
-                        hue = (at.x / size.width).coerceIn(0f, 1f) * 360f
-                        emit()
+                        tono = (at.x / size.width).coerceIn(0f, 1f) * 360f
+                        emitir()
                     }
                     val down = awaitFirstDown()
                     down.consume()
                     pick(down.position)
-                    drag(down.id) { change ->
-                        change.consume()
-                        pick(change.position)
+                    drag(down.id) { cambio ->
+                        cambio.consume()
+                        pick(cambio.position)
                     }
                 }
             },
@@ -143,22 +143,22 @@ fun ColorPicker(color: Color, onChange: (Color) -> Unit, modifier: Modifier = Mo
                 size = Size(size.width, bar),
                 cornerRadius = CornerRadius(bar / 2),
             )
-            thumb(Offset((hue / 360f) * size.width, size.height / 2), Color.hsv(hue, 1f, 1f))
+            tirador(Offset((tono / 360f) * size.width, size.height / 2), Color.hsv(tono, 1f, 1f))
         }
         Spacer(Modifier.height(14.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.size(38.dp).clip(CircleShape).background(Color.hsv(hue, sat, value)).border(1.dp, Pigment.Line, CircleShape))
+            Box(Modifier.size(38.dp).clip(CircleShape).background(Color.hsv(tono, saturacion, value)).border(1.dp, Pigment.Line, CircleShape))
             Box(Modifier.width(120.dp).clip(RoundedCornerShape(12.dp)).background(Pigment.Mist).height(38.dp), contentAlignment = Alignment.Center) {
                 BasicTextField(
                     value = hex,
                     onValueChange = { typed ->
                         hex = typed.take(7)
-                        parseHex(typed)?.let { parsed ->
+                        leerHex(typed)?.let { parsed ->
                             val (h, s, v) = parsed.toHsv()
-                            if (s > 0f && v > 0f) hue = h
-                            sat = s
+                            if (s > 0f && v > 0f) tono = h
+                            saturacion = s
                             value = v
-                            onChange(parsed)
+                            alCambiar(parsed)
                         }
                     },
                     singleLine = true,

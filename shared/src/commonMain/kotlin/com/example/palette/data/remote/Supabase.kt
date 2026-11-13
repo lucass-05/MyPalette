@@ -6,9 +6,9 @@ import com.example.palette.data.ME
 import com.example.palette.data.Media
 import com.example.palette.data.Message
 import com.example.palette.data.User
-import com.example.palette.data.now
-import com.example.palette.data.readStored
-import com.example.palette.data.writeStored
+import com.example.palette.data.ahora
+import com.example.palette.data.leerGuardado
+import com.example.palette.data.escribirGuardado
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.request
@@ -29,6 +29,15 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+
+// supabase se usa por su api rest, que son peticiones http normales:
+//  - /auth/v1/...      cuentas: crear, iniciar sesion, renovar el token
+//  - /rest/v1/<tabla>  leer (GET), crear (POST), cambiar (PATCH) y borrar (DELETE) filas
+//  - /storage/v1/...   subir ficheros (las fotos)
+//  - /functions/v1/... llamar a nuestras funciones de servidor
+// cada peticion lleva dos cabeceras: "apikey" (identifica el proyecto) y "Authorization"
+// con el token del usuario, que es lo que el servidor usa para saber quien pregunta.
+// las clases "...Row" de abajo son el reflejo de las columnas de cada tabla.
 
 // la clave publicable esta pensada para ir dentro de la app: quien puede leer o escribir cada fila
 // lo deciden las reglas de la base de datos (supabase/schema.sql), no esta clave.
@@ -61,102 +70,102 @@ internal class Remote(
 internal class Supabase {
 
     /** direccion publica de la foto de perfil de un usuario dentro del almacenamiento. */
-    private fun avatarUrl(userId: String) = "$SUPABASE_URL/storage/v1/object/public/avatars/$userId/avatar.jpg"
+    private fun urlAvatar(userId: String) = "$SUPABASE_URL/storage/v1/object/public/avatars/$userId/avatar.jpg"
 
     @Serializable
     private class Session(val accessToken: String, val refreshToken: String, val userId: String, val expiresAt: Long)
 
-    private var session: Session? = try {
-        readStored(SESSION_KEY)?.let { json.decodeFromString(Session.serializer(), it) }
+    private var sesion: Session? = try {
+        leerGuardado(SESSION_KEY)?.let { json.decodeFromString(Session.serializer(), it) }
     } catch (e: Exception) {
         null
     }
-    private val refreshLock = Mutex()
+    private val candadoRenovar = Mutex()
 
     // al escribir filas hay que mandar tambien los valores por defecto (pinned = false, review = ""...)
-    private val rows = Json(json) { encodeDefaults = true }
+    private val filas = Json(json) { encodeDefaults = true }
 
-    val signedIn get() = session != null
-    private val myId get() = session?.userId ?: throw ApiException("No hay sesión iniciada")
+    val conSesion get() = sesion != null
+    private val miId get() = sesion?.userId ?: throw ApiException("No hay sesión iniciada")
 
     // ---- cuentas
 
     /** devuelve false si la cuenta se ha creado pero falta confirmar el correo para poder entrar. */
-    suspend fun signUp(email: String, password: String): Boolean {
-        val text = send(HttpMethod.Post, "auth/v1/signup", body = rows.encodeToString(Credentials.serializer(), Credentials(email, password)), authorized = false)
-        val granted = json.decodeFromString(Granted.serializer(), text)
-        if (granted.accessToken == null) return false
-        keep(granted)
+    suspend fun crearCuenta(email: String, password: String): Boolean {
+        val text = enviar(HttpMethod.Post, "auth/v1/signup", cuerpo = filas.encodeToString(Credentials.serializer(), Credentials(email, password)), authorized = false)
+        val concedido = json.decodeFromString(Granted.serializer(), text)
+        if (concedido.accessToken == null) return false
+        guardarSesion(concedido)
         return true
     }
 
-    suspend fun signIn(email: String, password: String) {
-        val text = send(
+    suspend fun iniciarSesion(email: String, password: String) {
+        val text = enviar(
             HttpMethod.Post, "auth/v1/token", mapOf("grant_type" to "password"),
-            body = rows.encodeToString(Credentials.serializer(), Credentials(email, password)), authorized = false,
+            cuerpo = filas.encodeToString(Credentials.serializer(), Credentials(email, password)), authorized = false,
         )
-        keep(json.decodeFromString(Granted.serializer(), text))
+        guardarSesion(json.decodeFromString(Granted.serializer(), text))
     }
 
-    fun signOut() {
-        session = null
-        writeStored(SESSION_KEY, "")
+    fun cerrarSesion() {
+        sesion = null
+        escribirGuardado(SESSION_KEY, "")
     }
 
-    private fun keep(granted: Granted) {
-        val token = granted.accessToken ?: throw ApiException("El servidor no ha devuelto sesión")
-        val fresh = Session(token, granted.refreshToken.orEmpty(), granted.user?.id ?: session?.userId.orEmpty(), now() + granted.expiresIn * 1000)
-        session = fresh
-        writeStored(SESSION_KEY, json.encodeToString(Session.serializer(), fresh))
+    private fun guardarSesion(concedido: Granted) {
+        val token = concedido.accessToken ?: throw ApiException("El servidor no ha devuelto sesión")
+        val recibido = Session(token, concedido.refreshToken.orEmpty(), concedido.user?.id ?: sesion?.userId.orEmpty(), ahora() + concedido.expiresIn * 1000)
+        sesion = recibido
+        escribirGuardado(SESSION_KEY, json.encodeToString(Session.serializer(), recibido))
     }
 
     /** token de acceso vigente; si esta a punto de caducar se renueva antes. */
-    private suspend fun accessToken(): String = refreshLock.withLock {
-        val current = session ?: throw ApiException("No hay sesión iniciada")
-        if (now() < current.expiresAt - 60_000) return@withLock current.accessToken
-        val text = send(
+    private suspend fun accessToken(): String = candadoRenovar.withLock {
+        val current = sesion ?: throw ApiException("No hay sesión iniciada")
+        if (ahora() < current.expiresAt - 60_000) return@withLock current.accessToken
+        val text = enviar(
             HttpMethod.Post, "auth/v1/token", mapOf("grant_type" to "refresh_token"),
-            body = rows.encodeToString(Refresh.serializer(), Refresh(current.refreshToken)), authorized = false,
+            cuerpo = filas.encodeToString(Refresh.serializer(), Refresh(current.refreshToken)), authorized = false,
         )
-        keep(json.decodeFromString(Granted.serializer(), text))
-        session!!.accessToken
+        guardarSesion(json.decodeFromString(Granted.serializer(), text))
+        sesion!!.accessToken
     }
 
     // ---- peticiones
 
-    private suspend fun send(
+    private suspend fun enviar(
         method: HttpMethod,
-        path: String,
-        params: Map<String, String> = emptyMap(),
-        body: String? = null,
+        ruta: String,
+        parametros: Map<String, String> = emptyMap(),
+        cuerpo: String? = null,
         prefer: String? = null,
         authorized: Boolean = true,
         content: OutgoingContent? = null,
-        upsert: Boolean = false,
+        guardarFila: Boolean = false,
     ): String {
-        val bearer = if (authorized) accessToken() else null
-        val response = http.request("$SUPABASE_URL/$path") {
+        val credencial = if (authorized) accessToken() else null
+        val respuesta = http.request("$SUPABASE_URL/$ruta") {
             this.method = method
-            params.forEach { (k, v) -> parameter(k, v) }
+            parametros.forEach { (k, v) -> parameter(k, v) }
             header("apikey", SUPABASE_KEY)
-            if (bearer != null) header("Authorization", "Bearer $bearer")
+            if (credencial != null) header("Authorization", "Bearer $credencial")
             if (prefer != null) header("Prefer", prefer)
-            if (upsert) header("x-upsert", "true")
-            if (body != null) setBody(TextContent(body, ContentType.Application.Json))
+            if (guardarFila) header("x-upsert", "true")
+            if (cuerpo != null) setBody(TextContent(cuerpo, ContentType.Application.Json))
             if (content != null) setBody(content)
         }
-        val text = response.bodyAsText()
-        if (!response.status.isSuccess()) throw ApiException(explain(text, response.status.value))
+        val text = respuesta.bodyAsText()
+        if (!respuesta.status.isSuccess()) throw ApiException(explicar(text, respuesta.status.value))
         return text
     }
 
-    private fun explain(body: String, status: Int): String {
-        val problem = try {
-            json.decodeFromString(Problem.serializer(), body)
+    private fun explicar(cuerpo: String, status: Int): String {
+        val problema = try {
+            json.decodeFromString(Problem.serializer(), cuerpo)
         } catch (e: Exception) {
             Problem()
         }
-        return when (problem.errorCode ?: problem.code) {
+        return when (problema.errorCode ?: problema.code) {
             "invalid_credentials" -> "Correo o contraseña incorrectos."
             "user_already_exists", "email_exists" -> "Ya hay una cuenta con ese correo. Prueba a iniciar sesión."
             "weak_password" -> "La contraseña es demasiado corta: mínimo 6 caracteres."
@@ -165,163 +174,163 @@ internal class Supabase {
             "over_email_send_rate_limit", "over_request_rate_limit" -> "Demasiados intentos seguidos. Espera un momento."
             "23505" -> "Ese nombre de usuario ya está cogido."
             "23514" -> "Algún dato no es válido. El usuario lleva de 2 a 30 letras sin acento, números, punto o guion bajo."
-            else -> problem.msg ?: problem.message ?: problem.errorDescription ?: "Error $status del servidor."
+            else -> problema.msg ?: problema.message ?: problema.errorDescription ?: "Error $status del servidor."
         }
     }
 
-    private suspend fun <T> list(table: String, row: KSerializer<T>, params: Map<String, String> = emptyMap()): List<T> =
-        json.decodeFromString(ListSerializer(row), send(HttpMethod.Get, "rest/v1/$table", mapOf("select" to "*") + params))
+    private suspend fun <T> leerTabla(tabla: String, fila: KSerializer<T>, parametros: Map<String, String> = emptyMap()): List<T> =
+        json.decodeFromString(ListSerializer(fila), enviar(HttpMethod.Get, "rest/v1/$tabla", mapOf("select" to "*") + parametros))
 
-    private suspend fun upsert(table: String, body: String, conflict: String) {
-        send(HttpMethod.Post, "rest/v1/$table", mapOf("on_conflict" to conflict), body, prefer = "resolution=merge-duplicates,return=minimal")
+    private suspend fun guardarFila(tabla: String, cuerpo: String, conflicto: String) {
+        enviar(HttpMethod.Post, "rest/v1/$tabla", mapOf("on_conflict" to conflicto), cuerpo, prefer = "resolution=merge-duplicates,return=minimal")
     }
 
-    private suspend fun delete(table: String, filters: Map<String, String>) {
-        send(HttpMethod.Delete, "rest/v1/$table", filters)
+    private suspend fun borrar(tabla: String, filtros: Map<String, String>) {
+        enviar(HttpMethod.Delete, "rest/v1/$tabla", filtros)
     }
 
     // ---- lectura
 
     /** baja todo lo que mi cuenta puede ver. con pocos usuarios es mas simple y fiable que ir pidiendo trozos. */
-    suspend fun fetchAll(): Remote = coroutineScope {
-        val profiles = async { list("profiles", ProfileRow.serializer()) }
-        val logs = async { list("logs", LogRow.serializer(), mapOf("order" to "created_at.desc", "limit" to "2000")) }
-        val watch = async { list("watchlist", WatchRow.serializer(), mapOf("order" to "created_at.desc")) }
-        val follows = async { list("follows", FollowRow.serializer()) }
-        val messages = async { list("messages", MessageRow.serializer(), mapOf("order" to "sent_at.asc")) }
-        val likes = async { list("likes", LikeRow.serializer(), mapOf("user_id" to "eq.$myId")) }
-        val groups = async { list("groups", GroupRow.serializer()) }
-        val members = async { list("group_members", MemberRow.serializer()) }
+    suspend fun bajarTodo(): Remote = coroutineScope {
+        val perfiles = async { leerTabla("profiles", ProfileRow.serializer()) }
+        val logs = async { leerTabla("logs", LogRow.serializer(), mapOf("order" to "created_at.desc", "limit" to "2000")) }
+        val pendientes = async { leerTabla("watchlist", WatchRow.serializer(), mapOf("order" to "created_at.desc")) }
+        val seguidos = async { leerTabla("follows", FollowRow.serializer()) }
+        val messages = async { leerTabla("messages", MessageRow.serializer(), mapOf("order" to "sent_at.asc")) }
+        val meGustas = async { leerTabla("likes", LikeRow.serializer(), mapOf("user_id" to "eq.$miId")) }
+        val groups = async { leerTabla("groups", GroupRow.serializer()) }
+        val members = async { leerTabla("group_members", MemberRow.serializer()) }
 
-        val users = profiles.await().map { it.toUser() }
-        val allLogs = logs.await().map { it.toLog() }
-        val allWatch = watch.await()
-        val allFollows = follows.await()
+        val usuarios = perfiles.await().map { it.toUser() }
+        val todosLosLogs = logs.await().map { it.toLog() }
+        val todosPendientes = pendientes.await()
+        val todosSeguidos = seguidos.await()
         Remote(
-            me = users.firstOrNull { it.id == ME },
-            people = users.filter { it.id != ME },
-            logs = allLogs.filter { it.userId == ME },
-            peopleLogs = allLogs.filter { it.userId != ME },
-            watchlist = allWatch.filter { it.userId == myId }.map { it.media },
-            peopleWatchlists = allWatch.filter { it.userId != myId }.groupBy({ it.userId }, { it.media }),
-            following = allFollows.filter { it.followerId == myId }.map { it.followedId }.toSet(),
-            followers = allFollows.filter { it.followedId == myId }.map { it.followerId to it.createdAt },
+            me = usuarios.firstOrNull { it.id == ME },
+            people = usuarios.filter { it.id != ME },
+            logs = todosLosLogs.filter { it.userId == ME },
+            peopleLogs = todosLosLogs.filter { it.userId != ME },
+            watchlist = todosPendientes.filter { it.userId == miId }.map { it.media },
+            peopleWatchlists = todosPendientes.filter { it.userId != miId }.groupBy({ it.userId }, { it.media }),
+            following = todosSeguidos.filter { it.followerId == miId }.map { it.followedId }.toSet(),
+            followers = todosSeguidos.filter { it.followedId == miId }.map { it.followerId to it.createdAt },
             messages = messages.await().map { it.toMessage() },
-            liked = likes.await().map { it.logId }.toSet(),
-            groups = members.await().groupBy({ it.groupId }, { local(it.userId) }).let { byGroup ->
-                groups.await().map { Group(it.id, it.name, it.photoUrl, local(it.ownerId), byGroup[it.id].orEmpty(), it.createdAt) }
+            liked = meGustas.await().map { it.logId }.toSet(),
+            groups = members.await().groupBy({ it.groupId }, { idLocal(it.userId) }).let { porGrupo ->
+                groups.await().map { Group(it.id, it.name, it.photoUrl, idLocal(it.ownerId), porGrupo[it.id].orEmpty(), it.createdAt) }
             },
         )
     }
 
-    suspend fun fetchMessages(): List<Message> =
-        list("messages", MessageRow.serializer(), mapOf("order" to "sent_at.asc")).map { it.toMessage() }
+    suspend fun bajarMensajes(): List<Message> =
+        leerTabla("messages", MessageRow.serializer(), mapOf("order" to "sent_at.asc")).map { it.toMessage() }
 
     // ---- escritura
 
-    suspend fun saveProfile(user: User) {
-        val row = ProfileRow(myId, user.username, user.name, user.bio, user.favorite, user.photoUrl, user.watchlistPublic, user.background)
-        upsert("profiles", rows.encodeToString(ProfileRow.serializer(), row), "id")
+    suspend fun guardarPerfil(user: User) {
+        val fila = ProfileRow(miId, user.username, user.name, user.bio, user.favorite, user.photoUrl, user.watchlistPublic, user.background)
+        guardarFila("profiles", filas.encodeToString(ProfileRow.serializer(), fila), "id")
     }
 
-    suspend fun saveLog(log: LogEntry) {
-        val row = LogRow(log.id, myId, log.media.id, log.media, log.stars, log.review, log.pinned, log.hidden, log.createdAt)
-        upsert("logs", rows.encodeToString(LogRow.serializer(), row), "id")
+    suspend fun guardarLog(log: LogEntry) {
+        val fila = LogRow(log.id, miId, log.media.id, log.media, log.stars, log.review, log.pinned, log.hidden, log.createdAt)
+        guardarFila("logs", filas.encodeToString(LogRow.serializer(), fila), "id")
     }
 
-    suspend fun deleteLog(id: String) = delete("logs", mapOf("id" to "eq.$id"))
+    suspend fun borrarLog(id: String) = borrar("logs", mapOf("id" to "eq.$id"))
 
-    suspend fun setWatchlist(media: Media, saved: Boolean) {
-        if (saved) upsert("watchlist", rows.encodeToString(WatchRow.serializer(), WatchRow(myId, media.id, media, now())), "user_id,media_id")
-        else delete("watchlist", mapOf("user_id" to "eq.$myId", "media_id" to "eq.${media.id}"))
+    suspend fun ponerPendiente(media: Media, guardado: Boolean) {
+        if (guardado) guardarFila("watchlist", filas.encodeToString(WatchRow.serializer(), WatchRow(miId, media.id, media, ahora())), "user_id,media_id")
+        else borrar("watchlist", mapOf("user_id" to "eq.$miId", "media_id" to "eq.${media.id}"))
     }
 
-    suspend fun setFollowing(userId: String, following: Boolean) {
-        if (following) upsert("follows", rows.encodeToString(FollowRow.serializer(), FollowRow(myId, userId, now())), "follower_id,followed_id")
-        else delete("follows", mapOf("follower_id" to "eq.$myId", "followed_id" to "eq.$userId"))
+    suspend fun ponerSeguido(userId: String, following: Boolean) {
+        if (following) guardarFila("follows", filas.encodeToString(FollowRow.serializer(), FollowRow(miId, userId, ahora())), "follower_id,followed_id")
+        else borrar("follows", mapOf("follower_id" to "eq.$miId", "followed_id" to "eq.$userId"))
     }
 
-    suspend fun setLiked(logId: String, liked: Boolean) {
-        if (liked) upsert("likes", rows.encodeToString(LikeRow.serializer(), LikeRow(myId, logId)), "user_id,log_id")
-        else delete("likes", mapOf("user_id" to "eq.$myId", "log_id" to "eq.$logId"))
+    suspend fun ponerMeGusta(logId: String, liked: Boolean) {
+        if (liked) guardarFila("likes", filas.encodeToString(LikeRow.serializer(), LikeRow(miId, logId)), "user_id,log_id")
+        else borrar("likes", mapOf("user_id" to "eq.$miId", "log_id" to "eq.$logId"))
     }
 
-    suspend fun sendMessage(message: Message) {
+    suspend fun enviarMensaje(message: Message) {
         // la reseña adjunta viaja con mi id real para que quien la reciba sepa de quien es
-        val log = message.log?.let { if (it.userId == ME) it.copy(userId = myId) else it }
-        val row = MessageRow(message.id, myId, message.toId.takeIf { message.groupId == null }, message.text, message.media, log, false, message.sentAt, message.groupId)
-        send(HttpMethod.Post, "rest/v1/messages", body = rows.encodeToString(MessageRow.serializer(), row), prefer = "return=minimal")
+        val log = message.log?.let { if (it.userId == ME) it.copy(userId = miId) else it }
+        val fila = MessageRow(message.id, miId, message.toId.takeIf { message.groupId == null }, message.text, message.media, log, false, message.sentAt, message.groupId)
+        enviar(HttpMethod.Post, "rest/v1/messages", cuerpo = filas.encodeToString(MessageRow.serializer(), fila), prefer = "return=minimal")
     }
 
-    suspend fun markRead(fromId: String) {
-        send(
+    suspend fun marcarLeido(fromId: String) {
+        enviar(
             HttpMethod.Patch, "rest/v1/messages",
-            mapOf("from_id" to "eq.$fromId", "to_id" to "eq.$myId", "read" to "is.false"),
-            body = "{\"read\":true}", prefer = "return=minimal",
+            mapOf("from_id" to "eq.$fromId", "to_id" to "eq.$miId", "read" to "is.false"),
+            cuerpo = "{\"read\":true}", prefer = "return=minimal",
         )
     }
 
     /** sube la foto de perfil (un jpeg ya recortado) y devuelve su direccion publica. */
-    suspend fun uploadAvatar(jpeg: ByteArray): String {
-        send(
-            HttpMethod.Post, "storage/v1/object/avatars/$myId/avatar.jpg",
-            content = ByteArrayContent(jpeg, ContentType.Image.JPEG), upsert = true,
+    suspend fun subirAvatar(jpeg: ByteArray): String {
+        enviar(
+            HttpMethod.Post, "storage/v1/object/avatars/$miId/avatar.jpg",
+            content = ByteArrayContent(jpeg, ContentType.Image.JPEG), guardarFila = true,
         )
         // el fichero siempre se llama igual; el ?v= obliga a las apps a volver a bajarlo cuando cambia
-        return avatarUrl(myId) + "?v=" + now()
+        return urlAvatar(miId) + "?v=" + ahora()
     }
 
     // ---- grupos
 
     /** crea el grupo y mete a sus miembros (yo incluido). */
-    suspend fun createGroup(group: Group) {
-        val row = GroupRow(group.id, group.name, group.photoUrl, myId, group.createdAt)
-        send(HttpMethod.Post, "rest/v1/groups", body = rows.encodeToString(GroupRow.serializer(), row), prefer = "return=minimal")
-        val people = group.members.map { MemberRow(group.id, if (it == ME) myId else it) }
-        send(HttpMethod.Post, "rest/v1/group_members", body = rows.encodeToString(ListSerializer(MemberRow.serializer()), people), prefer = "return=minimal")
+    suspend fun crearGrupo(group: Group) {
+        val fila = GroupRow(group.id, group.name, group.photoUrl, miId, group.createdAt)
+        enviar(HttpMethod.Post, "rest/v1/groups", cuerpo = filas.encodeToString(GroupRow.serializer(), fila), prefer = "return=minimal")
+        val people = group.members.map { MemberRow(group.id, if (it == ME) miId else it) }
+        enviar(HttpMethod.Post, "rest/v1/group_members", cuerpo = filas.encodeToString(ListSerializer(MemberRow.serializer()), people), prefer = "return=minimal")
     }
 
     /** sube la foto de un grupo (jpeg ya recortado), la deja puesta y devuelve su direccion. */
-    suspend fun setGroupPhoto(groupId: String, jpeg: ByteArray): String {
-        send(HttpMethod.Post, "storage/v1/object/avatars/$myId/g_$groupId.jpg", content = ByteArrayContent(jpeg, ContentType.Image.JPEG), upsert = true)
-        val url = "$SUPABASE_URL/storage/v1/object/public/avatars/$myId/g_$groupId.jpg?v=" + now()
-        send(HttpMethod.Patch, "rest/v1/groups", mapOf("id" to "eq.$groupId"), body = rows.encodeToString(PhotoPatch.serializer(), PhotoPatch(url)), prefer = "return=minimal")
+    suspend fun ponerFotoDeGrupo(groupId: String, jpeg: ByteArray): String {
+        enviar(HttpMethod.Post, "storage/v1/object/avatars/$miId/g_$groupId.jpg", content = ByteArrayContent(jpeg, ContentType.Image.JPEG), guardarFila = true)
+        val url = "$SUPABASE_URL/storage/v1/object/public/avatars/$miId/g_$groupId.jpg?v=" + ahora()
+        enviar(HttpMethod.Patch, "rest/v1/groups", mapOf("id" to "eq.$groupId"), cuerpo = filas.encodeToString(PhotoPatch.serializer(), PhotoPatch(url)), prefer = "return=minimal")
         return url
     }
 
-    suspend fun leaveGroup(groupId: String) = delete("group_members", mapOf("group_id" to "eq.$groupId", "user_id" to "eq.$myId"))
+    suspend fun salirDeGrupo(groupId: String) = borrar("group_members", mapOf("group_id" to "eq.$groupId", "user_id" to "eq.$miId"))
 
     /** solo quien lo creo. con el grupo se borran sus mensajes. */
-    suspend fun deleteGroup(groupId: String) = delete("groups", mapOf("id" to "eq.$groupId"))
+    suspend fun borrarGrupo(groupId: String) = borrar("groups", mapOf("id" to "eq.$groupId"))
 
     /**
      * borra la cuenta entera: la foto, y con la cuenta caen en cascada perfil, logs, pendientes,
      * seguidos, mensajes y me gusta. no se puede deshacer.
      */
-    suspend fun deleteAccount() {
+    suspend fun borrarCuenta() {
         try {
-            send(HttpMethod.Delete, "storage/v1/object/avatars/$myId/avatar.jpg")
+            enviar(HttpMethod.Delete, "storage/v1/object/avatars/$miId/avatar.jpg")
         } catch (e: ApiException) {
             // no tenia foto
         }
-        send(HttpMethod.Post, "rest/v1/rpc/delete_my_account", body = "{}")
-        signOut()
+        enviar(HttpMethod.Post, "rest/v1/rpc/delete_my_account", cuerpo = "{}")
+        cerrarSesion()
     }
 
     /** llama a una funcion de servidor (supabase/functions) con la sesion del usuario y devuelve su respuesta. */
-    suspend fun call(function: String, body: String): String =
-        send(HttpMethod.Post, "functions/v1/$function", content = TextContent(body, ContentType.Text.Plain))
+    suspend fun llamarFuncion(function: String, cuerpo: String): String =
+        enviar(HttpMethod.Post, "functions/v1/$function", content = TextContent(cuerpo, ContentType.Text.Plain))
 
     // ---- filas de las tablas
 
-    private fun local(id: String) = if (id == session?.userId) ME else id
+    private fun idLocal(id: String) = if (id == sesion?.userId) ME else id
 
-    private fun ProfileRow.toUser() = User(local(id), username, name, bio, favorite, photoUrl, watchlistPublic, background)
+    private fun ProfileRow.toUser() = User(idLocal(id), username, name, bio, favorite, photoUrl, watchlistPublic, background)
 
-    private fun LogRow.toLog() = LogEntry(id, local(userId), media, stars, review, createdAt, pinned, hidden)
+    private fun LogRow.toLog() = LogEntry(id, idLocal(userId), media, stars, review, createdAt, pinned, hidden)
 
     private fun MessageRow.toMessage() =
-        Message(id, local(fromId), toId?.let(::local).orEmpty(), text, media, log?.let { it.copy(userId = local(it.userId)) }, sentAt, read, groupId)
+        Message(id, idLocal(fromId), toId?.let(::idLocal).orEmpty(), text, media, log?.let { it.copy(userId = idLocal(it.userId)) }, sentAt, read, groupId)
 
     @Serializable
     private class Credentials(val email: String, val password: String)

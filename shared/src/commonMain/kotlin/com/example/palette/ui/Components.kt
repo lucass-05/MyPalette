@@ -7,7 +7,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -72,7 +71,7 @@ fun Cover(media: Media, modifier: Modifier = Modifier, shape: Shape = RoundedCor
 /** portada con la proporcion propia de su tipo a partir de una altura. */
 @Composable
 fun CoverByHeight(media: Media, height: Dp, modifier: Modifier = Modifier) {
-    Cover(media, modifier.height(height).aspectRatio(media.type.coverRatio))
+    Cover(media, modifier.height(height).aspectRatio(media.type.proporcion))
 }
 
 /**
@@ -80,11 +79,11 @@ fun CoverByHeight(media: Media, height: Dp, modifier: Modifier = Modifier) {
  * en las listas donde importa el orden (las historias) se pasa la posicion en [variant].
  */
 @Composable
-fun Avatar(user: User, size: Dp, modifier: Modifier = Modifier, variant: Int = user.id.hashCode()) {
+fun Avatar(user: User, size: Dp, modifier: Modifier = Modifier, variante: Int = user.id.hashCode()) {
     val color = Color(user.favorite)
-    Box(modifier.size(size).clip(avatarShape(variant)).background(color), contentAlignment = Alignment.Center) {
-        val initial = (user.name.ifBlank { user.username }).take(1).uppercase()
-        Text(initial, style = display((size.value * 0.46f).sp, color.readable()))
+    Box(modifier.size(size).clip(formaAvatar(variante)).background(color), contentAlignment = Alignment.Center) {
+        val inicial = (user.name.ifBlank { user.username }).take(1).uppercase()
+        Text(inicial, style = titular((size.value * 0.46f).sp, color.legible()))
         if (user.photoUrl != null) {
             AsyncImage(user.photoUrl, contentDescription = user.name, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
         }
@@ -96,15 +95,15 @@ fun Avatar(user: User, size: Dp, modifier: Modifier = Modifier, variant: Int = u
  * un toque pone la estrella entera y otro toque en la misma la deja en media.
  */
 @Composable
-fun Stars(value: Float, modifier: Modifier = Modifier, size: Dp = 14.dp, onChange: ((Float) -> Unit)? = null) {
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(if (onChange != null) 6.dp else 1.dp)) {
+fun Stars(value: Float, modifier: Modifier = Modifier, size: Dp = 14.dp, alCambiar: ((Float) -> Unit)? = null) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(if (alCambiar != null) 6.dp else 1.dp)) {
         for (i in 1..5) {
             val fill = (value - (i - 1)).coerceIn(0f, 1f)
-            val tap = if (onChange == null) Modifier else Modifier.clickable(
+            val toque = if (alCambiar == null) Modifier else Modifier.clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
-            ) { onChange(if (value == i.toFloat()) i - 0.5f else i.toFloat()) }
-            Box(tap) {
+            ) { alCambiar(if (value == i.toFloat()) i - 0.5f else i.toFloat()) }
+            Box(toque) {
                 Icon(Icons.StarFilled, contentDescription = null, tint = Pigment.Line, modifier = Modifier.size(size))
                 if (fill > 0f) {
                     Icon(
@@ -121,27 +120,27 @@ fun Stars(value: Float, modifier: Modifier = Modifier, size: Dp = 14.dp, onChang
     }
 }
 
-fun starsLabel(stars: Float): String = if (stars % 1f == 0f) stars.toInt().toString() else stars.toString().replace('.', ',')
+fun estrellasTexto(stars: Float): String = if (stars % 1f == 0f) stars.toInt().toString() else stars.toString().replace('.', ',')
 
 /** "8,4" a partir de una nota sobre 10. */
-fun scoreLabel(score: Double): String {
-    val tenths = (score * 10).roundToInt()
-    return "${tenths / 10},${tenths % 10}"
+fun notaTexto(score: Double): String {
+    val decimas = (score * 10).roundToInt()
+    return "${decimas / 10},${decimas % 10}"
 }
 
 @Composable
 fun ScreenTitle(text: String, modifier: Modifier = Modifier, actions: @Composable RowScope.() -> Unit = {}) {
     Row(modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 10.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(text, style = display(30.sp), modifier = Modifier.weight(1f))
+        Text(text, style = titular(30.sp), modifier = Modifier.weight(1f))
         actions()
     }
 }
 
 /** cabecera de las pantallas que se abren encima de las pestañas. */
 @Composable
-fun BackBar(title: String, onBack: () -> Unit, modifier: Modifier = Modifier, ink: Color = Pigment.Ink, actions: @Composable RowScope.() -> Unit = {}) {
+fun BackBar(title: String, alVolver: () -> Unit, modifier: Modifier = Modifier, ink: Color = Pigment.Ink, actions: @Composable RowScope.() -> Unit = {}) {
     Row(modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        IconAction(Icons.Back, "Volver", onBack, tint = ink)
+        IconAction(Icons.Back, "Volver", alVolver, tint = ink)
         Text(title, color = ink, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(horizontal = 4.dp))
         actions()
     }
@@ -165,15 +164,15 @@ fun PillButton(
     enabled: Boolean = true,
 ) {
     val shape = RoundedCornerShape(50)
-    val content = if (filled) color.readable() else color
-    val base = modifier.heightIn(min = 44.dp).clip(shape)
-    val look = when {
-        !enabled -> base.background(Pigment.Mist)
-        filled -> base.background(color)
-        else -> base.border(1.dp, Pigment.Line, shape)
+    val content = if (filled) color.legible() else color
+    val raiz = modifier.heightIn(min = 44.dp).clip(shape)
+    val aspecto = when {
+        !enabled -> raiz.background(Pigment.Mist)
+        filled -> raiz.background(color)
+        else -> raiz.border(1.dp, Pigment.Line, shape)
     }
     Row(
-        look.clickable(enabled = enabled, onClick = onClick).padding(horizontal = 18.dp),
+        aspecto.clickable(enabled = enabled, onClick = onClick).padding(horizontal = 18.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -189,14 +188,14 @@ fun PillButton(
 @Composable
 fun Chip(text: String, selected: Boolean, color: Color, onClick: () -> Unit, modifier: Modifier = Modifier, icon: ImageVector? = null) {
     val shape = RoundedCornerShape(50)
-    val look = if (selected) Modifier.background(color, shape) else Modifier.border(1.dp, Pigment.Line, shape)
+    val aspecto = if (selected) Modifier.background(color, shape) else Modifier.border(1.dp, Pigment.Line, shape)
     Row(
-        modifier.clip(shape).then(look).clickable(onClick = onClick).padding(horizontal = 13.dp, vertical = 8.dp),
+        modifier.clip(shape).then(aspecto).clickable(onClick = onClick).padding(horizontal = 13.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        val tint = if (selected) color.readable() else LocalContentColor.current
+        val tint = if (selected) color.legible() else LocalContentColor.current
         if (icon != null) {
-            Icon(icon, contentDescription = null, tint = if (selected) color.readable() else color, modifier = Modifier.size(15.dp))
+            Icon(icon, contentDescription = null, tint = if (selected) color.legible() else color, modifier = Modifier.size(15.dp))
             Spacer(Modifier.width(6.dp))
         }
         Text(text, color = tint, fontSize = 13.sp, fontWeight = FontWeight.Medium)
@@ -271,13 +270,13 @@ fun PlainField(
 
 /** pantalla vacia: una mancha, que pasa y que hacer. */
 @Composable
-fun EmptyState(title: String, body: String, color: Color, modifier: Modifier = Modifier, seed: Int = 4, ink: Color = Pigment.Ink, action: (@Composable () -> Unit)? = null) {
+fun EmptyState(title: String, cuerpo: String, color: Color, modifier: Modifier = Modifier, semilla: Int = 4, ink: Color = Pigment.Ink, action: (@Composable () -> Unit)? = null) {
     Column(modifier.fillMaxWidth().padding(horizontal = 36.dp, vertical = 40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Splat(seed, color, Modifier.size(84.dp))
+        Splat(semilla, color, Modifier.size(84.dp))
         Spacer(Modifier.height(22.dp))
-        Text(title, style = display(22.sp, ink), textAlign = TextAlign.Center)
+        Text(title, style = titular(22.sp, ink), textAlign = TextAlign.Center)
         Spacer(Modifier.height(8.dp))
-        Text(body, color = if (ink == Pigment.Ink) Pigment.Graphite else ink.copy(alpha = 0.7f), fontSize = 14.sp, lineHeight = 20.sp, textAlign = TextAlign.Center)
+        Text(cuerpo, color = if (ink == Pigment.Ink) Pigment.Graphite else ink.copy(alpha = 0.7f), fontSize = 14.sp, lineHeight = 20.sp, textAlign = TextAlign.Center)
         if (action != null) {
             Spacer(Modifier.height(20.dp))
             action()
@@ -297,5 +296,3 @@ fun SheetRow(icon: ImageVector, text: String, onClick: () -> Unit, tint: Color =
         Text(text, color = tint, fontSize = 15.sp)
     }
 }
-
-val ScreenPadding = PaddingValues(horizontal = 20.dp)

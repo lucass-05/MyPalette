@@ -8,6 +8,11 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
 import kotlinx.serialization.json.Json
 
+// ktor es la libreria de red. HttpClient() elige solo el motor de cada plataforma
+// (okhttp en android y escritorio, darwin en ios, fetch en web).
+// las respuestas llegan como texto json y kotlinx.serialization las convierte en objetos:
+// cada clase marcada con @Serializable declara los campos que nos interesan y el resto se ignora.
+
 internal val json = Json {
     ignoreUnknownKeys = true
     isLenient = true
@@ -19,27 +24,27 @@ internal val http by lazy { HttpClient() }
 
 class ApiException(message: String) : Exception(message)
 
-internal suspend fun getText(
+internal suspend fun pedirTexto(
     url: String,
-    params: Map<String, String?> = emptyMap(),
-    bearer: String? = null,
+    parametros: Map<String, String?> = emptyMap(),
+    credencial: String? = null,
 ): String {
-    val response = http.get(url) {
-        params.forEach { (k, v) -> if (v != null) parameter(k, v) }
-        if (bearer != null) header("Authorization", "Bearer $bearer")
+    val respuesta = http.get(url) {
+        parametros.forEach { (k, v) -> if (v != null) parameter(k, v) }
+        if (credencial != null) header("Authorization", "Bearer $credencial")
         header("Accept", "application/json")
     }
-    if (!response.status.isSuccess()) throw ApiException("${response.status.value} en $url")
-    return response.bodyAsText()
+    if (!respuesta.status.isSuccess()) throw ApiException("${respuesta.status.value} en $url")
+    return respuesta.bodyAsText()
 }
 
-private val months = listOf("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic")
+private val meses = listOf("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic")
 
 /** "2014-11-07" → "7 nov 2014". si no tiene esa forma, se deja como venga. */
-internal fun spanishDate(iso: String): String {
-    val parts = iso.take(10).split("-").mapNotNull { it.toIntOrNull() }
-    if (parts.size != 3 || parts[1] !in 1..12) return iso
-    return "${parts[2]} ${months[parts[1] - 1]} ${parts[0]}"
+internal fun fechaCorta(iso: String): String {
+    val partes = iso.take(10).split("-").mapNotNull { it.toIntOrNull() }
+    if (partes.size != 3 || partes[1] !in 1..12) return iso
+    return "${partes[2]} ${meses[partes[1] - 1]} ${partes[0]}"
 }
 
-internal fun yearOf(date: String?): Int? = date?.take(4)?.toIntOrNull()
+internal fun anioDe(date: String?): Int? = date?.take(4)?.toIntOrNull()

@@ -48,14 +48,14 @@ import com.example.palette.ui.Pigment
 import com.example.palette.ui.PillButton
 import com.example.palette.ui.PlainField
 import com.example.palette.ui.Swatch
-import com.example.palette.ui.contrast
-import com.example.palette.ui.display
+import com.example.palette.ui.contraste
+import com.example.palette.ui.titular
 import com.example.palette.ui.icon
-import com.example.palette.ui.readable
-import com.example.palette.ui.rememberPhotoPicker
-import com.example.palette.ui.squareAvatar
+import com.example.palette.ui.legible
+import com.example.palette.ui.recordarSelectorDeFotos
+import com.example.palette.ui.avatarCuadrado
 import com.example.palette.ui.toHex
-import com.example.palette.ui.toStored
+import com.example.palette.ui.aGuardado
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -70,26 +70,26 @@ internal fun Label(text: String) {
 private class ColorSlot(val label: String, val color: Color, val icon: ImageVector? = null, val save: (Long) -> Unit)
 
 @Composable
-private fun ColorRow(slot: ColorSlot, onClick: () -> Unit) {
+private fun ColorRow(hueco: ColorSlot, onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-        if (slot.icon != null) {
-            Icon(slot.icon, contentDescription = null, tint = Pigment.Ink, modifier = Modifier.size(18.dp))
+        if (hueco.icon != null) {
+            Icon(hueco.icon, contentDescription = null, tint = Pigment.Ink, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(12.dp))
         }
-        Text(slot.label, fontSize = 15.sp, modifier = Modifier.weight(1f))
-        Text(slot.color.toHex(), color = Pigment.Graphite, fontSize = 13.sp, modifier = Modifier.padding(end = 12.dp))
-        Swatch(slot.color, onClick = onClick)
+        Text(hueco.label, fontSize = 15.sp, modifier = Modifier.weight(1f))
+        Text(hueco.color.toHex(), color = Pigment.Graphite, fontSize = 13.sp, modifier = Modifier.padding(end = 12.dp))
+        Swatch(hueco.color, onClick = onClick)
     }
 }
 
 @Composable
-private fun ColorSheet(slot: ColorSlot, onDone: () -> Unit) {
+private fun ColorSheet(hueco: ColorSlot, onDone: () -> Unit) {
     Sheet(onDone) {
         Column(Modifier.padding(horizontal = 22.dp)) {
-            Text(slot.label, style = display(22.sp))
+            Text(hueco.label, style = titular(22.sp))
             Spacer(Modifier.height(14.dp))
             // la clave evita que el selector arrastre el tono del color anterior
-            key(slot.label) { ColorPicker(slot.color, { slot.save(it.toStored()) }) }
+            key(hueco.label) { ColorPicker(hueco.color, { hueco.save(it.aGuardado()) }) }
             Spacer(Modifier.height(18.dp))
             PillButton("Listo", onDone, modifier = Modifier.fillMaxWidth())
         }
@@ -98,81 +98,81 @@ private fun ColorSheet(slot: ColorSlot, onDone: () -> Unit) {
 
 @Composable
 fun SettingsScreen(modifier: Modifier = Modifier) {
-    val palette = LocalPalette.current
-    val store = palette.store
-    val me = store.me
+    val app = LocalPalette.current
+    val almacen = app.almacen
+    val me = almacen.me
     var name by remember { mutableStateOf(me.name) }
     var username by remember { mutableStateOf(me.username) }
     var bio by remember { mutableStateOf(me.bio) }
     var favorite by remember { mutableLongStateOf(me.favorite) }
     var background by remember { mutableStateOf(me.background) }
-    var deleting by remember { mutableStateOf(false) }
-    var editing by remember { mutableStateOf<String?>(null) }
-    var saving by remember { mutableStateOf(false) }
-    var problem by remember { mutableStateOf<String?>(null) }
-    val scope = rememberCoroutineScope()
-    var uploading by remember { mutableStateOf(false) }
+    var borrando by remember { mutableStateOf(false) }
+    var editando by remember { mutableStateOf<String?>(null) }
+    var guardando by remember { mutableStateOf(false) }
+    var problema by remember { mutableStateOf<String?>(null) }
+    val ambito = rememberCoroutineScope()
+    var subiendo by remember { mutableStateOf(false) }
     // la foto se recorta a cuadrado y se reduce antes de subirla
-    val pickPhoto = rememberPhotoPicker { photo ->
-        uploading = true
-        scope.launch {
-            problem = try {
-                store.setPhoto(withContext(Dispatchers.Default) { squareAvatar(photo) })
+    val elegirFoto = recordarSelectorDeFotos { foto ->
+        subiendo = true
+        ambito.launch {
+            problema = try {
+                almacen.ponerFoto(withContext(Dispatchers.Default) { avatarCuadrado(foto) })
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 "No se ha podido leer esa imagen. Prueba con un JPG o un PNG."
             }
-            uploading = false
+            subiendo = false
         }
     }
-    val valid = name.isNotBlank() && username.length >= 2
+    val valido = name.isNotBlank() && username.length >= 2
 
-    val theme = store.data.theme
-    val favoriteSlot = ColorSlot("Tu color favorito", Color(favorite)) { favorite = it }
-    val backgroundSlot = ColorSlot("Fondo de tu perfil", background?.let { Color(it) } ?: Pigment.Paper) { background = it }
-    val appSlots = listOf(
-        ColorSlot("Fondo", Pigment.Paper) { palette.setTheme(theme.copy(paper = it)) },
-        ColorSlot("Texto", Pigment.Ink) { palette.setTheme(theme.copy(ink = it)) },
-        ColorSlot("Botones y detalles", Pigment.Accent) { palette.setTheme(theme.copy(accent = it)) },
+    val theme = almacen.estado.theme
+    val huecoFavorito = ColorSlot("Tu color favorito", Color(favorite)) { favorite = it }
+    val huecoFondo = ColorSlot("Fondo de tu perfil", background?.let { Color(it) } ?: Pigment.Paper) { background = it }
+    val huecosApp = listOf(
+        ColorSlot("Fondo", Pigment.Paper) { app.ponerTema(theme.copy(paper = it)) },
+        ColorSlot("Texto", Pigment.Ink) { app.ponerTema(theme.copy(ink = it)) },
+        ColorSlot("Botones y detalles", Pigment.Accent) { app.ponerTema(theme.copy(accent = it)) },
     )
-    val typeSlots = listOf(
-        ColorSlot(MediaType.MOVIE.plural, Pigment.Cadmium, MediaType.MOVIE.icon) { palette.setTheme(theme.copy(movie = it)) },
-        ColorSlot(MediaType.SERIES.plural, Pigment.Cobalt, MediaType.SERIES.icon) { palette.setTheme(theme.copy(series = it)) },
-        ColorSlot(MediaType.GAME.plural, Pigment.Viridian, MediaType.GAME.icon) { palette.setTheme(theme.copy(game = it)) },
-        ColorSlot(MediaType.ALBUM.plural, Pigment.Ochre, MediaType.ALBUM.icon) { palette.setTheme(theme.copy(album = it)) },
-        ColorSlot(MediaType.SONG.plural, Pigment.Violet, MediaType.SONG.icon) { palette.setTheme(theme.copy(song = it)) },
-        ColorSlot(MediaType.BOOK.plural, Pigment.Magenta, MediaType.BOOK.icon) { palette.setTheme(theme.copy(book = it)) },
+    val huecosTipo = listOf(
+        ColorSlot(MediaType.MOVIE.plural, Pigment.Cadmium, MediaType.MOVIE.icon) { app.ponerTema(theme.copy(movie = it)) },
+        ColorSlot(MediaType.SERIES.plural, Pigment.Cobalt, MediaType.SERIES.icon) { app.ponerTema(theme.copy(series = it)) },
+        ColorSlot(MediaType.GAME.plural, Pigment.Viridian, MediaType.GAME.icon) { app.ponerTema(theme.copy(game = it)) },
+        ColorSlot(MediaType.ALBUM.plural, Pigment.Ochre, MediaType.ALBUM.icon) { app.ponerTema(theme.copy(album = it)) },
+        ColorSlot(MediaType.SONG.plural, Pigment.Violet, MediaType.SONG.icon) { app.ponerTema(theme.copy(song = it)) },
+        ColorSlot(MediaType.BOOK.plural, Pigment.Magenta, MediaType.BOOK.icon) { app.ponerTema(theme.copy(book = it)) },
     )
 
     Column(modifier.imePadding()) {
-        BackBar("Ajustes", { palette.nav.back() }) {
+        BackBar("Ajustes", { app.navegacion.volver() }) {
             PillButton(
-                if (saving) "Guardando…" else "Guardar",
+                if (guardando) "Guardando…" else "Guardar",
                 {
-                    saving = true
-                    scope.launch {
-                        problem = store.saveProfile(name, username, bio, favorite, background)
-                        saving = false
-                        if (problem == null) palette.nav.back()
+                    guardando = true
+                    ambito.launch {
+                        problema = almacen.guardarPerfil(name, username, bio, favorite, background)
+                        guardando = false
+                        if (problema == null) app.navegacion.volver()
                     }
                 },
-                enabled = valid && !saving, color = Pigment.Accent, modifier = Modifier.padding(end = 12.dp),
+                enabled = valido && !guardando, color = Pigment.Accent, modifier = Modifier.padding(end = 12.dp),
             )
         }
         Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = BarSpace)) {
-            Text("Perfil", style = display(21.sp), modifier = Modifier.padding(top = 8.dp))
-            problem?.let { Text(it, color = Pigment.Cadmium, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 6.dp)) }
+            Text("Perfil", style = titular(21.sp), modifier = Modifier.padding(top = 8.dp))
+            problema?.let { Text(it, color = Pigment.Cadmium, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 6.dp)) }
             Row(Modifier.padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Avatar(me.copy(favorite = favorite), 76.dp)
                 Spacer(Modifier.width(16.dp))
                 Column {
-                    PillButton(if (uploading) "Subiendo…" else "Cambiar foto", pickPhoto, filled = false, enabled = !uploading)
-                    if (me.photoUrl != null && !uploading) {
+                    PillButton(if (subiendo) "Subiendo…" else "Cambiar foto", elegirFoto, filled = false, enabled = !subiendo)
+                    if (me.photoUrl != null && !subiendo) {
                         Text(
                             "Quitar foto",
                             color = Pigment.Graphite, fontSize = 13.sp,
-                            modifier = Modifier.clickable { scope.launch { problem = store.setPhoto(null) } }.padding(horizontal = 6.dp, vertical = 8.dp),
+                            modifier = Modifier.clickable { ambito.launch { problema = almacen.ponerFoto(null) } }.padding(horizontal = 6.dp, vertical = 8.dp),
                         )
                     }
                 }
@@ -180,14 +180,14 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
             Label("Nombre")
             PlainField(name, { name = it }, "Cómo te llamas")
             Label("Usuario")
-            PlainField(username, { username = PaletteStore.cleanUsername(it) }, "minúsculas y números")
+            PlainField(username, { username = PaletteStore.limpiarUsuario(it) }, "minúsculas y números")
             Label("Sobre ti")
             PlainField(bio, { bio = it.take(150) }, "Una línea que te defina", singleLine = false, minHeight = 80.dp)
             Spacer(Modifier.height(8.dp))
-            ColorRow(favoriteSlot) { editing = favoriteSlot.label }
+            ColorRow(huecoFavorito) { editando = huecoFavorito.label }
             Text("Es el color de tu avatar y del anillo de tus historias.", color = Pigment.Graphite, fontSize = 13.sp)
             Spacer(Modifier.height(8.dp))
-            ColorRow(backgroundSlot) { editing = backgroundSlot.label }
+            ColorRow(huecoFondo) { editando = huecoFondo.label }
             Text(
                 if (background == null) "Ahora tu perfil se ve con el fondo que tenga cada uno en su app. Si eliges un color, lo verá igual todo el que te visite."
                 else "Todo el que visite tu perfil lo verá con este fondo. Toca aquí para quitarlo.",
@@ -203,19 +203,19 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                 }
                 Switch(
                     checked = me.watchlistPublic,
-                    onCheckedChange = { store.setWatchlistPublic(it) },
+                    onCheckedChange = { almacen.ponerPendientesPublicos(it) },
                     colors = SwitchDefaults.colors(
-                        checkedTrackColor = Pigment.Accent, checkedThumbColor = Pigment.Accent.readable(),
+                        checkedTrackColor = Pigment.Accent, checkedThumbColor = Pigment.Accent.legible(),
                         uncheckedTrackColor = Pigment.Mist, uncheckedBorderColor = Pigment.Line, uncheckedThumbColor = Pigment.Graphite,
                     ),
                 )
             }
 
             Spacer(Modifier.height(30.dp))
-            Text("Colores de la app", style = display(21.sp))
+            Text("Colores de la app", style = titular(21.sp))
             Text("Se cambian al momento y se quedan guardados en este dispositivo.", color = Pigment.Graphite, fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp, bottom = 6.dp))
-            appSlots.forEach { slot -> ColorRow(slot) { editing = slot.label } }
-            if (contrast(Pigment.Paper, Pigment.Ink) < 3f) {
+            huecosApp.forEach { hueco -> ColorRow(hueco) { editando = hueco.label } }
+            if (contraste(Pigment.Paper, Pigment.Ink) < 3f) {
                 // este aviso va siempre en negro sobre blanco: si no, podria no leerse justo cuando hace falta
                 Text(
                     "El fondo y el texto se parecen demasiado y la app cuesta de leer.",
@@ -224,27 +224,27 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                 )
             }
             Label("Un color para cada tipo de contenido")
-            typeSlots.forEach { slot -> ColorRow(slot) { editing = slot.label } }
+            huecosTipo.forEach { hueco -> ColorRow(hueco) { editando = hueco.label } }
             Spacer(Modifier.height(12.dp))
             // negro fijo para que el boton se vea aunque los colores elegidos no se distingan
-            PillButton("Volver a los colores originales", { palette.setTheme(ThemeColors()) }, color = Color(0xFF17171A))
+            PillButton("Volver a los colores originales", { app.ponerTema(ThemeColors()) }, color = Color(0xFF17171A))
 
             Spacer(Modifier.height(30.dp))
             PillButton(
                 "Cerrar sesión",
                 {
-                    palette.nav.switchTo(Screen.HOME)
-                    store.signOut()
+                    app.navegacion.irA(Screen.HOME)
+                    almacen.cerrarSesion()
                 },
                 filled = false,
             )
 
             Spacer(Modifier.height(18.dp))
-            if (!deleting) {
+            if (!borrando) {
                 Text(
                     "Eliminar mi cuenta",
                     color = Pigment.Cadmium, fontSize = 14.sp,
-                    modifier = Modifier.clickable { deleting = true }.padding(vertical = 8.dp),
+                    modifier = Modifier.clickable { borrando = true }.padding(vertical = 8.dp),
                 )
             } else {
                 Text(
@@ -253,21 +253,21 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                 )
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    PillButton("Cancelar", { deleting = false }, filled = false, enabled = !saving)
+                    PillButton("Cancelar", { borrando = false }, filled = false, enabled = !guardando)
                     PillButton(
-                        if (saving) "Eliminando…" else "Eliminar para siempre",
+                        if (guardando) "Eliminando…" else "Eliminar para siempre",
                         {
-                            saving = true
-                            scope.launch {
-                                problem = store.deleteAccount()
-                                saving = false
-                                if (problem == null) palette.nav.switchTo(Screen.HOME) else deleting = false
+                            guardando = true
+                            ambito.launch {
+                                problema = almacen.borrarCuenta()
+                                guardando = false
+                                if (problema == null) app.navegacion.irA(Screen.HOME) else borrando = false
                             }
                         },
-                        enabled = !saving, color = Pigment.Cadmium,
+                        enabled = !guardando, color = Pigment.Cadmium,
                     )
                 }
-                problem?.let { Text(it, color = Pigment.Cadmium, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp)) }
+                problema?.let { Text(it, color = Pigment.Cadmium, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp)) }
             }
 
             Spacer(Modifier.height(24.dp))
@@ -279,7 +279,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    (listOf(favoriteSlot, backgroundSlot) + appSlots + typeSlots).firstOrNull { it.label == editing }?.let { slot ->
-        ColorSheet(slot) { editing = null }
+    (listOf(huecoFavorito, huecoFondo) + huecosApp + huecosTipo).firstOrNull { it.label == editando }?.let { hueco ->
+        ColorSheet(hueco) { editando = null }
     }
 }

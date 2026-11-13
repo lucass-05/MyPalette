@@ -24,6 +24,9 @@ import org.jetbrains.compose.resources.Font
 import palette.shared.generated.resources.Res
 import palette.shared.generated.resources.youngserif_regular
 
+// todos los colores salen de Pigment. como Pigment.colors es estado de compose,
+// cambiar un color en ajustes repinta la app entera sin tener que avisar a nadie.
+
 /**
  * los colores de la app. todos salen de [colors], que el usuario puede cambiar en ajustes:
  * como es estado de compose, cualquier pantalla que lea un color se repinta sola al cambiarlo.
@@ -62,13 +65,13 @@ object Pigment {
 }
 
 /** blanco o casi negro, lo que se lea mejor encima de este color. */
-fun Color.readable(): Color = if (luminance() > 0.45f) Color(0xFF17171A) else Color.White
+fun Color.legible(): Color = if (luminance() > 0.45f) Color(0xFF17171A) else Color.White
 
 /** el color como se guarda: argb en un long (0xffrrggbb). */
-fun Color.toStored(): Long = toArgb().toLong() and 0xFFFFFFFF
+fun Color.aGuardado(): Long = toArgb().toLong() and 0xFFFFFFFF
 
 /** contraste wcag entre dos colores, de 1 (iguales) a 21 (negro sobre blanco). */
-fun contrast(a: Color, b: Color): Float {
+fun contraste(a: Color, b: Color): Float {
     val hi = maxOf(a.luminance(), b.luminance())
     val lo = minOf(a.luminance(), b.luminance())
     return (hi + 0.05f) / (lo + 0.05f)
@@ -85,7 +88,7 @@ val MediaType.icon: ImageVector
     }
 
 /** proporcion ancho/alto de la portada de cada tipo. */
-val MediaType.coverRatio: Float
+val MediaType.proporcion: Float
     get() = when (this) {
         MediaType.MOVIE, MediaType.SERIES, MediaType.BOOK -> 2f / 3f
         MediaType.GAME -> 3f / 4f
@@ -96,12 +99,12 @@ val LocalDisplayFont = staticCompositionLocalOf<FontFamily> { FontFamily.Serif }
 
 /** young serif para titulos; el cuerpo usa la fuente del sistema. */
 @Composable
-fun display(size: TextUnit, color: Color = Pigment.Ink): TextStyle =
+fun titular(size: TextUnit, color: Color = Pigment.Ink): TextStyle =
     TextStyle(fontFamily = LocalDisplayFont.current, fontSize = size, lineHeight = size * 1.15f, color = color, letterSpacing = (-0.2).sp)
 
 @Composable
 fun PaletteTheme(content: @Composable () -> Unit) {
-    val displayFont = FontFamily(Font(Res.font.youngserif_regular))
+    val fuenteTitular = FontFamily(Font(Res.font.youngserif_regular))
     MaterialTheme(
         colorScheme = lightColorScheme(
             primary = Pigment.Ink,
@@ -119,7 +122,7 @@ fun PaletteTheme(content: @Composable () -> Unit) {
         ),
     ) {
         CompositionLocalProvider(
-            LocalDisplayFont provides displayFont,
+            LocalDisplayFont provides fuenteTitular,
             LocalContentColor provides Pigment.Ink,
             content = content,
         )

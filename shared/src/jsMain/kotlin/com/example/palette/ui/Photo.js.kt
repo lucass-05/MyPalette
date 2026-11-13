@@ -13,7 +13,7 @@ import org.jetbrains.skia.Image
 
 // abre el selector de archivos del navegador y devuelve la imagen elegida en base64,
 // que es la forma sencilla de pasar bytes de javascript a kotlin.
-private fun openFilePicker(onBase64: (String) -> Unit) {
+private fun abrirSelector(onBase64: (String) -> Unit) {
     js(
         """
         var input = document.createElement('input');
@@ -33,10 +33,10 @@ private fun openFilePicker(onBase64: (String) -> Unit) {
 
 @OptIn(ExperimentalEncodingApi::class)
 @Composable
-actual fun rememberPhotoPicker(onPicked: (ByteArray) -> Unit): () -> Unit {
-    val report by rememberUpdatedState(onPicked)
-    return remember { { openFilePicker { encoded -> report(Base64.decode(encoded)) } } }
+actual fun recordarSelectorDeFotos(alElegir: (ByteArray) -> Unit): () -> Unit {
+    val avisar by rememberUpdatedState(alElegir)
+    return remember { { abrirSelector { codificada -> avisar(Base64.decode(codificada)) } } }
 }
 
-internal actual fun encodeJpeg(image: ImageBitmap, quality: Int): ByteArray =
-    Image.makeFromBitmap(image.asSkiaBitmap()).encodeToData(EncodedImageFormat.JPEG, quality)?.bytes ?: ByteArray(0)
+internal actual fun codificarJpeg(image: ImageBitmap, calidad: Int): ByteArray =
+    Image.makeFromBitmap(image.asSkiaBitmap()).encodeToData(EncodedImageFormat.JPEG, calidad)?.bytes ?: ByteArray(0)

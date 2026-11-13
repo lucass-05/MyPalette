@@ -9,6 +9,10 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 
+// async { } lanza una tarea sin esperar a que acabe y awaitAll() espera a todas.
+// asi las cuatro bases de datos se consultan a la vez y la busqueda tarda lo que tarde la mas lenta,
+// no la suma de todas.
+
 /** punto unico de entrada a las bases de datos externas. */
 class Catalog {
     private val tmdb = Tmdb(ApiKeys.TMDB)
@@ -17,44 +21,44 @@ class Catalog {
     private val openLibrary = OpenLibrary()
 
     /** tipos que ahora mismo no se pueden buscar porque falta su clave en local.properties. */
-    val unavailable: Set<MediaType>
+    val noDisponibles: Set<MediaType>
         get() = buildSet {
             if (!tmdb.ready) { add(MediaType.MOVIE); add(MediaType.SERIES) }
         }
 
     /** busca en todas las fuentes a la vez. con [types] vacio busca en todo. */
-    suspend fun search(query: String, types: Set<MediaType> = emptySet()): List<Media> = coroutineScope {
-        val wanted = (types.ifEmpty { MediaType.entries.toSet() }) - unavailable
-        val movies = MediaType.MOVIE in wanted
-        val series = MediaType.SERIES in wanted
-        val jobs = buildList {
-            if (movies || series) add(async { safe { tmdb.search(query, movies, series) } })
-            if (MediaType.GAME in wanted) add(async { safe { igdb.search(query) } })
-            if (MediaType.ALBUM in wanted) add(async { safe { itunes.search(query, MediaType.ALBUM) } })
-            if (MediaType.SONG in wanted) add(async { safe { itunes.search(query, MediaType.SONG) } })
-            if (MediaType.BOOK in wanted) add(async { safe { openLibrary.search(query) } })
+    suspend fun buscar(consulta: String, tipos: Set<MediaType> = emptySet()): List<Media> = coroutineScope {
+        val pedidos = (tipos.ifEmpty { MediaType.entries.toSet() }) - noDisponibles
+        val pelis = MediaType.MOVIE in pedidos
+        val series = MediaType.SERIES in pedidos
+        val tareas = buildList {
+            if (pelis || series) add(async { seguro { tmdb.buscar(consulta, pelis, series) } })
+            if (MediaType.GAME in pedidos) add(async { seguro { igdb.buscar(consulta) } })
+            if (MediaType.ALBUM in pedidos) add(async { seguro { itunes.buscar(consulta, MediaType.ALBUM) } })
+            if (MediaType.SONG in pedidos) add(async { seguro { itunes.buscar(consulta, MediaType.SONG) } })
+            if (MediaType.BOOK in pedidos) add(async { seguro { openLibrary.buscar(consulta) } })
         }
-        interleave(jobs.awaitAll())
+        intercalar(tareas.awaitAll())
     }
 
-    suspend fun details(media: Media): Media = safeOr(media) {
-        val full = when {
-            media.id.startsWith("tmdb:") && tmdb.ready -> tmdb.details(media)
-            media.id.startsWith("igdb:") -> igdb.details(media)
-            media.id.startsWith("itunes:") -> itunes.details(media)
-            media.id.startsWith("ol:") -> openLibrary.details(media)
+    suspend fun detalles(media: Media): Media = seguroO(media) {
+        val completo = when {
+            media.id.startsWith("tmdb:") && tmdb.ready -> tmdb.detalles(media)
+            media.id.startsWith("igdb:") -> igdb.detalles(media)
+            media.id.startsWith("itunes:") -> itunes.detalles(media)
+            media.id.startsWith("ol:") -> openLibrary.detalles(media)
             else -> media
         }
         // lo que ya teniamos manda si la ficha completa viene sin ese dato
-        full.copy(
-            imageUrl = full.imageUrl ?: media.imageUrl,
-            overview = full.overview ?: media.overview,
-            creator = full.creator ?: media.creator,
+        completo.copy(
+            imageUrl = completo.imageUrl ?: media.imageUrl,
+            overview = completo.overview ?: media.overview,
+            creator = completo.creator ?: media.creator,
         )
     }
 
     /** lo que solo tiene sentido para ese tipo de contenido: reparto, canciones del disco, plataformas... */
-    suspend fun extras(media: Media): Extras = safeOr(Extras()) {
+    suspend fun extras(media: Media): Extras = seguroO(Extras()) {
         when {
             media.id.startsWith("tmdb:") && tmdb.ready -> tmdb.extras(media)
             media.id.startsWith("igdb:") -> igdb.extras(media)
@@ -71,7 +75,7 @@ class Catalog {
         }
     }
 
-    suspend fun similar(media: Media): List<Media> = safe {
+    suspend fun similar(media: Media): List<Media> = seguro {
         when {
             media.id.startsWith("tmdb:") && tmdb.ready -> tmdb.similar(media)
             media.id.startsWith("igdb:") -> igdb.similar(media)
@@ -81,25 +85,25 @@ class Catalog {
         }
     }
 
-    suspend fun trending(): List<Media> = safe { if (tmdb.ready) tmdb.trending() else emptyList() }
+    suspend fun tendencias(): List<Media> = seguro { if (tmdb.ready) tmdb.tendencias() else emptyList() }
 
     // cada fuente ya viene ordenada por relevancia: se van cogiendo de una en una para que ninguna tape a las demas
-    private fun interleave(lists: List<List<Media>>): List<Media> {
-        val out = mutableListOf<Media>()
-        val longest = lists.maxOfOrNull { it.size } ?: 0
-        for (i in 0 until longest) lists.forEach { l -> l.getOrNull(i)?.let(out::add) }
-        return out.distinctBy { it.id }
+    private fun intercalar(listas: List<List<Media>>): List<Media> {
+        val salida = mutableListOf<Media>()
+        val masLarga = listas.maxOfOrNull { it.size } ?: 0
+        for (i in 0 until masLarga) listas.forEach { l -> l.getOrNull(i)?.let(salida::add) }
+        return salida.distinctBy { it.id }
     }
 
-    private suspend fun safe(block: suspend () -> List<Media>): List<Media> = safeOr(emptyList()) { block().distinctBy { it.id } }
+    private suspend fun seguro(block: suspend () -> List<Media>): List<Media> = seguroO(emptyList()) { block().distinctBy { it.id } }
 
-    private suspend fun <T> safeOr(fallback: T, block: suspend () -> T): T =
+    private suspend fun <T> seguroO(porDefecto: T, block: suspend () -> T): T =
         try {
             block()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             println("Palette: ${e.message}")
-            fallback
+            porDefecto
         }
 }

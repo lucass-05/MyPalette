@@ -12,28 +12,28 @@ internal class Tmdb(private val key: String) {
     val ready get() = key.isNotBlank()
 
     // tmdb da dos credenciales: la "api key" corta (v3) y el "read access token" largo (v4). vale cualquiera.
-    private val isToken = key.length > 60
+    private val esToken = key.length > 60
 
-    private suspend fun call(path: String, params: Map<String, String?> = emptyMap()): String {
-        val all = params + mapOf("language" to "es-ES") + if (isToken) emptyMap() else mapOf("api_key" to key)
-        return getText("https://api.themoviedb.org/3/$path", all, bearer = key.takeIf { isToken })
+    private suspend fun llamarFuncion(ruta: String, parametros: Map<String, String?> = emptyMap()): String {
+        val todos = parametros + mapOf("language" to "es-ES") + if (esToken) emptyMap() else mapOf("api_key" to key)
+        return pedirTexto("https://api.themoviedb.org/3/$ruta", todos, credencial = key.takeIf { esToken })
     }
 
-    suspend fun search(query: String, movies: Boolean, series: Boolean): List<Media> {
-        val path = when {
-            movies && series -> "search/multi"
-            movies -> "search/movie"
+    suspend fun buscar(consulta: String, pelis: Boolean, series: Boolean): List<Media> {
+        val ruta = when {
+            pelis && series -> "search/multi"
+            pelis -> "search/movie"
             else -> "search/tv"
         }
-        val fallback = if (movies && !series) "movie" else "tv"
-        val page = json.decodeFromString(Page.serializer(), call(path, mapOf("query" to query, "include_adult" to "false")))
-        return page.results.mapNotNull { it.toMedia(fallback) }
+        val porDefecto = if (pelis && !series) "movie" else "tv"
+        val pagina = json.decodeFromString(Page.serializer(), llamarFuncion(ruta, mapOf("query" to consulta, "include_adult" to "false")))
+        return pagina.results.mapNotNull { it.toMedia(porDefecto) }
     }
 
-    suspend fun details(media: Media): Media {
+    suspend fun detalles(media: Media): Media {
         val (kind, id) = split(media.id)
-        val d = json.decodeFromString(Item.serializer(), call("$kind/$id", mapOf("append_to_response" to "credits")))
-        val base = d.toMedia(kind) ?: return media
+        val d = json.decodeFromString(Item.serializer(), llamarFuncion("$kind/$id", mapOf("append_to_response" to "credits")))
+        val raiz = d.toMedia(kind) ?: return media
         val director = d.credits?.crew?.firstOrNull { it.job == "Director" }?.name
         val creator = director ?: d.createdBy.firstOrNull()?.name
         val extra = when {
@@ -41,12 +41,12 @@ internal class Tmdb(private val key: String) {
             d.seasons != null -> if (d.seasons == 1) "1 temporada" else "${d.seasons} temporadas"
             else -> null
         }
-        return base.copy(creator = creator, genres = d.genres.map { it.name }, extra = extra)
+        return raiz.copy(creator = creator, genres = d.genres.map { it.name }, extra = extra)
     }
 
     suspend fun extras(media: Media): Extras {
         val (kind, id) = split(media.id)
-        val d = json.decodeFromString(Item.serializer(), call("$kind/$id", mapOf("append_to_response" to "credits")))
+        val d = json.decodeFromString(Item.serializer(), llamarFuncion("$kind/$id", mapOf("append_to_response" to "credits")))
         val original = (d.originalTitle ?: d.originalName)?.takeIf { it != (d.title ?: d.name) }
         return Extras(
             listOfNotNull(
@@ -57,7 +57,7 @@ internal class Tmdb(private val key: String) {
                 d.seasons?.let { "Temporadas" to it.toString() },
                 d.episodes?.let { "Episodios" to it.toString() },
                 d.networks.firstOrNull()?.let { "Cadena" to it.name },
-                (d.releaseDate ?: d.firstAirDate)?.takeIf { it.isNotBlank() }?.let { "Estreno" to spanishDate(it) },
+                (d.releaseDate ?: d.firstAirDate)?.takeIf { it.isNotBlank() }?.let { "Estreno" to fechaCorta(it) },
                 original?.let { "Título original" to it },
             )
         )
@@ -65,29 +65,29 @@ internal class Tmdb(private val key: String) {
 
     suspend fun similar(media: Media): List<Media> {
         val (kind, id) = split(media.id)
-        val page = json.decodeFromString(Page.serializer(), call("$kind/$id/recommendations"))
-        return page.results.mapNotNull { it.toMedia(kind) }
+        val pagina = json.decodeFromString(Page.serializer(), llamarFuncion("$kind/$id/recommendations"))
+        return pagina.results.mapNotNull { it.toMedia(kind) }
     }
 
-    suspend fun trending(): List<Media> {
-        val page = json.decodeFromString(Page.serializer(), call("trending/all/week"))
-        return page.results.mapNotNull { it.toMedia("movie") }
+    suspend fun tendencias(): List<Media> {
+        val pagina = json.decodeFromString(Page.serializer(), llamarFuncion("trending/all/week"))
+        return pagina.results.mapNotNull { it.toMedia("movie") }
     }
 
     private fun split(id: String): Pair<String, String> {
-        val parts = id.split(":")
-        return parts[1] to parts[2]
+        val partes = id.split(":")
+        return partes[1] to partes[2]
     }
 
-    private fun Item.toMedia(fallbackKind: String): Media? {
-        val kind = mediaType ?: fallbackKind
+    private fun Item.toMedia(clasePorDefecto: String): Media? {
+        val kind = mediaType ?: clasePorDefecto
         if (kind != "movie" && kind != "tv") return null
         val name = title ?: name ?: return null
         return Media(
             id = "tmdb:$kind:$id",
             type = if (kind == "movie") MediaType.MOVIE else MediaType.SERIES,
             title = name,
-            year = yearOf(releaseDate ?: firstAirDate),
+            year = anioDe(releaseDate ?: firstAirDate),
             imageUrl = posterPath?.let { "https://image.tmdb.org/t/p/w500$it" },
             backdropUrl = backdropPath?.let { "https://image.tmdb.org/t/p/w780$it" },
             overview = overview?.takeIf { it.isNotBlank() },

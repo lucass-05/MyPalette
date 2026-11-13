@@ -2,6 +2,10 @@ package com.example.palette.data
 
 import kotlinx.serialization.Serializable
 
+// los nombres de los campos de estas clases no estan traducidos a proposito: son las claves
+// con las que se guardan en json (en el dispositivo y en la base de datos). si se cambian,
+// lo que ya esta guardado dejaria de leerse.
+
 enum class MediaType(val label: String, val plural: String) {
     MOVIE("Película", "Pelis"),
     SERIES("Serie", "Series"),
@@ -87,9 +91,9 @@ data class Group(
 
 /** datos de la ficha que dependen del tipo: reparto de una peli, canciones de un disco, plataformas de un juego... */
 class Extras(
-    val facts: List<Pair<String, String>> = emptyList(),
+    val datos: List<Pair<String, String>> = emptyList(),
     /** canciones de un album, en orden. */
-    val tracks: List<Media> = emptyList(),
+    val canciones: List<Media> = emptyList(),
     /** album al que pertenece una cancion. */
     val album: Media? = null,
 )

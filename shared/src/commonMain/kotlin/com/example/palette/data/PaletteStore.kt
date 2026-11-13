@@ -14,6 +14,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
+// idea general de este fichero:
+//  1. todo el estado de la app esta en una sola variable, "estado" (un Snapshot inmutable)
+//  2. para cambiar algo no se modifica: se crea una copia con .copy(...) dentro de actualizar { }
+//  3. como "estado" es un mutableStateOf, las pantallas que lo leen se repintan solas
+//  4. el cambio se ve al instante en local y despues se sube al servidor con subir { }
+//     (a esto se le llama actualizacion optimista: no se espera a que el servidor conteste)
+
 /** en que punto esta quien abre la app. */
 enum class Stage { SIGNED_OUT, LOADING, NEEDS_PROFILE, READY }
 
@@ -26,59 +33,59 @@ enum class Stage { SIGNED_OUT, LOADING, NEEDS_PROFILE, READY }
  */
 class PaletteStore {
 
-    private val remote = supabase
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val servidor = supabase
+    private val ambito = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     // las subidas y las bajadas van de una en una y en orden, para que una bajada no pise un cambio a medio subir
-    private val queue = Mutex()
+    private val cola = Mutex()
 
-    var data by mutableStateOf(load())
+    var estado by mutableStateOf(cargar())
         private set
 
-    var signedIn by mutableStateOf(remote.signedIn)
+    var conSesion by mutableStateOf(servidor.conSesion)
         private set
 
-    private var synced by mutableStateOf(false)
+    private var sincronizado by mutableStateOf(false)
 
     /** true cuando el ultimo intento de hablar con el servidor ha fallado. */
-    var offline by mutableStateOf(false)
+    var sinConexion by mutableStateOf(false)
         private set
 
-    val stage: Stage
+    val etapa: Stage
         get() = when {
-            !signedIn -> Stage.SIGNED_OUT
-            data.me.username.isNotBlank() -> Stage.READY
-            synced -> Stage.NEEDS_PROFILE
+            !conSesion -> Stage.SIGNED_OUT
+            estado.me.username.isNotBlank() -> Stage.READY
+            sincronizado -> Stage.NEEDS_PROFILE
             else -> Stage.LOADING
         }
 
-    private fun load(): Snapshot =
+    private fun cargar(): Snapshot =
         try {
-            readStored(KEY)?.let { json.decodeFromString(Snapshot.serializer(), it) } ?: Snapshot()
+            leerGuardado(KEY)?.let { json.decodeFromString(Snapshot.serializer(), it) } ?: Snapshot()
         } catch (e: Exception) {
             Snapshot()
         }
 
-    private fun update(change: (Snapshot) -> Snapshot) {
-        data = change(data)
+    private fun actualizar(cambio: (Snapshot) -> Snapshot) {
+        estado = cambio(estado)
         try {
-            writeStored(KEY, json.encodeToString(Snapshot.serializer(), data))
+            escribirGuardado(KEY, json.encodeToString(Snapshot.serializer(), estado))
         } catch (e: Exception) {
             println("Palette: no se pudo guardar (${e.message})")
         }
     }
 
     /** manda un cambio al servidor sin hacer esperar a la pantalla. */
-    private fun push(change: suspend Supabase.() -> Unit) {
-        scope.launch {
-            queue.withLock {
+    private fun subir(cambio: suspend Supabase.() -> Unit) {
+        ambito.launch {
+            cola.withLock {
                 try {
-                    remote.change()
-                    offline = false
+                    servidor.cambio()
+                    sinConexion = false
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    offline = true
+                    sinConexion = true
                     println("Palette: no se pudo subir un cambio (${e.message})")
                 }
             }
@@ -88,66 +95,66 @@ class PaletteStore {
     // ---- cuenta
 
     /** devuelve null si ha ido bien o el motivo, ya redactado para enseñarlo. */
-    suspend fun signIn(email: String, password: String): String? = attempt {
-        remote.signIn(email.trim(), password)
-        signedIn = true
-        sync()
+    suspend fun iniciarSesion(email: String, password: String): String? = intentar {
+        servidor.iniciarSesion(email.trim(), password)
+        conSesion = true
+        sincronizar()
         null
     }
 
-    suspend fun signUp(email: String, password: String): String? = attempt {
-        if (remote.signUp(email.trim(), password)) {
-            signedIn = true
-            sync()
+    suspend fun crearCuenta(email: String, password: String): String? = intentar {
+        if (servidor.crearCuenta(email.trim(), password)) {
+            conSesion = true
+            sincronizar()
             null
         } else {
             "Cuenta creada. Te hemos mandado un correo: confírmalo y después inicia sesión."
         }
     }
 
-    fun signOut() {
-        remote.signOut()
-        signedIn = false
-        synced = false
+    fun cerrarSesion() {
+        servidor.cerrarSesion()
+        conSesion = false
+        sincronizado = false
         // los colores de la app son del dispositivo, no de la cuenta: se quedan
-        update { Snapshot(theme = it.theme) }
+        actualizar { Snapshot(theme = it.theme) }
     }
 
     /** borra la cuenta y todo lo suyo del servidor, y deja la app como recien instalada (salvo los colores). */
-    suspend fun deleteAccount(): String? = attempt {
-        queue.withLock { remote.deleteAccount() }
-        signedIn = false
-        synced = false
-        update { Snapshot(theme = it.theme) }
+    suspend fun borrarCuenta(): String? = intentar {
+        cola.withLock { servidor.borrarCuenta() }
+        conSesion = false
+        sincronizado = false
+        actualizar { Snapshot(theme = it.theme) }
         null
     }
 
     /** guarda nombre, usuario y demas. espera al servidor porque el nombre de usuario puede estar cogido. */
-    suspend fun saveProfile(name: String, username: String, bio: String, favorite: Long, background: Long?): String? = attempt {
-        val profile = data.me.copy(
+    suspend fun guardarPerfil(name: String, username: String, bio: String, favorite: Long, background: Long?): String? = intentar {
+        val profile = estado.me.copy(
             name = name.trim(),
-            username = cleanUsername(username),
+            username = limpiarUsuario(username),
             bio = bio.trim(),
             favorite = favorite,
             background = background,
         )
-        queue.withLock { remote.saveProfile(profile) }
-        update { it.copy(me = profile) }
+        cola.withLock { servidor.guardarPerfil(profile) }
+        actualizar { it.copy(me = profile) }
         null
     }
 
     /** sube una foto de perfil ya recortada (jpeg) y la deja puesta. con null se quita la que hubiera. */
-    suspend fun setPhoto(jpeg: ByteArray?): String? = attempt {
-        queue.withLock {
-            val url = jpeg?.let { remote.uploadAvatar(it) }
-            val profile = data.me.copy(photoUrl = url)
-            remote.saveProfile(profile)
-            update { it.copy(me = profile) }
+    suspend fun ponerFoto(jpeg: ByteArray?): String? = intentar {
+        cola.withLock {
+            val url = jpeg?.let { servidor.subirAvatar(it) }
+            val profile = estado.me.copy(photoUrl = url)
+            servidor.guardarPerfil(profile)
+            actualizar { it.copy(me = profile) }
         }
         null
     }
 
-    private suspend fun attempt(block: suspend () -> String?): String? =
+    private suspend fun intentar(block: suspend () -> String?): String? =
         try {
             block()
         } catch (e: CancellationException) {
@@ -157,50 +164,50 @@ class PaletteStore {
         }
 
     /** baja del servidor todo lo que ve mi cuenta y lo deja como estado de la app. */
-    suspend fun sync() {
-        if (!signedIn) return
+    suspend fun sincronizar() {
+        if (!conSesion) return
         try {
-            queue.withLock {
-                val fresh = remote.fetchAll()
-                update { s ->
-                    val known = s.notices.associateBy { it.id }
+            cola.withLock {
+                val recibido = servidor.bajarTodo()
+                actualizar { s ->
+                    val conocidos = s.notices.associateBy { it.id }
                     s.copy(
-                        me = fresh.me ?: s.me,
-                        people = fresh.people,
-                        logs = fresh.logs,
-                        peopleLogs = fresh.peopleLogs,
-                        watchlist = fresh.watchlist,
-                        peopleWatchlists = fresh.peopleWatchlists,
-                        following = fresh.following,
-                        messages = fresh.messages,
-                        liked = fresh.liked,
-                        groups = fresh.groups,
+                        me = recibido.me ?: s.me,
+                        people = recibido.people,
+                        logs = recibido.logs,
+                        peopleLogs = recibido.peopleLogs,
+                        watchlist = recibido.watchlist,
+                        peopleWatchlists = recibido.peopleWatchlists,
+                        following = recibido.following,
+                        messages = recibido.messages,
+                        liked = recibido.liked,
+                        groups = recibido.groups,
                         // un aviso por seguidor; se conserva si ya lo habia leido
-                        notices = fresh.followers.map { (userId, at) ->
+                        notices = recibido.followers.map { (userId, at) ->
                             val id = "f_$userId"
-                            Notice(id, NoticeKind.FOLLOW, userId, at = at, read = known[id]?.read ?: false)
+                            Notice(id, NoticeKind.FOLLOW, userId, at = at, read = conocidos[id]?.read ?: false)
                         },
                     )
                 }
             }
-            synced = true
-            offline = false
+            sincronizado = true
+            sinConexion = false
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            synced = true
-            offline = true
+            sincronizado = true
+            sinConexion = true
             println("Palette: no se pudo sincronizar (${e.message})")
         }
     }
 
     /** solo los mensajes: lo usa el chat abierto para refrescar mas a menudo. */
-    suspend fun syncMessages() {
-        if (!signedIn) return
+    suspend fun sincronizarMensajes() {
+        if (!conSesion) return
         try {
-            queue.withLock {
-                val fresh = remote.fetchMessages()
-                if (fresh != data.messages) update { it.copy(messages = fresh) }
+            cola.withLock {
+                val recibido = servidor.bajarMensajes()
+                if (recibido != estado.messages) actualizar { it.copy(messages = recibido) }
             }
         } catch (e: CancellationException) {
             throw e
@@ -211,130 +218,130 @@ class PaletteStore {
 
     // ---- gente
 
-    val me get() = data.me
+    val me get() = estado.me
 
-    fun user(id: String): User? = if (id == ME) data.me else data.people.firstOrNull { it.id == id }
+    fun user(id: String): User? = if (id == ME) estado.me else estado.people.firstOrNull { it.id == id }
 
-    fun isFollowing(id: String) = id in data.following
+    fun sigoA(id: String) = id in estado.following
 
-    val friends: List<User> get() = data.people.filter { it.id in data.following }
+    val amigos: List<User> get() = estado.people.filter { it.id in estado.following }
 
-    fun toggleFollow(id: String) {
-        val follow = id !in data.following
-        update { it.copy(following = if (follow) it.following + id else it.following - id) }
-        push { setFollowing(id, follow) }
+    fun alternarSeguir(id: String) {
+        val follow = id !in estado.following
+        actualizar { it.copy(following = if (follow) it.following + id else it.following - id) }
+        subir { ponerSeguido(id, follow) }
     }
 
-    fun searchPeople(query: String): List<User> {
-        val q = query.trim().removePrefix("@")
-        if (q.isEmpty()) return data.people.filter { it.id !in data.following }
-        return data.people.filter { it.username.contains(q, ignoreCase = true) || it.name.contains(q, ignoreCase = true) }
+    fun buscarGente(consulta: String): List<User> {
+        val q = consulta.trim().removePrefix("@")
+        if (q.isEmpty()) return estado.people.filter { it.id !in estado.following }
+        return estado.people.filter { it.username.contains(q, ignoreCase = true) || it.name.contains(q, ignoreCase = true) }
     }
 
-    fun setTheme(theme: ThemeColors) = update { it.copy(theme = theme) }
+    fun ponerTema(theme: ThemeColors) = actualizar { it.copy(theme = theme) }
 
-    fun setWatchlistPublic(public: Boolean) {
-        update { it.copy(me = it.me.copy(watchlistPublic = public)) }
-        val profile = data.me
-        push { saveProfile(profile) }
+    fun ponerPendientesPublicos(public: Boolean) {
+        actualizar { it.copy(me = it.me.copy(watchlistPublic = public)) }
+        val profile = estado.me
+        subir { guardarPerfil(profile) }
     }
 
     // ---- logs
 
     /** logs de un perfil tal y como se enseñan: fijados primero y luego de mas a menos estrellas. */
-    fun profileLogs(userId: String, includeHidden: Boolean = false, recentFirst: Boolean = false): List<LogEntry> {
-        val all = if (userId == ME) data.logs else data.peopleLogs.filter { it.userId == userId }
-        val shown = all.filter { includeHidden || !it.hidden }
+    fun logsDePerfil(userId: String, conOcultos: Boolean = false, recientesPrimero: Boolean = false): List<LogEntry> {
+        val todos = if (userId == ME) estado.logs else estado.peopleLogs.filter { it.userId == userId }
+        val shown = todos.filter { conOcultos || !it.hidden }
         // como diario: lo ultimo registrado arriba, sin tener en cuenta fijados ni nota
-        return if (recentFirst) shown.sortedByDescending { it.createdAt }
+        return if (recientesPrimero) shown.sortedByDescending { it.createdAt }
         else shown.sortedWith(compareByDescending<LogEntry> { it.pinned }.thenByDescending { it.stars }.thenByDescending { it.createdAt })
     }
 
-    fun myLogOf(mediaId: String): LogEntry? = data.logs.firstOrNull { it.media.id == mediaId }
+    fun miLogDe(mediaId: String): LogEntry? = estado.logs.firstOrNull { it.media.id == mediaId }
 
-    fun saveLog(media: Media, stars: Float, review: String) {
-        val existing = myLogOf(media.id)
-        val entry = existing?.copy(stars = stars, review = review.trim(), media = media)
-            ?: LogEntry(newId("l"), ME, media, stars, review.trim(), now())
-        val wasPending = inWatchlist(media.id)
-        update { s ->
+    fun guardarLog(media: Media, stars: Float, review: String) {
+        val existente = miLogDe(media.id)
+        val entrada = existente?.copy(stars = stars, review = review.trim(), media = media)
+            ?: LogEntry(nuevoId("l"), ME, media, stars, review.trim(), ahora())
+        val estabaPendiente = enPendientes(media.id)
+        actualizar { s ->
             s.copy(
-                logs = listOf(entry) + s.logs.filter { it.id != entry.id },
+                logs = listOf(entrada) + s.logs.filter { it.id != entrada.id },
                 // si estaba pendiente, ya no lo esta
                 watchlist = s.watchlist.filter { it.id != media.id },
             )
         }
-        push {
-            saveLog(entry)
-            if (wasPending) setWatchlist(media, saved = false)
+        subir {
+            guardarLog(entrada)
+            if (estabaPendiente) ponerPendiente(media, guardado = false)
         }
     }
 
-    fun deleteLog(id: String) {
-        update { s -> s.copy(logs = s.logs.filter { it.id != id }) }
-        push { deleteLog(id) }
+    fun borrarLog(id: String) {
+        actualizar { s -> s.copy(logs = s.logs.filter { it.id != id }) }
+        subir { borrarLog(id) }
     }
 
-    fun togglePinned(id: String) = editLog(id) { it.copy(pinned = !it.pinned, hidden = false) }
+    fun alternarFijado(id: String) = editarLog(id) { it.copy(pinned = !it.pinned, hidden = false) }
 
-    fun toggleHidden(id: String) = editLog(id) { it.copy(hidden = !it.hidden, pinned = false) }
+    fun alternarOculto(id: String) = editarLog(id) { it.copy(hidden = !it.hidden, pinned = false) }
 
-    private fun editLog(id: String, change: (LogEntry) -> LogEntry) {
-        val edited = data.logs.firstOrNull { it.id == id }?.let(change) ?: return
-        update { s -> s.copy(logs = s.logs.map { if (it.id == id) edited else it }) }
-        push { saveLog(edited) }
+    private fun editarLog(id: String, cambio: (LogEntry) -> LogEntry) {
+        val editado = estado.logs.firstOrNull { it.id == id }?.let(cambio) ?: return
+        actualizar { s -> s.copy(logs = s.logs.map { if (it.id == id) editado else it }) }
+        subir { guardarLog(editado) }
     }
 
     // ---- pendientes
 
-    fun inWatchlist(mediaId: String) = data.watchlist.any { it.id == mediaId }
+    fun enPendientes(mediaId: String) = estado.watchlist.any { it.id == mediaId }
 
-    fun toggleWatchlist(media: Media) {
-        val save = !inWatchlist(media.id)
-        update { s ->
+    fun alternarPendiente(media: Media) {
+        val save = !enPendientes(media.id)
+        actualizar { s ->
             if (save) s.copy(watchlist = listOf(media) + s.watchlist)
             else s.copy(watchlist = s.watchlist.filter { it.id != media.id })
         }
-        push { setWatchlist(media, save) }
+        subir { ponerPendiente(media, save) }
     }
 
     /** null si esa persona tiene sus pendientes en privado. */
-    fun watchlistOf(userId: String): List<Media>? = when {
-        userId == ME -> data.watchlist
-        user(userId)?.watchlistPublic == true -> data.peopleWatchlists[userId].orEmpty()
+    fun pendientesDe(userId: String): List<Media>? = when {
+        userId == ME -> estado.watchlist
+        user(userId)?.watchlistPublic == true -> estado.peopleWatchlists[userId].orEmpty()
         else -> null
     }
 
     // ---- inicio
 
     /** lo ultimo que ha registrado la gente a la que sigo, lo mas nuevo arriba. */
-    val feed: List<LogEntry>
-        get() = data.peopleLogs.filter { it.userId in data.following && !it.hidden }.sortedByDescending { it.createdAt }
+    val novedades: List<LogEntry>
+        get() = estado.peopleLogs.filter { it.userId in estado.following && !it.hidden }.sortedByDescending { it.createdAt }
 
     /** logs de un amigo de los ultimos dias, en orden, para verlos como historia. */
-    fun storyOf(userId: String): List<LogEntry> =
-        data.peopleLogs.filter { it.userId == userId && !it.hidden && now() - it.createdAt < STORY_WINDOW }.sortedBy { it.createdAt }
+    fun historiaDe(userId: String): List<LogEntry> =
+        estado.peopleLogs.filter { it.userId == userId && !it.hidden && ahora() - it.createdAt < STORY_WINDOW }.sortedBy { it.createdAt }
 
-    fun hasUnseenStory(userId: String): Boolean {
-        val last = storyOf(userId).lastOrNull() ?: return false
-        return last.createdAt > (data.seenStories[userId] ?: 0)
+    fun tieneHistoriaSinVer(userId: String): Boolean {
+        val last = historiaDe(userId).lastOrNull() ?: return false
+        return last.createdAt > (estado.seenStories[userId] ?: 0)
     }
 
     /** amigos con historia: primero los que tienen algo sin ver. */
-    val stories: List<User>
-        get() = friends.filter { storyOf(it.id).isNotEmpty() }
-            .sortedWith(compareByDescending<User> { hasUnseenStory(it.id) }.thenByDescending { storyOf(it.id).last().createdAt })
+    val historias: List<User>
+        get() = amigos.filter { historiaDe(it.id).isNotEmpty() }
+            .sortedWith(compareByDescending<User> { tieneHistoriaSinVer(it.id) }.thenByDescending { historiaDe(it.id).last().createdAt })
 
-    fun markStorySeen(userId: String, upTo: Long) = update { s ->
-        if ((s.seenStories[userId] ?: 0) >= upTo) s else s.copy(seenStories = s.seenStories + (userId to upTo))
+    fun marcarHistoriaVista(userId: String, hasta: Long) = actualizar { s ->
+        if ((s.seenStories[userId] ?: 0) >= hasta) s else s.copy(seenStories = s.seenStories + (userId to hasta))
     }
 
-    fun isLiked(logId: String) = logId in data.liked
+    fun meGusta(logId: String) = logId in estado.liked
 
-    fun toggleLike(logId: String) {
-        val like = logId !in data.liked
-        update { s -> s.copy(liked = if (like) s.liked + logId else s.liked - logId) }
-        push { setLiked(logId, like) }
+    fun alternarMeGusta(logId: String) {
+        val like = logId !in estado.liked
+        actualizar { s -> s.copy(liked = if (like) s.liked + logId else s.liked - logId) }
+        subir { ponerMeGusta(logId, like) }
     }
 
     // ---- mensajes
@@ -345,102 +352,102 @@ class PaletteStore {
         val at get() = last?.sentAt ?: group?.createdAt ?: 0
     }
 
-    val threads: List<Thread>
+    val hilos: List<Thread>
         get() {
-            val direct = data.messages.filter { it.groupId == null }
+            val directos = estado.messages.filter { it.groupId == null }
                 .groupBy { if (it.fromId == ME) it.toId else it.fromId }
-                .mapNotNull { (otherId, list) ->
-                    val other = user(otherId) ?: return@mapNotNull null
-                    Thread(other, null, list.maxBy { it.sentAt }, list.count { it.fromId != ME && !it.read })
+                .mapNotNull { (idOtro, leerTabla) ->
+                    val otro = user(idOtro) ?: return@mapNotNull null
+                    Thread(otro, null, leerTabla.maxBy { it.sentAt }, leerTabla.count { it.fromId != ME && !it.read })
                 }
-            val grouped = data.groups.map { group ->
-                val list = data.messages.filter { it.groupId == group.id }
-                Thread(null, group, list.maxByOrNull { it.sentAt }, unreadIn(group.id))
+            val deGrupo = estado.groups.map { group ->
+                val leerTabla = estado.messages.filter { it.groupId == group.id }
+                Thread(null, group, leerTabla.maxByOrNull { it.sentAt }, sinLeerEn(group.id))
             }
-            return (direct + grouped).sortedByDescending { it.at }
+            return (directos + deGrupo).sortedByDescending { it.at }
         }
 
-    fun conversation(userId: String): List<Message> =
-        data.messages.filter { it.groupId == null && (it.fromId == userId || it.toId == userId) }.sortedBy { it.sentAt }
+    fun mensajesCon(userId: String): List<Message> =
+        estado.messages.filter { it.groupId == null && (it.fromId == userId || it.toId == userId) }.sortedBy { it.sentAt }
 
-    fun send(toId: String, text: String = "", media: Media? = null, log: LogEntry? = null) {
+    fun enviar(toId: String, text: String = "", media: Media? = null, log: LogEntry? = null) {
         if (text.isBlank() && media == null && log == null) return
-        val message = Message(newId("m"), ME, toId, text.trim(), media, log, now(), read = false)
-        update { s -> s.copy(messages = s.messages + message) }
-        push { sendMessage(message) }
+        val message = Message(nuevoId("m"), ME, toId, text.trim(), media, log, ahora(), read = false)
+        actualizar { s -> s.copy(messages = s.messages + message) }
+        subir { enviarMensaje(message) }
     }
 
-    fun markRead(userId: String) {
-        if (data.messages.none { it.groupId == null && it.fromId == userId && !it.read }) return
-        update { s -> s.copy(messages = s.messages.map { if (it.groupId == null && it.fromId == userId && !it.read) it.copy(read = true) else it }) }
-        push { markRead(userId) }
+    fun marcarLeido(userId: String) {
+        if (estado.messages.none { it.groupId == null && it.fromId == userId && !it.read }) return
+        actualizar { s -> s.copy(messages = s.messages.map { if (it.groupId == null && it.fromId == userId && !it.read) it.copy(read = true) else it }) }
+        subir { marcarLeido(userId) }
     }
 
     // ---- grupos
 
-    fun group(id: String): Group? = data.groups.firstOrNull { it.id == id }
+    fun group(id: String): Group? = estado.groups.firstOrNull { it.id == id }
 
-    fun groupConversation(groupId: String): List<Message> = data.messages.filter { it.groupId == groupId }.sortedBy { it.sentAt }
+    fun mensajesDeGrupo(groupId: String): List<Message> = estado.messages.filter { it.groupId == groupId }.sortedBy { it.sentAt }
 
-    private fun unreadIn(groupId: String): Int {
-        val seen = data.seenGroups[groupId] ?: 0
-        return data.messages.count { it.groupId == groupId && it.fromId != ME && it.sentAt > seen }
+    private fun sinLeerEn(groupId: String): Int {
+        val seen = estado.seenGroups[groupId] ?: 0
+        return estado.messages.count { it.groupId == groupId && it.fromId != ME && it.sentAt > seen }
     }
 
-    fun markGroupSeen(groupId: String) {
-        val latest = data.messages.filter { it.groupId == groupId }.maxOfOrNull { it.sentAt } ?: return
-        if ((data.seenGroups[groupId] ?: 0) >= latest) return
-        update { it.copy(seenGroups = it.seenGroups + (groupId to latest)) }
+    fun marcarGrupoVisto(groupId: String) {
+        val ultimo = estado.messages.filter { it.groupId == groupId }.maxOfOrNull { it.sentAt } ?: return
+        if ((estado.seenGroups[groupId] ?: 0) >= ultimo) return
+        actualizar { it.copy(seenGroups = it.seenGroups + (groupId to ultimo)) }
     }
 
-    fun sendToGroup(groupId: String, text: String = "", media: Media? = null, log: LogEntry? = null) {
+    fun enviarAGrupo(groupId: String, text: String = "", media: Media? = null, log: LogEntry? = null) {
         if (text.isBlank() && media == null && log == null) return
-        val message = Message(newId("m"), ME, "", text.trim(), media, log, now(), groupId = groupId)
-        update { s -> s.copy(messages = s.messages + message, seenGroups = s.seenGroups + (groupId to message.sentAt)) }
-        push { sendMessage(message) }
+        val message = Message(nuevoId("m"), ME, "", text.trim(), media, log, ahora(), groupId = groupId)
+        actualizar { s -> s.copy(messages = s.messages + message, seenGroups = s.seenGroups + (groupId to message.sentAt)) }
+        subir { enviarMensaje(message) }
     }
 
     /** crea un grupo conmigo y con [memberIds]. la foto, si hay, es un jpeg ya recortado. devuelve el motivo si falla. */
-    suspend fun createGroup(name: String, memberIds: Set<String>, photo: ByteArray?): String? = attempt {
-        val group = Group(newId("g"), name.trim().take(60), null, ME, listOf(ME) + memberIds, now())
-        queue.withLock {
-            remote.createGroup(group)
-            val url = photo?.let { remote.setGroupPhoto(group.id, it) }
-            update { it.copy(groups = it.groups + group.copy(photoUrl = url)) }
+    suspend fun crearGrupo(name: String, idsMiembros: Set<String>, foto: ByteArray?): String? = intentar {
+        val group = Group(nuevoId("g"), name.trim().take(60), null, ME, listOf(ME) + idsMiembros, ahora())
+        cola.withLock {
+            servidor.crearGrupo(group)
+            val url = foto?.let { servidor.ponerFotoDeGrupo(group.id, it) }
+            actualizar { it.copy(groups = it.groups + group.copy(photoUrl = url)) }
         }
         null
     }
 
-    suspend fun setGroupPhoto(groupId: String, photo: ByteArray): String? = attempt {
-        queue.withLock {
-            val url = remote.setGroupPhoto(groupId, photo)
-            update { s -> s.copy(groups = s.groups.map { if (it.id == groupId) it.copy(photoUrl = url) else it }) }
+    suspend fun ponerFotoDeGrupo(groupId: String, foto: ByteArray): String? = intentar {
+        cola.withLock {
+            val url = servidor.ponerFotoDeGrupo(groupId, foto)
+            actualizar { s -> s.copy(groups = s.groups.map { if (it.id == groupId) it.copy(photoUrl = url) else it }) }
         }
         null
     }
 
     /** salir de un grupo o, si lo cree yo, borrarlo para todos. */
-    fun leaveGroup(groupId: String) {
-        val mine = group(groupId)?.ownerId == ME
-        update { s -> s.copy(groups = s.groups.filter { it.id != groupId }, messages = s.messages.filter { it.groupId != groupId }) }
-        push { if (mine) deleteGroup(groupId) else leaveGroup(groupId) }
+    fun salirDeGrupo(groupId: String) {
+        val mio = group(groupId)?.ownerId == ME
+        actualizar { s -> s.copy(groups = s.groups.filter { it.id != groupId }, messages = s.messages.filter { it.groupId != groupId }) }
+        subir { if (mio) borrarGrupo(groupId) else salirDeGrupo(groupId) }
     }
 
-    val notices: List<Notice> get() = data.notices.sortedByDescending { it.at }
+    val notices: List<Notice> get() = estado.notices.sortedByDescending { it.at }
 
-    fun markNoticesRead() {
-        if (data.notices.none { !it.read }) return
-        update { s -> s.copy(notices = s.notices.map { it.copy(read = true) }) }
+    fun marcarAvisosLeidos() {
+        if (estado.notices.none { !it.read }) return
+        actualizar { s -> s.copy(notices = s.notices.map { it.copy(read = true) }) }
     }
 
-    val unreadCount: Int
-        get() = data.messages.count { it.groupId == null && it.fromId != ME && !it.read } +
-            data.groups.sumOf { unreadIn(it.id) } +
-            data.notices.count { !it.read }
+    val sinLeer: Int
+        get() = estado.messages.count { it.groupId == null && it.fromId != ME && !it.read } +
+            estado.groups.sumOf { sinLeerEn(it.id) } +
+            estado.notices.count { !it.read }
 
     companion object {
         /** deja un nombre de usuario como lo admite el servidor: minusculas sin acento, numeros, punto y guion bajo. */
-        fun cleanUsername(text: String): String =
+        fun limpiarUsuario(text: String): String =
             text.lowercase().filter { it in 'a'..'z' || it in '0'..'9' || it == '.' || it == '_' }.take(30)
 
         private const val KEY = "palette.v1"

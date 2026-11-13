@@ -60,31 +60,37 @@ import com.example.palette.screens.SignInScreen
 import com.example.palette.ui.Pigment
 import kotlinx.coroutines.delay
 
+// la navegacion no usa ninguna libreria: es estado de compose.
+//  - navegacion.apartado dice que pestaña se ve
+//  - navegacion.pila es una lista de pantallas abiertas encima (ficha, chat, perfil de otro...)
+// compose vuelve a pintar solo lo que lee esas variables cuando cambian, asi que "navegar"
+// es simplemente cambiar su valor.
+
 enum class Screen {
     HOME, DISCOVER, LOG, ACTIVITY, PROFILE
 }
 
 @Composable
 fun AppNavigation() {
-    val palette = remember { Palette(PaletteStore(), Catalog(), Nav()) }
+    val app = remember { Palette(PaletteStore(), Catalog(), Nav()) }
 
     // mientras hay sesion se vuelve a preguntar al servidor cada poco: logs de amigos, mensajes, seguidores
-    LaunchedEffect(palette.store.signedIn) {
-        while (palette.store.signedIn) {
-            palette.store.sync()
+    LaunchedEffect(app.almacen.conSesion) {
+        while (app.almacen.conSesion) {
+            app.almacen.sincronizar()
             delay(15_000)
         }
     }
 
-    CompositionLocalProvider(LocalPalette provides palette) {
+    CompositionLocalProvider(LocalPalette provides app) {
         BoxWithConstraints(Modifier.fillMaxSize().background(Pigment.Paper)) {
             // la app ocupa toda la ventana; a partir de este ancho cambia a la disposicion de pantalla grande
             CompositionLocalProvider(LocalWide provides (maxWidth >= 840.dp)) {
-                when (palette.store.stage) {
+                when (app.almacen.etapa) {
                     Stage.SIGNED_OUT -> Centered(480.dp) { Box(it) { SignInScreen() } }
                     Stage.LOADING -> LoadingScreen()
                     Stage.NEEDS_PROFILE -> Centered(480.dp) { Box(it) { ProfileSetupScreen() } }
-                    Stage.READY -> Shell(palette)
+                    Stage.READY -> Shell(app)
                 }
             }
         }
@@ -100,79 +106,79 @@ private fun Centered(max: Dp, modifier: Modifier = Modifier, content: @Composabl
 }
 
 @Composable
-private fun Shell(palette: Palette) {
-    val nav = palette.nav
-    val wide = LocalWide.current
-    val backdrop = rememberGraphicsLayer()
-    var backdropOrigin by remember { mutableStateOf(Offset.Zero) }
-    val top = nav.stack.lastOrNull()
+private fun Shell(app: Palette) {
+    val navegacion = app.navegacion
+    val ancha = LocalWide.current
+    val fondo = rememberGraphicsLayer()
+    var origenFondo by remember { mutableStateOf(Offset.Zero) }
+    val top = navegacion.pila.lastOrNull()
 
     // boton o gesto de atras del sistema: cierra la pantalla de encima y, si no hay, vuelve a inicio
     NavigationBackHandler(
         state = rememberNavigationEventState(NavigationEventInfo.None),
-        isBackEnabled = nav.stack.isNotEmpty() || nav.tab != Screen.HOME,
-        onBackCompleted = { if (nav.stack.isNotEmpty()) nav.back() else nav.tab = Screen.HOME },
+        isBackEnabled = navegacion.pila.isNotEmpty() || navegacion.apartado != Screen.HOME,
+        onBackCompleted = { if (navegacion.pila.isNotEmpty()) navegacion.volver() else navegacion.apartado = Screen.HOME },
     )
 
     Box(Modifier.fillMaxSize()) {
         Box(
             Modifier.fillMaxSize()
-                .onGloballyPositioned { backdropOrigin = it.positionInRoot() }
+                .onGloballyPositioned { origenFondo = it.positionInRoot() }
                 .drawWithContent {
                     // se graba lo que se pinta para que la barra de cristal pueda desenfocarlo
-                    backdrop.record { this@drawWithContent.drawContent() }
-                    drawLayer(backdrop)
+                    fondo.record { this@drawWithContent.drawContent() }
+                    drawLayer(fondo)
                 }
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
-                .padding(start = if (wide) RailSpace else 0.dp),
+                .padding(start = if (ancha) RailSpace else 0.dp),
         ) {
-            val page = Modifier.fillMaxSize()
-            when (nav.tab) {
-                Screen.HOME -> HomeScreen(page)
-                Screen.DISCOVER -> DiscoverScreen(page)
-                Screen.LOG -> LogScreen(page)
+            val pagina = Modifier.fillMaxSize()
+            when (navegacion.apartado) {
+                Screen.HOME -> HomeScreen(pagina)
+                Screen.DISCOVER -> DiscoverScreen(pagina)
+                Screen.LOG -> LogScreen(pagina)
                 Screen.ACTIVITY -> Centered(760.dp) { ActivityScreen(it) }
-                Screen.PROFILE -> ProfileScreen(modifier = page)
+                Screen.PROFILE -> ProfileScreen(modifier = pagina)
             }
-            nav.stack.forEachIndexed { index, dest ->
-                key(index, dest) {
-                    val over = page.background(Pigment.Paper).pointerInput(Unit) { detectTapGestures { } }
-                    when (dest) {
-                        is Dest.Detail -> Centered(820.dp, over) { DetailScreen(dest.media, it) }
-                        is Dest.Profile -> ProfileScreen(dest.userId, over)
-                        is Dest.Chat -> Centered(760.dp, over) { ChatScreen(dest.userId, it) }
-                        is Dest.GroupChat -> Centered(760.dp, over) { GroupChatScreen(dest.groupId, it) }
-                        is Dest.Story -> StoryScreen(dest.userId, dest.queue, over)
-                        Dest.People -> Centered(760.dp, over) { PeopleScreen(it) }
-                        Dest.Settings -> Centered(640.dp, over) { SettingsScreen(it) }
+            navegacion.pila.forEachIndexed { index, destino ->
+                key(index, destino) {
+                    val encima = pagina.background(Pigment.Paper).pointerInput(Unit) { detectTapGestures { } }
+                    when (destino) {
+                        is Dest.Detail -> Centered(820.dp, encima) { DetailScreen(destino.media, it) }
+                        is Dest.Profile -> ProfileScreen(destino.userId, encima)
+                        is Dest.Chat -> Centered(760.dp, encima) { ChatScreen(destino.userId, it) }
+                        is Dest.GroupChat -> Centered(760.dp, encima) { GroupChatScreen(destino.groupId, it) }
+                        is Dest.Story -> StoryScreen(destino.userId, destino.cola, encima)
+                        Dest.People -> Centered(760.dp, encima) { PeopleScreen(it) }
+                        Dest.Settings -> Centered(640.dp, encima) { SettingsScreen(it) }
                     }
                 }
             }
         }
 
-        val fullScreen = top is Dest.Chat || top is Dest.GroupChat || top is Dest.Story
-        if (!fullScreen) {
+        val pantallaCompleta = top is Dest.Chat || top is Dest.GroupChat || top is Dest.Story
+        if (!pantallaCompleta) {
             GlassBar(
-                backdrop = backdrop,
-                backdropOrigin = backdropOrigin,
-                current = nav.tab,
-                unread = palette.store.unreadCount,
-                onSelect = { nav.switchTo(it) },
-                modifier = Modifier.align(if (wide) Alignment.CenterStart else Alignment.BottomCenter),
-                vertical = wide,
+                fondo = fondo,
+                origenFondo = origenFondo,
+                current = navegacion.apartado,
+                unread = app.almacen.sinLeer,
+                alElegirPantalla = { navegacion.irA(it) },
+                modifier = Modifier.align(if (ancha) Alignment.CenterStart else Alignment.BottomCenter),
+                vertical = ancha,
             )
         }
     }
 
-    nav.reviewing?.let { ReviewSheet(it) }
-    nav.sending?.let { SendSheet(it) }
-    nav.logMenu?.let { LogMenuSheet(it) }
-    if (nav.creatingGroup) NewGroupSheet()
-    nav.groupInfo?.let { GroupInfoSheet(it) }
+    navegacion.enResena?.let { ReviewSheet(it) }
+    navegacion.enviando?.let { SendSheet(it) }
+    navegacion.menuDeLog?.let { LogMenuSheet(it) }
+    if (navegacion.creandoGrupo) NewGroupSheet()
+    navegacion.infoDeGrupo?.let { GroupInfoSheet(it) }
 }
 
-fun getIconForScreen(screen: Screen): ImageVector {
-    return when (screen) {
+fun getIconForScreen(pantalla: Screen): ImageVector {
+    return when (pantalla) {
         Screen.HOME -> LucideHouse
         Screen.DISCOVER -> LucideBrush
         Screen.LOG -> LucideCirclePlus

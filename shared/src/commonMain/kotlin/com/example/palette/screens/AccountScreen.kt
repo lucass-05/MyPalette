@@ -41,12 +41,12 @@ import com.example.palette.ui.Pigment
 import com.example.palette.ui.PillButton
 import com.example.palette.ui.PlainField
 import com.example.palette.ui.Splat
-import com.example.palette.ui.avatarShape
-import com.example.palette.ui.display
-import com.example.palette.ui.readable
-import com.example.palette.ui.rememberPhotoPicker
-import com.example.palette.ui.squareAvatar
-import com.example.palette.ui.toStored
+import com.example.palette.ui.formaAvatar
+import com.example.palette.ui.titular
+import com.example.palette.ui.legible
+import com.example.palette.ui.recordarSelectorDeFotos
+import com.example.palette.ui.avatarCuadrado
+import com.example.palette.ui.aGuardado
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -66,14 +66,14 @@ private fun Splats(accent: Color) {
 /** crear cuenta o entrar con correo y contraseña. */
 @Composable
 fun SignInScreen() {
-    val store = LocalPalette.current.store
-    val scope = rememberCoroutineScope()
-    var mode by remember { mutableIntStateOf(0) }
+    val almacen = LocalPalette.current.almacen
+    val ambito = rememberCoroutineScope()
+    var modo by remember { mutableIntStateOf(0) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var busy by remember { mutableStateOf(false) }
-    var notice by remember { mutableStateOf<String?>(null) }
-    val creating = mode == 0
+    var ocupado by remember { mutableStateOf(false) }
+    var aviso by remember { mutableStateOf<String?>(null) }
+    val creando = modo == 0
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 28.dp, vertical = 40.dp),
@@ -81,32 +81,32 @@ fun SignInScreen() {
     ) {
         Splats(Pigment.Cobalt)
         Spacer(Modifier.height(22.dp))
-        Text("Palette", style = display(46.sp))
+        Text("Palette", style = titular(46.sp))
         Spacer(Modifier.height(6.dp))
         Text("Lo que ves, juegas, lees y escuchas, convertido en tu paleta.", color = Pigment.Graphite, fontSize = 16.sp, lineHeight = 23.sp)
         Spacer(Modifier.height(22.dp))
-        Segments(listOf("Crear cuenta", "Ya tengo cuenta"), mode, { mode = it; notice = null }, Pigment.Accent, Modifier.offset(x = (-20).dp))
+        Segments(listOf("Crear cuenta", "Ya tengo cuenta"), modo, { modo = it; aviso = null }, Pigment.Accent, Modifier.offset(x = (-20).dp))
         Label("Correo")
         PlainField(email, { email = it.trim() }, "tu@correo.com")
         Label("Contraseña")
-        PlainField(password, { password = it }, if (creating) "Mínimo 6 caracteres" else "Tu contraseña", secret = true)
-        notice?.let { Text(it, color = Pigment.Cadmium, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 12.dp)) }
+        PlainField(password, { password = it }, if (creando) "Mínimo 6 caracteres" else "Tu contraseña", secret = true)
+        aviso?.let { Text(it, color = Pigment.Cadmium, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 12.dp)) }
         Spacer(Modifier.height(24.dp))
         PillButton(
             text = when {
-                busy -> "Un momento…"
-                creating -> "Crear cuenta"
+                ocupado -> "Un momento…"
+                creando -> "Crear cuenta"
                 else -> "Entrar"
             },
             onClick = {
-                busy = true
-                notice = null
-                scope.launch {
-                    notice = if (creating) store.signUp(email, password) else store.signIn(email, password)
-                    busy = false
+                ocupado = true
+                aviso = null
+                ambito.launch {
+                    aviso = if (creando) almacen.crearCuenta(email, password) else almacen.iniciarSesion(email, password)
+                    ocupado = false
                 }
             },
-            enabled = !busy && email.contains("@") && password.length >= 6,
+            enabled = !ocupado && email.contains("@") && password.length >= 6,
             color = Pigment.Accent,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -116,25 +116,25 @@ fun SignInScreen() {
 /** justo despues de crear la cuenta: nombre, usuario y color favorito. */
 @Composable
 fun ProfileSetupScreen() {
-    val store = LocalPalette.current.store
-    val scope = rememberCoroutineScope()
+    val almacen = LocalPalette.current.almacen
+    val ambito = rememberCoroutineScope()
     var name by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var favorite by remember { mutableLongStateOf(0xFF2D5BF0) }
-    var busy by remember { mutableStateOf(false) }
-    var problem by remember { mutableStateOf<String?>(null) }
+    var ocupado by remember { mutableStateOf(false) }
+    var problema by remember { mutableStateOf<String?>(null) }
     // la foto se guarda ya recortada y solo se sube al pulsar empezar, cuando el perfil existe
-    var photo by remember { mutableStateOf<ByteArray?>(null) }
-    val preview = remember(photo) { photo?.let { runCatching { it.decodeToImageBitmap() }.getOrNull() } }
-    val pickPhoto = rememberPhotoPicker { picked ->
-        scope.launch {
+    var foto by remember { mutableStateOf<ByteArray?>(null) }
+    val resumen = remember(foto) { foto?.let { runCatching { it.decodeToImageBitmap() }.getOrNull() } }
+    val elegirFoto = recordarSelectorDeFotos { elegida ->
+        ambito.launch {
             try {
-                photo = withContext(Dispatchers.Default) { squareAvatar(picked) }
-                problem = null
+                foto = withContext(Dispatchers.Default) { avatarCuadrado(elegida) }
+                problema = null
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                problem = "No se ha podido leer esa imagen. Prueba con un JPG o un PNG."
+                problema = "No se ha podido leer esa imagen. Prueba con un JPG o un PNG."
             }
         }
     }
@@ -146,47 +146,47 @@ fun ProfileSetupScreen() {
         // la mancha grande va cogiendo el color que se esta eligiendo
         Splats(Color(favorite))
         Spacer(Modifier.height(22.dp))
-        Text("Tu perfil", style = display(38.sp))
+        Text("Tu perfil", style = titular(38.sp))
         Row(Modifier.padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(76.dp).clip(avatarShape(0)).background(Color(favorite)), contentAlignment = Alignment.Center) {
-                if (preview != null) {
-                    Image(preview, contentDescription = "Tu foto", contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
+            Box(Modifier.size(76.dp).clip(formaAvatar(0)).background(Color(favorite)), contentAlignment = Alignment.Center) {
+                if (resumen != null) {
+                    Image(resumen, contentDescription = "Tu foto", contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
                 } else {
-                    Text(name.take(1).uppercase(), style = display(34.sp, Color(favorite).readable()))
+                    Text(name.take(1).uppercase(), style = titular(34.sp, Color(favorite).legible()))
                 }
             }
             Spacer(Modifier.width(16.dp))
-            PillButton(if (photo == null) "Subir una foto" else "Cambiar foto", pickPhoto, filled = false)
+            PillButton(if (foto == null) "Subir una foto" else "Cambiar foto", elegirFoto, filled = false)
         }
         Label("Nombre")
         PlainField(name, { name = it }, "Cómo te llamas")
         Label("Usuario")
-        PlainField(username, { username = PaletteStore.cleanUsername(it) }, "minúsculas y números, así te buscarán")
+        PlainField(username, { username = PaletteStore.limpiarUsuario(it) }, "minúsculas y números, así te buscarán")
         Label("Tu color favorito")
         Text("Será el color de tu avatar y del anillo de tus historias. Puedes cambiarlo cuando quieras.", color = Pigment.Graphite, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(bottom = 10.dp))
-        ColorPicker(Color(favorite), { favorite = it.toStored() })
-        problem?.let { Text(it, color = Pigment.Cadmium, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 12.dp)) }
+        ColorPicker(Color(favorite), { favorite = it.aGuardado() })
+        problema?.let { Text(it, color = Pigment.Cadmium, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 12.dp)) }
         Spacer(Modifier.height(24.dp))
         PillButton(
-            text = if (busy) "Un momento…" else "Empezar",
+            text = if (ocupado) "Un momento…" else "Empezar",
             onClick = {
-                busy = true
-                scope.launch {
-                    val chosen = photo
-                    problem = store.saveProfile(name, username, "", favorite, null)
+                ocupado = true
+                ambito.launch {
+                    val elegidos = foto
+                    problema = almacen.guardarPerfil(name, username, "", favorite, null)
                     // si la foto falla no se bloquea la entrada: se puede volver a subir desde ajustes
-                    if (problem == null && chosen != null) store.setPhoto(chosen)
-                    busy = false
+                    if (problema == null && elegidos != null) almacen.ponerFoto(elegidos)
+                    ocupado = false
                 }
             },
-            enabled = !busy && name.isNotBlank() && username.length >= 2,
+            enabled = !ocupado && name.isNotBlank() && username.length >= 2,
             color = Color(favorite),
             modifier = Modifier.fillMaxWidth(),
         )
         Text(
             "Salir de esta cuenta",
             color = Pigment.Graphite, fontSize = 13.sp,
-            modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 14.dp).clickable { store.signOut() }.padding(8.dp),
+            modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 14.dp).clickable { almacen.cerrarSesion() }.padding(8.dp),
         )
     }
 }

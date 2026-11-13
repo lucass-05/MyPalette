@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.palette.data.LogEntry
 import com.example.palette.data.User
-import com.example.palette.data.timeAgo
+import com.example.palette.data.haceCuanto
 import com.example.palette.navigation.BarSpace
 import com.example.palette.navigation.Dest
 import com.example.palette.navigation.LocalPalette
@@ -56,59 +56,62 @@ import com.example.palette.ui.Pigment
 import com.example.palette.ui.PillButton
 import com.example.palette.ui.ScreenTitle
 import com.example.palette.ui.Stars
-import com.example.palette.ui.avatarShape
-import com.example.palette.ui.display
+import com.example.palette.ui.formaAvatar
+import com.example.palette.ui.titular
+
+// LazyVerticalGrid solo compone las celdas que se ven en pantalla, por eso aguanta listas largas.
+// la "key" de cada elemento le dice a compose cual es cual cuando la lista cambia de orden.
 
 @Composable
 fun HomeScreen(modifier: Modifier = Modifier) {
-    val palette = LocalPalette.current
-    val store = palette.store
-    val nav = palette.nav
-    val feed = store.feed
-    val stories = store.stories
+    val app = LocalPalette.current
+    val almacen = app.almacen
+    val navegacion = app.navegacion
+    val novedades = almacen.novedades
+    val historias = almacen.historias
 
     // una columna en el movil; en pantallas anchas los logs se reparten en varias
     LazyVerticalGrid(GridCells.Adaptive(400.dp), modifier, contentPadding = PaddingValues(bottom = BarSpace)) {
         item(span = { GridItemSpan(maxLineSpan) }) {
           Column {
             ScreenTitle("Palette") {
-                IconAction(Icons.UserPlus, "Buscar gente", { nav.open(Dest.People) })
+                IconAction(Icons.UserPlus, "Buscar gente", { navegacion.abrir(Dest.People) })
             }
-            if (store.offline) {
+            if (almacen.sinConexion) {
                 Text("Sin conexión. Estás viendo lo último que se guardó.", color = Pigment.Graphite, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
             }
           }
         }
-        if (stories.isNotEmpty()) {
+        if (historias.isNotEmpty()) {
             item(span = { GridItemSpan(maxLineSpan) }) {
               Column {
-                val queue = stories.map { it.id }
+                val cola = historias.map { it.id }
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     // la forma depende del puesto en la fila: la primera historia siempre lleva la misma mancha, la segunda la siguiente...
-                    itemsIndexed(stories, key = { _, user -> user.id }) { position, user ->
-                        StoryBubble(user, position, unseen = store.hasUnseenStory(user.id)) { nav.open(Dest.Story(user.id, queue)) }
+                    itemsIndexed(historias, key = { _, user -> user.id }) { posicion, user ->
+                        StoryBubble(user, posicion, sinVer = almacen.tieneHistoriaSinVer(user.id)) { navegacion.abrir(Dest.Story(user.id, cola)) }
                     }
                 }
                 HorizontalDivider(Modifier.padding(top = 6.dp), color = Pigment.Line)
               }
             }
         }
-        if (feed.isEmpty()) {
+        if (novedades.isEmpty()) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 EmptyState(
-                    title = if (store.friends.isEmpty()) "Aún no sigues a nadie" else "Todo tranquilo por aquí",
-                    body = if (store.friends.isEmpty()) "Cuando sigas a alguien, lo que vea, juegue, lea o escuche aparecerá aquí."
+                    title = if (almacen.amigos.isEmpty()) "Aún no sigues a nadie" else "Todo tranquilo por aquí",
+                    cuerpo = if (almacen.amigos.isEmpty()) "Cuando sigas a alguien, lo que vea, juegue, lea o escuche aparecerá aquí."
                     else "La gente a la que sigues todavía no ha registrado nada.",
                     color = Pigment.Cadmium,
                 ) {
-                    PillButton("Buscar gente", { nav.open(Dest.People) }, icon = Icons.Search)
+                    PillButton("Buscar gente", { navegacion.abrir(Dest.People) }, icon = Icons.Search)
                 }
             }
         }
-        gridItems(feed, key = { it.id }) { log ->
+        gridItems(novedades, key = { it.id }) { log ->
             Column {
                 FeedPost(log)
                 HorizontalDivider(color = Pigment.Line)
@@ -118,50 +121,50 @@ fun HomeScreen(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun StoryBubble(user: User, position: Int, unseen: Boolean, onClick: () -> Unit) {
+private fun StoryBubble(user: User, posicion: Int, sinVer: Boolean, onClick: () -> Unit) {
     // sin ver: anillo del color favorito de esa persona. ya vista: una linea fina
-    val ring = if (unseen) Color(user.favorite) else Pigment.Line
+    val anillo = if (sinVer) Color(user.favorite) else Pigment.Line
     Column(Modifier.width(72.dp).clickable(onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(70.dp).border(if (unseen) 3.dp else 1.dp, ring, avatarShape(position)), contentAlignment = Alignment.Center) {
-            Avatar(user, 58.dp, variant = position)
+        Box(Modifier.size(70.dp).border(if (sinVer) 3.dp else 1.dp, anillo, formaAvatar(posicion)), contentAlignment = Alignment.Center) {
+            Avatar(user, 58.dp, variante = posicion)
         }
         Spacer(Modifier.height(5.dp))
-        Text(user.name.substringBefore(' '), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = if (unseen) Pigment.Ink else Pigment.Graphite)
+        Text(user.name.substringBefore(' '), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = if (sinVer) Pigment.Ink else Pigment.Graphite)
     }
 }
 
 @Composable
 private fun FeedPost(log: LogEntry) {
-    val palette = LocalPalette.current
-    val store = palette.store
-    val nav = palette.nav
-    val author = store.user(log.userId) ?: return
+    val app = LocalPalette.current
+    val almacen = app.almacen
+    val navegacion = app.navegacion
+    val autor = almacen.user(log.userId) ?: return
     val media = log.media
 
-    Column(Modifier.fillMaxWidth().clickable { nav.open(Dest.Detail(media)) }.padding(start = 20.dp, end = 12.dp, top = 16.dp, bottom = 6.dp)) {
-        Row(Modifier.clickable { nav.open(Dest.Profile(author.id)) }, verticalAlignment = Alignment.CenterVertically) {
-            Avatar(author, 34.dp)
+    Column(Modifier.fillMaxWidth().clickable { navegacion.abrir(Dest.Detail(media)) }.padding(start = 20.dp, end = 12.dp, top = 16.dp, bottom = 6.dp)) {
+        Row(Modifier.clickable { navegacion.abrir(Dest.Profile(autor.id)) }, verticalAlignment = Alignment.CenterVertically) {
+            Avatar(autor, 34.dp)
             Spacer(Modifier.width(10.dp))
             Text(
                 buildAnnotatedString {
-                    withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(author.name) }
-                    withStyle(SpanStyle(color = Pigment.Graphite)) { append(" ${media.type.verb}") }
+                    withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(autor.name) }
+                    withStyle(SpanStyle(color = Pigment.Graphite)) { append(" ${media.type.verbo}") }
                 },
                 fontSize = 14.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-            Text(timeAgo(log.createdAt), color = Pigment.Graphite, fontSize = 12.sp, modifier = Modifier.padding(end = 8.dp))
+            Text(haceCuanto(log.createdAt), color = Pigment.Graphite, fontSize = 12.sp, modifier = Modifier.padding(end = 8.dp))
         }
         Spacer(Modifier.height(12.dp))
         Row {
             CoverByHeight(media, 148.dp)
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f).padding(end = 8.dp)) {
-                Text(media.title, style = display(21.sp), maxLines = 3, overflow = TextOverflow.Ellipsis)
+                Text(media.title, style = titular(21.sp), maxLines = 3, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(3.dp))
-                Text(media.byline(), color = Pigment.Graphite, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(media.subtitulo(), color = Pigment.Graphite, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(9.dp))
                 Stars(log.stars, size = 16.dp)
                 if (log.review.isNotBlank()) {
@@ -171,19 +174,19 @@ private fun FeedPost(log: LogEntry) {
             }
         }
         Row(Modifier.padding(top = 4.dp).fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            val liked = store.isLiked(log.id)
+            val liked = almacen.meGusta(log.id)
             IconAction(
                 if (liked) Icons.HeartFilled else Icons.Heart,
                 if (liked) "Quitar me gusta" else "Me gusta",
-                { store.toggleLike(log.id) },
+                { almacen.alternarMeGusta(log.id) },
                 tint = if (liked) Pigment.Cadmium else Pigment.Ink,
             )
-            IconAction(Icons.Send, "Enviar a un amigo", { nav.sending = Outgoing.Review(log) })
-            val saved = store.inWatchlist(media.id)
+            IconAction(Icons.Send, "Enviar a un amigo", { navegacion.enviando = Outgoing.Review(log) })
+            val guardado = almacen.enPendientes(media.id)
             IconAction(
-                if (saved) Icons.BookmarkFilled else Icons.Bookmark,
-                if (saved) "Quitar de pendientes" else "Guardar en pendientes",
-                { store.toggleWatchlist(media) },
+                if (guardado) Icons.BookmarkFilled else Icons.Bookmark,
+                if (guardado) "Quitar de pendientes" else "Guardar en pendientes",
+                { almacen.alternarPendiente(media) },
             )
         }
     }
@@ -192,29 +195,29 @@ private fun FeedPost(log: LogEntry) {
 /** buscador de personas para empezar a seguirlas. */
 @Composable
 fun PeopleScreen(modifier: Modifier = Modifier) {
-    val palette = LocalPalette.current
-    val store = palette.store
-    val nav = palette.nav
-    var query by remember { mutableStateOf("") }
-    val results = store.searchPeople(query)
+    val app = LocalPalette.current
+    val almacen = app.almacen
+    val navegacion = app.navegacion
+    var consulta by remember { mutableStateOf("") }
+    val results = almacen.buscarGente(consulta)
 
     Column(modifier) {
-        BackBar("Buscar gente", { nav.back() })
-        SearchField(query, { query = it }, "Nombre o @usuario", Modifier.padding(horizontal = 20.dp, vertical = 6.dp))
+        BackBar("Buscar gente", { navegacion.volver() })
+        SearchField(consulta, { consulta = it }, "Nombre o @usuario", Modifier.padding(horizontal = 20.dp, vertical = 6.dp))
         LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = BarSpace)) {
-            if (query.isBlank() && results.isNotEmpty()) {
+            if (consulta.isBlank() && results.isNotEmpty()) {
                 item { Text("Gente que quizá conozcas", color = Pigment.Graphite, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) }
             }
             items(results, key = { it.id }) { user ->
-                UserRow(user, onClick = { nav.open(Dest.Profile(user.id)) }) { FollowButton(user.id) }
+                UserRow(user, onClick = { navegacion.abrir(Dest.Profile(user.id)) }) { FollowButton(user.id) }
             }
             if (results.isEmpty()) {
                 item {
                     EmptyState(
-                        title = if (query.isBlank()) "Ya sigues a todo el mundo" else "Nadie con ese nombre",
-                        body = if (query.isBlank()) "Cuando se registre más gente aparecerá aquí." else "Prueba con su nombre de usuario, sin la arroba.",
+                        title = if (consulta.isBlank()) "Ya sigues a todo el mundo" else "Nadie con ese nombre",
+                        cuerpo = if (consulta.isBlank()) "Cuando se registre más gente aparecerá aquí." else "Prueba con su nombre de usuario, sin la arroba.",
                         color = Pigment.Cobalt,
-                        seed = 9,
+                        semilla = 9,
                     )
                 }
             }

@@ -16,6 +16,9 @@ import com.example.palette.data.ThemeColors
 import com.example.palette.data.remote.Catalog
 import com.example.palette.ui.Pigment
 
+// mutableStateOf y mutableStateListOf son la base de compose: guardan un valor y avisan
+// a quien lo haya leido para que se repinte. "by" permite usarlos como variables normales.
+
 /** pantallas que se abren por encima de las pestañas. */
 sealed interface Dest {
     data class Detail(val media: Media) : Dest
@@ -23,7 +26,7 @@ sealed interface Dest {
     data class Chat(val userId: String) : Dest
     data class GroupChat(val groupId: String) : Dest
     /** [queue] son las historias en el orden en que estaban en inicio, para pasar de una persona a la siguiente. */
-    data class Story(val userId: String, val queue: List<String> = listOf(userId)) : Dest
+    data class Story(val userId: String, val cola: List<String> = listOf(userId)) : Dest
     data object People : Dest
     data object Settings : Dest
 }
@@ -36,53 +39,53 @@ sealed interface Outgoing {
 }
 
 class Nav {
-    var tab by mutableStateOf(Screen.HOME)
-    val stack = mutableStateListOf<Dest>()
+    var apartado by mutableStateOf(Screen.HOME)
+    val pila = mutableStateListOf<Dest>()
 
     // hojas inferiores
-    var reviewing by mutableStateOf<Media?>(null)
-    var sending by mutableStateOf<Outgoing?>(null)
-    var logMenu by mutableStateOf<LogEntry?>(null)
-    var creatingGroup by mutableStateOf(false)
-    var groupInfo by mutableStateOf<String?>(null)
+    var enResena by mutableStateOf<Media?>(null)
+    var enviando by mutableStateOf<Outgoing?>(null)
+    var menuDeLog by mutableStateOf<LogEntry?>(null)
+    var creandoGrupo by mutableStateOf(false)
+    var infoDeGrupo by mutableStateOf<String?>(null)
 
-    fun open(dest: Dest) {
-        if (stack.lastOrNull() != dest) stack.add(dest)
+    fun abrir(destino: Dest) {
+        if (pila.lastOrNull() != destino) pila.add(destino)
     }
 
     /** cambia la pantalla de encima por otra sin pasar por la de debajo. */
-    fun replaceTop(dest: Dest) {
-        if (stack.isEmpty()) stack.add(dest) else stack[stack.lastIndex] = dest
+    fun sustituirCima(destino: Dest) {
+        if (pila.isEmpty()) pila.add(destino) else pila[pila.lastIndex] = destino
     }
 
-    fun back() {
-        if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex)
+    fun volver() {
+        if (pila.isNotEmpty()) pila.removeAt(pila.lastIndex)
     }
 
-    fun switchTo(screen: Screen) {
-        stack.clear()
-        tab = screen
+    fun irA(pantalla: Screen) {
+        pila.clear()
+        apartado = pantalla
     }
 }
 
-class Palette(val store: PaletteStore, val catalog: Catalog, val nav: Nav) {
-    val discover = DiscoverCache()
+class Palette(val almacen: PaletteStore, val catalogo: Catalog, val navegacion: Nav) {
+    val descubrir = DiscoverCache()
 
     init {
-        Pigment.colors = store.data.theme
+        Pigment.colors = almacen.estado.theme
     }
 
     /** cambia los colores de la app al momento y los deja guardados. */
-    fun setTheme(theme: ThemeColors) {
+    fun ponerTema(theme: ThemeColors) {
         Pigment.colors = theme
-        store.setTheme(theme)
+        almacen.ponerTema(theme)
     }
 }
 
 /** las recomendaciones tardan en calcularse: se guardan mientras no cambien los logs de los que salen. */
 class DiscoverCache {
     var key by mutableStateOf<String?>(null)
-    var rows by mutableStateOf<List<Pair<String, List<Media>>>>(emptyList())
+    var filas by mutableStateOf<List<Pair<String, List<Media>>>>(emptyList())
 }
 
 val LocalPalette = staticCompositionLocalOf<Palette> { error("Palette no está disponible fuera de AppNavigation") }

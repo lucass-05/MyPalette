@@ -14,25 +14,25 @@ import org.jetbrains.compose.resources.decodeToImageBitmap
  * en escritorio y web) y devuelve la funcion que lo abre. [onPicked] recibe la imagen tal cual, en bytes.
  */
 @Composable
-expect fun rememberPhotoPicker(onPicked: (ByteArray) -> Unit): () -> Unit
+expect fun recordarSelectorDeFotos(alElegir: (ByteArray) -> Unit): () -> Unit
 
-internal expect fun encodeJpeg(image: ImageBitmap, quality: Int): ByteArray
+internal expect fun codificarJpeg(image: ImageBitmap, calidad: Int): ByteArray
 
 /**
  * convierte cualquier foto en la que se sube como avatar: se recorta el cuadrado central (1:1),
  * se reduce a [side] pixeles de lado y se comprime en jpeg. asi ninguna pasa de unos 60 kb.
  */
-fun squareAvatar(photo: ByteArray, side: Int = 512): ByteArray {
-    val source = photo.decodeToImageBitmap()
-    val crop = minOf(source.width, source.height)
-    val square = ImageBitmap(side, side)
-    Canvas(square).drawImageRect(
+fun avatarCuadrado(foto: ByteArray, lado: Int = 512): ByteArray {
+    val source = foto.decodeToImageBitmap()
+    val recorte = minOf(source.width, source.height)
+    val cuadrada = ImageBitmap(lado, lado)
+    Canvas(cuadrada).drawImageRect(
         image = source,
-        srcOffset = IntOffset((source.width - crop) / 2, (source.height - crop) / 2),
-        srcSize = IntSize(crop, crop),
+        srcOffset = IntOffset((source.width - recorte) / 2, (source.height - recorte) / 2),
+        srcSize = IntSize(recorte, recorte),
         dstOffset = IntOffset.Zero,
-        dstSize = IntSize(side, side),
+        dstSize = IntSize(lado, lado),
         paint = Paint().apply { filterQuality = FilterQuality.Medium },
     )
-    return encodeJpeg(square, quality = 85)
+    return codificarJpeg(cuadrada, calidad = 85)
 }

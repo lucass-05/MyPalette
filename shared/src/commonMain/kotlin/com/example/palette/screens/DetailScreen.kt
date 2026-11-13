@@ -49,51 +49,55 @@ import com.example.palette.ui.Pigment
 import com.example.palette.ui.PillButton
 import com.example.palette.ui.Splat
 import com.example.palette.ui.Stars
-import com.example.palette.ui.display
-import com.example.palette.ui.scoreLabel
+import com.example.palette.ui.titular
+import com.example.palette.ui.notaTexto
 import kotlinx.coroutines.delay
+
+// remember { mutableStateOf(...) } guarda un valor mientras la pantalla siga abierta.
+// la ficha se pinta primero con lo que ya se sabe del contenido y, cuando llegan los detalles
+// de la red, se cambia el valor y compose repinta lo que haga falta.
 
 /**
  * ficha de un contenido. es la misma pantalla para todo: se pinta al momento con lo que ya
  * sabemos del resultado de busqueda y se completa con los detalles de su base de datos.
  */
 @Composable
-fun DetailScreen(initial: Media, modifier: Modifier = Modifier) {
-    val palette = LocalPalette.current
-    val store = palette.store
-    val nav = palette.nav
+fun DetailScreen(inicial: Media, modifier: Modifier = Modifier) {
+    val app = LocalPalette.current
+    val almacen = app.almacen
+    val navegacion = app.navegacion
     // localclipboard, el sustituto, todavia no deja crear un clipentry de texto desde codigo comun
     @Suppress("DEPRECATION")
-    val clipboard = LocalClipboardManager.current
+    val portapapeles = LocalClipboardManager.current
 
-    var media by remember { mutableStateOf(initial) }
+    var media by remember { mutableStateOf(inicial) }
     var similar by remember { mutableStateOf(emptyList<Media>()) }
     var extras by remember { mutableStateOf(Extras()) }
-    var copied by remember { mutableStateOf(false) }
+    var copiado by remember { mutableStateOf(false) }
 
-    LaunchedEffect(initial.id) {
-        media = palette.catalog.details(initial)
-        extras = palette.catalog.extras(media)
-        similar = palette.catalog.similar(media).filter { it.imageUrl != null }
+    LaunchedEffect(inicial.id) {
+        media = app.catalogo.detalles(inicial)
+        extras = app.catalogo.extras(media)
+        similar = app.catalogo.similar(media).filter { it.imageUrl != null }
     }
-    LaunchedEffect(copied) {
-        if (copied) {
+    LaunchedEffect(copiado) {
+        if (copiado) {
             delay(1800)
-            copied = false
+            copiado = false
         }
     }
 
-    val mine = store.myLogOf(media.id)
-    val saved = store.inWatchlist(media.id)
+    val mio = almacen.miLogDe(media.id)
+    val guardado = almacen.enPendientes(media.id)
     val tint = Pigment.of(media.type)
-    val friendLogs = store.data.peopleLogs.filter { it.media.id == media.id && store.isFollowing(it.userId) && !it.hidden }
+    val logsDeAmigos = almacen.estado.peopleLogs.filter { it.media.id == media.id && almacen.sigoA(it.userId) && !it.hidden }
 
     Column(modifier) {
-        BackBar(if (copied) "Enlace copiado" else "", { nav.back() }) {
-            IconAction(Icons.Send, "Enviar a un amigo", { nav.sending = Outgoing.Content(media) })
+        BackBar(if (copiado) "Enlace copiado" else "", { navegacion.volver() }) {
+            IconAction(Icons.Send, "Enviar a un amigo", { navegacion.enviando = Outgoing.Content(media) })
             IconAction(Icons.Share, "Copiar enlace", {
-                clipboard.setText(AnnotatedString(media.link ?: media.title))
-                copied = true
+                portapapeles.setText(AnnotatedString(media.link ?: media.title))
+                copiado = true
             })
         }
         LazyColumn(contentPadding = PaddingValues(bottom = BarSpace), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -103,10 +107,10 @@ fun DetailScreen(initial: Media, modifier: Modifier = Modifier) {
                     CoverByHeight(media, 250.dp, Modifier.clip(RoundedCornerShape(8.dp)))
                 }
                 Spacer(Modifier.height(14.dp))
-                Text(media.title, style = display(30.sp), textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 28.dp))
+                Text(media.title, style = titular(30.sp), textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 28.dp))
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    listOfNotNull(media.byline(), media.extra).joinToString(", "),
+                    listOfNotNull(media.subtitulo(), media.extra).joinToString(", "),
                     color = Pigment.Graphite, fontSize = 14.sp, textAlign = TextAlign.Center,
                     modifier = Modifier.padding(horizontal = 28.dp),
                 )
@@ -115,13 +119,13 @@ fun DetailScreen(initial: Media, modifier: Modifier = Modifier) {
                 Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.Top) {
                     media.score?.let { score ->
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(scoreLabel(score), style = display(26.sp))
+                            Text(notaTexto(score), style = titular(26.sp))
                             Text("sobre 10 en ${media.scoreSource}", color = Pigment.Graphite, fontSize = 12.sp)
                         }
                     }
-                    if (mine != null) {
+                    if (mio != null) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Box(Modifier.height(30.dp), contentAlignment = Alignment.Center) { Stars(mine.stars, size = 18.dp) }
+                            Box(Modifier.height(30.dp), contentAlignment = Alignment.Center) { Stars(mio.stars, size = 18.dp) }
                             Text("tu nota", color = Pigment.Graphite, fontSize = 12.sp)
                         }
                     }
@@ -130,34 +134,34 @@ fun DetailScreen(initial: Media, modifier: Modifier = Modifier) {
                 Spacer(Modifier.height(20.dp))
                 Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     PillButton(
-                        text = if (mine == null) "Puntuar y reseñar" else "Editar reseña",
-                        onClick = { nav.reviewing = media },
+                        text = if (mio == null) "Puntuar y reseñar" else "Editar reseña",
+                        onClick = { navegacion.enResena = media },
                         color = tint,
-                        icon = if (mine == null) Icons.Star else Icons.Pencil,
+                        icon = if (mio == null) Icons.Star else Icons.Pencil,
                         modifier = Modifier.weight(1f),
                     )
                     PillButton(
-                        text = if (saved) "En pendientes" else "Pendiente",
-                        onClick = { store.toggleWatchlist(media) },
+                        text = if (guardado) "En pendientes" else "Pendiente",
+                        onClick = { almacen.alternarPendiente(media) },
                         filled = false,
-                        icon = if (saved) Icons.BookmarkCheck else Icons.Bookmark,
+                        icon = if (guardado) Icons.BookmarkCheck else Icons.Bookmark,
                         modifier = Modifier.weight(1f),
                     )
                 }
 
-                if (mine != null && mine.review.isNotBlank()) {
+                if (mio != null && mio.review.isNotBlank()) {
                     Spacer(Modifier.height(18.dp))
-                    Text(mine.review, fontSize = 15.sp, lineHeight = 22.sp, modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp))
+                    Text(mio.review, fontSize = 15.sp, lineHeight = 22.sp, modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp))
                 }
 
                 media.overview?.let { overview ->
-                    var expanded by remember { mutableStateOf(false) }
+                    var desplegado by remember { mutableStateOf(false) }
                     Spacer(Modifier.height(22.dp))
                     Text(
                         overview,
                         fontSize = 15.sp, lineHeight = 22.sp, color = Pigment.Ink.copy(alpha = 0.82f),
-                        maxLines = if (expanded) Int.MAX_VALUE else 6, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(horizontal = 20.dp),
+                        maxLines = if (desplegado) Int.MAX_VALUE else 6, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth().clickable { desplegado = !desplegado }.padding(horizontal = 20.dp),
                     )
                 }
                 if (media.genres.isNotEmpty()) {
@@ -167,9 +171,9 @@ fun DetailScreen(initial: Media, modifier: Modifier = Modifier) {
             }
 
             // datos propios del tipo: reparto y duracion en una peli, plataformas en un juego...
-            if (extras.facts.isNotEmpty()) item {
+            if (extras.datos.isNotEmpty()) item {
                 Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 22.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    extras.facts.forEach { (label, value) ->
+                    extras.datos.forEach { (label, value) ->
                         Row {
                             Text(label, color = Pigment.Graphite, fontSize = 14.sp, modifier = Modifier.width(118.dp))
                             Text(value, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.weight(1f))
@@ -184,7 +188,7 @@ fun DetailScreen(initial: Media, modifier: Modifier = Modifier) {
                     Spacer(Modifier.height(24.dp))
                     SectionTitle("Del álbum", Modifier.fillMaxWidth())
                     Row(
-                        Modifier.fillMaxWidth().clickable { nav.open(Dest.Detail(album)) }.padding(horizontal = 20.dp, vertical = 10.dp),
+                        Modifier.fillMaxWidth().clickable { navegacion.abrir(Dest.Detail(album)) }.padding(horizontal = 20.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         CoverByHeight(album, 64.dp)
@@ -198,43 +202,43 @@ fun DetailScreen(initial: Media, modifier: Modifier = Modifier) {
             }
 
             // y un album lista sus canciones; cada una abre su propia ficha
-            if (extras.tracks.isNotEmpty()) {
+            if (extras.canciones.isNotEmpty()) {
                 item {
                     Spacer(Modifier.height(24.dp))
                     SectionTitle("Canciones", Modifier.fillMaxWidth())
                     Spacer(Modifier.height(6.dp))
                 }
-                itemsIndexed(extras.tracks, key = { _, track -> track.id }) { number, track ->
-                    val logged = store.myLogOf(track.id)
+                itemsIndexed(extras.canciones, key = { _, cancion -> cancion.id }) { numero, cancion ->
+                    val registrado = almacen.miLogDe(cancion.id)
                     Row(
-                        Modifier.fillMaxWidth().clickable { nav.open(Dest.Detail(track)) }.padding(horizontal = 20.dp, vertical = 9.dp),
+                        Modifier.fillMaxWidth().clickable { navegacion.abrir(Dest.Detail(cancion)) }.padding(horizontal = 20.dp, vertical = 9.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("${number + 1}", color = Pigment.Graphite, fontSize = 14.sp, modifier = Modifier.width(30.dp))
-                        Text(track.title, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                        if (logged != null) {
-                            Stars(logged.stars, size = 11.dp)
+                        Text("${numero + 1}", color = Pigment.Graphite, fontSize = 14.sp, modifier = Modifier.width(30.dp))
+                        Text(cancion.title, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                        if (registrado != null) {
+                            Stars(registrado.stars, size = 11.dp)
                             Spacer(Modifier.width(10.dp))
                         }
-                        track.extra?.let { Text(it, color = Pigment.Graphite, fontSize = 13.sp) }
+                        cancion.extra?.let { Text(it, color = Pigment.Graphite, fontSize = 13.sp) }
                     }
                 }
             }
 
-            if (friendLogs.isNotEmpty()) {
+            if (logsDeAmigos.isNotEmpty()) {
                 item {
                     Spacer(Modifier.height(26.dp))
                     SectionTitle("Entre tus amigos", Modifier.fillMaxWidth())
                     Spacer(Modifier.height(6.dp))
                 }
-                items(friendLogs, key = { it.id }) { log ->
-                    val author = store.user(log.userId) ?: return@items
-                    Row(Modifier.fillMaxWidth().clickable { nav.open(Dest.Profile(author.id)) }.padding(horizontal = 20.dp, vertical = 10.dp)) {
-                        Avatar(author, 36.dp)
+                items(logsDeAmigos, key = { it.id }) { log ->
+                    val autor = almacen.user(log.userId) ?: return@items
+                    Row(Modifier.fillMaxWidth().clickable { navegacion.abrir(Dest.Profile(autor.id)) }.padding(horizontal = 20.dp, vertical = 10.dp)) {
+                        Avatar(autor, 36.dp)
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(author.name, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                Text(autor.name, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                                 Spacer(Modifier.width(8.dp))
                                 Stars(log.stars, size = 13.dp)
                             }

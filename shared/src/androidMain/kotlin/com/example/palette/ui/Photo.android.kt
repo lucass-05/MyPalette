@@ -19,29 +19,29 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 
 @Composable
-actual fun rememberPhotoPicker(onPicked: (ByteArray) -> Unit): () -> Unit {
+actual fun recordarSelectorDeFotos(alElegir: (ByteArray) -> Unit): () -> Unit {
     val context = LocalContext.current
-    val report by rememberUpdatedState(onPicked)
+    val avisar by rememberUpdatedState(alElegir)
     // el selector de fotos del sistema: no hace falta pedir permiso de almacenamiento
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) readUpright(context, uri)?.let(report)
+    val lanzador = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) leerDerecha(context, uri)?.let(avisar)
     }
-    return { launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
+    return { lanzador.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
 }
 
 /** lee la foto y, si la camara la guardo girada (dato exif), la devuelve ya derecha. */
-private fun readUpright(context: Context, uri: Uri): ByteArray? {
+private fun leerDerecha(context: Context, uri: Uri): ByteArray? {
     val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return null
-    val turn = when (ExifInterface(ByteArrayInputStream(bytes)).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
+    val giro = when (ExifInterface(ByteArrayInputStream(bytes)).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
         ExifInterface.ORIENTATION_ROTATE_90 -> 90f
         ExifInterface.ORIENTATION_ROTATE_180 -> 180f
         ExifInterface.ORIENTATION_ROTATE_270 -> 270f
         else -> return bytes
     }
     val original = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return bytes
-    val upright = Bitmap.createBitmap(original, 0, 0, original.width, original.height, Matrix().apply { postRotate(turn) }, true)
-    return ByteArrayOutputStream().also { upright.compress(Bitmap.CompressFormat.JPEG, 92, it) }.toByteArray()
+    val derecha = Bitmap.createBitmap(original, 0, 0, original.width, original.height, Matrix().apply { postRotate(giro) }, true)
+    return ByteArrayOutputStream().also { derecha.compress(Bitmap.CompressFormat.JPEG, 92, it) }.toByteArray()
 }
 
-internal actual fun encodeJpeg(image: ImageBitmap, quality: Int): ByteArray =
-    ByteArrayOutputStream().also { image.asAndroidBitmap().compress(Bitmap.CompressFormat.JPEG, quality, it) }.toByteArray()
+internal actual fun codificarJpeg(image: ImageBitmap, calidad: Int): ByteArray =
+    ByteArrayOutputStream().also { image.asAndroidBitmap().compress(Bitmap.CompressFormat.JPEG, calidad, it) }.toByteArray()

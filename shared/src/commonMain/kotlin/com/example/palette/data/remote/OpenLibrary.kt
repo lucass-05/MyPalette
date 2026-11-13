@@ -11,15 +11,15 @@ import kotlinx.serialization.json.JsonPrimitive
 /** libros: https://openlibrary.org/dev/docs/api/search. no pide clave. */
 internal class OpenLibrary {
 
-    private val base = "https://openlibrary.org"
-    private val fields = "key,title,author_name,first_publish_year,cover_i,ratings_average,ratings_count,number_of_pages_median,subject"
+    private val raiz = "https://openlibrary.org"
+    private val campos = "key,title,author_name,first_publish_year,cover_i,ratings_average,ratings_count,number_of_pages_median,subject"
 
-    suspend fun search(query: String): List<Media> = find(mapOf("q" to query))
+    suspend fun buscar(consulta: String): List<Media> = find(mapOf("q" to consulta))
 
-    suspend fun details(media: Media): Media {
-        val work = json.decodeFromString(Work.serializer(), getText("$base/works/${media.id.substringAfter(':')}.json"))
+    suspend fun detalles(media: Media): Media {
+        val obra = json.decodeFromString(Work.serializer(), pedirTexto("$raiz/works/${media.id.substringAfter(':')}.json"))
         // la descripcion llega a veces como texto y a veces como {"type": ..., "value": ...}
-        val text = when (val d = work.description) {
+        val text = when (val d = obra.description) {
             is JsonPrimitive -> d.content
             is JsonObject -> (d["value"] as? JsonPrimitive)?.content
             else -> null
@@ -29,22 +29,22 @@ internal class OpenLibrary {
 
     /** otros libros del mismo autor. */
     suspend fun similar(media: Media): List<Media> {
-        val author = media.creator ?: return emptyList()
-        return find(mapOf("author" to author, "sort" to "rating")).filter { it.id != media.id }
+        val autor = media.creator ?: return emptyList()
+        return find(mapOf("author" to autor, "sort" to "rating")).filter { it.id != media.id }
     }
 
-    private suspend fun find(params: Map<String, String>): List<Media> {
-        val page = json.decodeFromString(
+    private suspend fun find(parametros: Map<String, String>): List<Media> {
+        val pagina = json.decodeFromString(
             Page.serializer(),
-            getText("$base/search.json", params + mapOf("fields" to fields, "limit" to "12", "lang" to "es")),
+            pedirTexto("$raiz/search.json", parametros + mapOf("fields" to campos, "limit" to "12", "lang" to "es")),
         )
-        return page.docs.mapNotNull { it.toMedia() }
+        return pagina.docs.mapNotNull { it.toMedia() }
     }
 
     private fun Doc.toMedia(): Media? {
-        val workId = key?.substringAfterLast('/') ?: return null
+        val idObra = key?.substringAfterLast('/') ?: return null
         return Media(
-            id = "ol:$workId",
+            id = "ol:$idObra",
             type = MediaType.BOOK,
             title = title ?: return null,
             creator = authors.firstOrNull(),
@@ -56,7 +56,7 @@ internal class OpenLibrary {
             votes = ratingCount,
             genres = subjects.take(3),
             extra = pages?.let { "$it páginas" },
-            link = "$base/works/$workId",
+            link = "$raiz/works/$idObra",
         )
     }
 
