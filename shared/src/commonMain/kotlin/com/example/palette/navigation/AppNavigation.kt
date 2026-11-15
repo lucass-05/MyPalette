@@ -1,5 +1,30 @@
 package com.example.palette.navigation
 
+import com.example.palette.core.data.PaletteStore
+import com.example.palette.core.data.Stage
+import com.example.palette.core.ui.LogMenuSheet
+import com.example.palette.core.ui.Pigment
+import com.example.palette.core.ui.ReviewSheet
+import com.example.palette.core.ui.SendSheet
+import com.example.palette.features.auth.ui.LoadingScreen
+import com.example.palette.features.auth.ui.ProfileSetupScreen
+import com.example.palette.features.auth.ui.SignInScreen
+import com.example.palette.di.DefaultAppContainer
+import com.example.palette.features.catalog.ui.DetailScreen
+import com.example.palette.features.catalog.ui.DiscoverScreen
+import com.example.palette.features.catalog.ui.LogScreenRoot
+import com.example.palette.features.home.ui.HomeScreen
+import com.example.palette.features.home.ui.PeopleScreen
+import com.example.palette.features.home.ui.StoryScreen
+import com.example.palette.features.messages.ui.ActivityScreen
+import com.example.palette.features.messages.ui.ChatScreen
+import com.example.palette.features.messages.ui.GroupChatScreen
+import com.example.palette.features.messages.ui.GroupInfoSheet
+import com.example.palette.features.messages.ui.NewGroupSheet
+import com.example.palette.features.profile.ui.ProfileScreen
+import com.example.palette.features.profile.ui.SettingsScreen
+
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
@@ -35,29 +60,6 @@ import androidx.compose.ui.unit.dp
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
-import com.example.palette.data.PaletteStore
-import com.example.palette.data.Stage
-import com.example.palette.data.remote.Catalog
-import com.example.palette.screens.ActivityScreen
-import com.example.palette.screens.ChatScreen
-import com.example.palette.screens.DetailScreen
-import com.example.palette.screens.DiscoverScreen
-import com.example.palette.screens.GroupChatScreen
-import com.example.palette.screens.GroupInfoSheet
-import com.example.palette.screens.HomeScreen
-import com.example.palette.screens.NewGroupSheet
-import com.example.palette.screens.LogMenuSheet
-import com.example.palette.screens.LogScreen
-import com.example.palette.screens.PeopleScreen
-import com.example.palette.screens.ProfileScreen
-import com.example.palette.screens.ReviewSheet
-import com.example.palette.screens.SendSheet
-import com.example.palette.screens.SettingsScreen
-import com.example.palette.screens.StoryScreen
-import com.example.palette.screens.LoadingScreen
-import com.example.palette.screens.ProfileSetupScreen
-import com.example.palette.screens.SignInScreen
-import com.example.palette.ui.Pigment
 import kotlinx.coroutines.delay
 
 // la navegacion no usa ninguna libreria: es estado de compose.
@@ -72,7 +74,8 @@ enum class Screen {
 
 @Composable
 fun AppNavigation() {
-    val app = remember { Palette(PaletteStore(), Catalog(), Nav()) }
+    // el contenedor se crea una vez, al arrancar, y de el salen repositorios y casos de uso
+    val app = remember { Palette(DefaultAppContainer(), Nav()) }
 
     // mientras hay sesion se vuelve a preguntar al servidor cada poco: logs de amigos, mensajes, seguidores
     LaunchedEffect(app.almacen.conSesion) {
@@ -136,7 +139,7 @@ private fun Shell(app: Palette) {
             when (navegacion.apartado) {
                 Screen.HOME -> HomeScreen(pagina)
                 Screen.DISCOVER -> DiscoverScreen(pagina)
-                Screen.LOG -> LogScreen(pagina)
+                Screen.LOG -> LogScreenRoot(pagina)
                 Screen.ACTIVITY -> Centered(760.dp) { ActivityScreen(it) }
                 Screen.PROFILE -> ProfileScreen(modifier = pagina)
             }

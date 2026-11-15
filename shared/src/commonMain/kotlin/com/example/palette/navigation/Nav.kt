@@ -1,5 +1,14 @@
 package com.example.palette.navigation
 
+import com.example.palette.core.data.PaletteStore
+import com.example.palette.core.model.LogEntry
+import com.example.palette.core.model.Media
+import com.example.palette.core.model.ThemeColors
+import com.example.palette.core.ui.Pigment
+import com.example.palette.di.AppContainer
+import com.example.palette.features.catalog.domain.repository.CatalogRepository
+
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -9,12 +18,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.example.palette.data.LogEntry
-import com.example.palette.data.Media
-import com.example.palette.data.PaletteStore
-import com.example.palette.data.ThemeColors
-import com.example.palette.data.remote.Catalog
-import com.example.palette.ui.Pigment
 
 // mutableStateOf y mutableStateListOf son la base de compose: guardan un valor y avisan
 // a quien lo haya leido para que se repinte. "by" permite usarlos como variables normales.
@@ -68,7 +71,10 @@ class Nav {
     }
 }
 
-class Palette(val almacen: PaletteStore, val catalogo: Catalog, val navegacion: Nav) {
+class Palette(val container: AppContainer, val navegacion: Nav) {
+    val almacen: PaletteStore get() = container.almacen
+    val catalogo: CatalogRepository get() = container.catalogRepository
+
     val descubrir = DiscoverCache()
 
     init {

@@ -1,5 +1,8 @@
 package com.example.palette
 
+import com.example.palette.navigation.Palette
+
+
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.application

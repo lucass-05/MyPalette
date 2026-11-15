@@ -18,6 +18,4 @@ captures
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
 
-# descargas de Claude y restos de entregas
-Claude outputs/
 *.tar.gz

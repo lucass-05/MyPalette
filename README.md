@@ -87,7 +87,7 @@ Para montar tu propio servidor en un proyecto de Supabase:
 2. **Registro.** En *Authentication > Sign In / Providers > Email*, desactiva *Confirm email*.
 3. **Videojuegos.** Crea una *Edge Function* llamada `igdb` con el contenido de `supabase/functions/igdb/index.ts`
    y añade los secretos `IGDB_CLIENT_ID` e `IGDB_CLIENT_SECRET` (de una app registrada en la consola de desarrolladores de Twitch).
-4. **Conexión.** Pon la URL del proyecto y su clave publicable al principio de `data/remote/Supabase.kt`.
+4. **Conexión.** Pon la URL del proyecto y su clave publicable al principio de `core/network/Supabase.kt`.
 
 ### Dónde va cada credencial
 
@@ -96,7 +96,7 @@ Para montar tu propio servidor en un proyecto de Supabase:
 | Clave de TMDB | `local.properties` de cada desarrollador | No |
 | Client ID y Client Secret de IGDB | Secretos de la función en Supabase | No |
 | *Secret key* de Supabase | Solo en el panel de Supabase | No |
-| URL y clave publicable de Supabase | `data/remote/Supabase.kt` | Sí: es pública por diseño |
+| URL y clave publicable de Supabase | `core/network/Supabase.kt` | Sí: es pública por diseño |
 
 Lo que puede hacer cada usuario no depende de la clave publicable sino de las reglas de la base de datos
 (*row level security*): cada uno solo modifica lo suyo, los registros ocultos y los pendientes privados no salen
@@ -104,18 +104,23 @@ del servidor, y un mensaje solo lo ven quienes participan en la conversación.
 
 ### Estructura
 
-Todo el código de la app está en `shared/src/commonMain/kotlin/com/example/palette`:
+Todo el código de la app está en `shared/src/commonMain/kotlin/com/example/palette`, organizado en `di`, `core` y `features`:
 
 | Carpeta | Contenido |
 |---|---|
-| `data/` | Modelos y `PaletteStore`, el estado de la app: aplica cada cambio en local y lo sube al servidor |
-| `data/remote/` | Un fichero por servicio externo. `Catalog` es lo único que usan las pantallas para buscar |
-| `ui/` | Tema, colores, iconos y componentes: manchas, estrellas, portadas, selector de color y de foto |
+| `di/` | `AppContainer`: crea una sola vez repositorios y casos de uso |
+| `core/` | Red, guardado local, modelos compartidos, tema y componentes |
+| `features/<nombre>/domain` | Interfaces de repositorio y casos de uso |
+| `features/<nombre>/data` | Implementación de los repositorios: llamadas a las APIs |
+| `features/<nombre>/presentation` | Estado, acciones y ViewModel de cada pantalla |
+| `features/<nombre>/ui` | Las pantallas |
 | `navigation/` | Pestañas, pantallas apiladas y la barra de cristal |
-| `screens/` | Una pantalla por fichero. `DetailScreen` es la ficha genérica de cualquier contenido |
+
+La funcionalidad `catalog` (buscar contenido) ya sigue este esquema de principio a fin; el resto de pantallas
+están en su carpeta pero aún leen de `core/data/PaletteStore`. El detalle está en la guía.
 
 Lo específico de cada plataforma (guardado local y selector de fotos) está en `androidMain`, `iosMain`, `jvmMain`,
-`jsMain` y `wasmJsMain`. Los colores no se escriben a mano en las pantallas: salen siempre de `Pigment` (`ui/Theme.kt`).
+`jsMain` y `wasmJsMain`. Los colores no se escriben a mano en las pantallas: salen siempre de `Pigment` (`core/ui/Theme.kt`).
 
 ## Estado del proyecto
 

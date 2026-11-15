@@ -1,11 +1,14 @@
 package com.example.palette
 
-import com.example.palette.data.DAY
-import com.example.palette.data.HOUR
-import com.example.palette.data.MINUTE
-import com.example.palette.data.haceCuanto
-import com.example.palette.ui.notaTexto
-import com.example.palette.ui.estrellasTexto
+import com.example.palette.core.ui.estrellasTexto
+import com.example.palette.core.ui.notaTexto
+import com.example.palette.core.util.DAY
+import com.example.palette.core.util.HOUR
+import com.example.palette.core.util.MINUTE
+import com.example.palette.core.util.ahora
+import com.example.palette.core.util.haceCuanto
+
+
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
