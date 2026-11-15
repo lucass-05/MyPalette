@@ -1,22 +1,5 @@
 package com.example.palette.features.catalog.ui
 
-import com.example.palette.core.model.Media
-import com.example.palette.core.model.MediaType
-import com.example.palette.core.ui.Chip
-import com.example.palette.core.ui.CoverByHeight
-import com.example.palette.core.ui.EmptyState
-import com.example.palette.core.ui.Icons
-import com.example.palette.core.ui.Pigment
-import com.example.palette.core.ui.ScreenTitle
-import com.example.palette.core.ui.SearchField
-import com.example.palette.core.ui.icon
-import com.example.palette.core.ui.notaTexto
-import com.example.palette.core.ui.subtitulo
-import com.example.palette.navigation.BarSpace
-import com.example.palette.navigation.Dest
-import com.example.palette.navigation.LocalPalette
-
-
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -38,24 +21,32 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.palette.features.catalog.presentation.LogAction
-import com.example.palette.features.catalog.presentation.LogState
-import com.example.palette.features.catalog.presentation.LogViewModel
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.palette.core.model.Media
+import com.example.palette.core.model.MediaType
+import com.example.palette.core.ui.Chip
+import com.example.palette.core.ui.CoverByHeight
+import com.example.palette.core.ui.EmptyState
+import com.example.palette.core.ui.Icons
+import com.example.palette.core.ui.Pigment
+import com.example.palette.core.ui.ScreenTitle
+import com.example.palette.core.ui.SearchField
+import com.example.palette.core.ui.icon
+import com.example.palette.core.ui.notaTexto
+import com.example.palette.core.ui.subtitulo
+import com.example.palette.di.LocalAppContainer
+import com.example.palette.features.catalog.presentation.LogAction
+import com.example.palette.features.catalog.presentation.LogState
+import com.example.palette.features.catalog.presentation.LogViewModel
+import com.example.palette.navigation.BarSpace
 
 // esta pantalla sigue el esquema de la asignatura:
 //   LogState + LogAction + LogViewModel (carpeta presentation) y LogScreenRoot + LogScreen (aqui).
@@ -65,10 +56,10 @@ import kotlinx.coroutines.delay
 // la pantalla de verdad (LogScreen) no sabe nada de eso: recibe un estado y avisa de acciones,
 // asi se puede previsualizar o probar pasandole un LogState a mano.
 @Composable
-fun LogScreenRoot(modifier: Modifier = Modifier) {
-    val app = LocalPalette.current
+fun LogScreenRoot(onOpenMedia: (Media) -> Unit, modifier: Modifier = Modifier) {
+    val container = LocalAppContainer.current
     // viewModel { } crea el viewmodel la primera vez y devuelve el mismo en las siguientes recomposiciones
-    val viewModel = viewModel { LogViewModel(app.container.searchMediaUseCase, app.catalogo.noDisponibles) }
+    val viewModel = viewModel { LogViewModel(container.searchMediaUseCase, container.catalogRepository.noDisponibles) }
     // el estado es un flujo: collectAsStateWithLifecycle lo convierte en estado de compose para que la ui se repinte
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -76,7 +67,8 @@ fun LogScreenRoot(modifier: Modifier = Modifier) {
         state = state,
         onAction = { action ->
             when (action) {
-                is LogAction.OnResultadoClicked -> app.navegacion.abrir(Dest.Detail(action.media))
+                // abrir una ficha es navegar: no cambia el estado de esta pantalla, asi que no pasa por el viewmodel
+                is LogAction.OnResultadoClicked -> onOpenMedia(action.media)
                 else -> viewModel.onAction(action)
             }
         },

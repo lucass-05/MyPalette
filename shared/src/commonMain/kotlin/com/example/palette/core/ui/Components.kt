@@ -1,9 +1,5 @@
 package com.example.palette.core.ui
 
-import com.example.palette.core.model.Media
-import com.example.palette.core.model.User
-
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -52,6 +48,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.example.palette.core.model.Media
+import com.example.palette.core.model.User
 import kotlin.math.roundToInt
 
 @Composable

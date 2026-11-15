@@ -1,10 +1,5 @@
 package com.example.palette.navigation
 
-import com.example.palette.core.ui.Pigment
-import com.example.palette.core.ui.legible
-import com.example.palette.core.ui.pintarSalpicadura
-
-
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -49,6 +44,10 @@ import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.dp
+import com.example.palette.core.ui.Pigment
+import com.example.palette.core.ui.legible
+import com.example.palette.core.ui.pintarSalpicadura
+import com.example.palette.features.profile.domain.model.Perfil
 
 val Screen.pigmento: Color
     get() = when (this) {

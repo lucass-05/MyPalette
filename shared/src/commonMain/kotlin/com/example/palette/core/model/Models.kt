@@ -1,8 +1,5 @@
 package com.example.palette.core.model
 
-import com.example.palette.core.network.json
-
-
 import kotlinx.serialization.Serializable
 
 // los nombres de los campos de estas clases no estan traducidos a proposito: son las claves

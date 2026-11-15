@@ -1,22 +1,5 @@
 package com.example.palette.features.home.ui
 
-import com.example.palette.core.ui.Avatar
-import com.example.palette.core.ui.CoverByHeight
-import com.example.palette.core.ui.IconAction
-import com.example.palette.core.ui.Icons
-import com.example.palette.core.ui.Pigment
-import com.example.palette.core.ui.PillButton
-import com.example.palette.core.ui.Stars
-import com.example.palette.core.ui.icon
-import com.example.palette.core.ui.legible
-import com.example.palette.core.ui.titular
-import com.example.palette.core.ui.verbo
-import com.example.palette.core.util.ahora
-import com.example.palette.core.util.haceCuanto
-import com.example.palette.navigation.Dest
-import com.example.palette.navigation.LocalPalette
-
-
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
@@ -42,9 +25,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,67 +36,101 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.palette.core.model.Media
+import com.example.palette.core.ui.Avatar
+import com.example.palette.core.ui.CoverByHeight
+import com.example.palette.core.ui.IconAction
+import com.example.palette.core.ui.Icons
+import com.example.palette.core.ui.Pigment
+import com.example.palette.core.ui.PillButton
+import com.example.palette.core.ui.Stars
+import com.example.palette.core.ui.icon
+import com.example.palette.core.ui.legible
+import com.example.palette.core.ui.titular
+import com.example.palette.core.ui.verbo
+import com.example.palette.core.util.ahora
+import com.example.palette.core.util.haceCuanto
+import com.example.palette.di.LocalAppContainer
+import com.example.palette.features.home.presentation.StoryAction
+import com.example.palette.features.home.presentation.StoryState
+import com.example.palette.features.home.presentation.StoryViewModel
 
-/** los ultimos logs de un amigo a pantalla completa, uno detras de otro. */
 @Composable
-fun StoryScreen(userId: String, cola: List<String>, modifier: Modifier = Modifier) {
-    val app = LocalPalette.current
-    val almacen = app.almacen
-    val navegacion = app.navegacion
-    val user = almacen.user(userId)
-    // se congela la lista al abrir: marcar como visto no debe moverla
-    val logs = remember(userId) { almacen.historiaDe(userId) }
-    if (user == null || logs.isEmpty()) {
-        LaunchedEffect(Unit) { navegacion.volver() }
+fun StoryScreenRoot(
+    userId: String,
+    cola: List<String>,
+    onClose: () -> Unit,
+    onOpenStory: (String) -> Unit,
+    onOpenUser: (String) -> Unit,
+    onOpenMedia: (Media) -> Unit,
+    onReply: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val container = LocalAppContainer.current
+    val viewModel = viewModel { StoryViewModel(userId, container.feedRepository) }
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    // la historia de esta persona ya no existe: no hay nada que enseñar
+    if (state.historia == null) {
+        LaunchedEffect(Unit) { onClose() }
         return
     }
 
-    var index by remember { mutableIntStateOf(0) }
     val puesto = cola.indexOf(userId)
+    StoryScreen(
+        state = state,
+        onAction = { action ->
+            when (action) {
+                // como en instagram: al acabar los logs de una persona se pasa a la siguiente historia de la fila
+                StoryAction.OnNextTapped -> if (state.enElUltimo) cola.getOrNull(puesto + 1)?.let(onOpenStory) ?: onClose()
+                StoryAction.OnPreviousTapped -> if (state.index == 0) cola.getOrNull(puesto - 1)?.let(onOpenStory)
+                StoryAction.OnCloseClicked -> onClose()
+                StoryAction.OnUserClicked -> onOpenUser(userId)
+                StoryAction.OnVerFichaClicked -> state.log?.let { onOpenMedia(it.media) }
+                StoryAction.OnResponderClicked -> onReply(userId)
+            }
+            // moverse dentro de los logs de esta persona lo lleva el viewmodel
+            viewModel.onAction(action)
+        },
+        modifier = modifier,
+    )
+}
 
-    // como en instagram: al acabar los logs de una persona se pasa a la siguiente historia de la fila
-    fun siguiente() {
-        val following = cola.getOrNull(puesto + 1)
-        when {
-            index < logs.lastIndex -> index++
-            following != null -> navegacion.sustituirCima(Dest.Story(following, cola))
-            else -> navegacion.volver()
-        }
-    }
-
-    fun anterior() {
-        val before = cola.getOrNull(puesto - 1)
-        when {
-            index > 0 -> index--
-            before != null -> navegacion.sustituirCima(Dest.Story(before, cola))
-        }
-    }
-
-    val progreso = remember { Animatable(0f) }
-    val log = logs[index]
+/** los ultimos logs de un amigo a pantalla completa, uno detras de otro. */
+@Composable
+fun StoryScreen(state: StoryState, onAction: (StoryAction) -> Unit, modifier: Modifier = Modifier) {
+    val historia = state.historia ?: return
+    val log = state.log ?: return
+    val user = historia.user
     val media = log.media
     val tint = Pigment.of(media.type)
     val ink = tint.legible()
+    // los gestos y el temporizador se quedan con la funcion del momento en que se crearon;
+    // con rememberUpdatedState llaman siempre a la ultima
+    val accion by rememberUpdatedState(onAction)
 
-    LaunchedEffect(index) {
-        almacen.marcarHistoriaVista(userId, log.createdAt)
+    // la barra de progreso es una animacion, asi que vive en la pantalla: cuando se llena pide el siguiente
+    val progreso = remember { Animatable(0f) }
+    LaunchedEffect(state.index) {
         progreso.snapTo(0f)
         progreso.animateTo(1f, tween(6000, easing = LinearEasing))
-        siguiente()
+        accion(StoryAction.OnNextTapped)
     }
 
     Box(
-        modifier.background(tint).pointerInput(logs.size) {
+        modifier.background(tint).pointerInput(Unit) {
             // tocar la parte derecha avanza; el tercio izquierdo vuelve atras
-            detectTapGestures { offset -> if (offset.x > size.width / 3) siguiente() else anterior() }
+            detectTapGestures { offset -> accion(if (offset.x > size.width / 3) StoryAction.OnNextTapped else StoryAction.OnPreviousTapped) }
         },
     ) {
         Column(Modifier.align(Alignment.TopCenter).widthIn(max = 560.dp).fillMaxSize().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                logs.forEachIndexed { i, _ ->
+                historia.logs.forEachIndexed { i, _ ->
                     val filled = when {
-                        i < index -> 1f
-                        i == index -> progreso.value
+                        i < state.index -> 1f
+                        i == state.index -> progreso.value
                         else -> 0f
                     }
                     Box(Modifier.weight(1f).height(3.dp).clip(CircleShape).background(ink.copy(alpha = 0.3f))) {
@@ -124,7 +140,7 @@ fun StoryScreen(userId: String, cola: List<String>, modifier: Modifier = Modifie
             }
             Spacer(Modifier.height(10.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Row(Modifier.weight(1f).clickable { navegacion.volver(); navegacion.abrir(Dest.Profile(userId)) }, verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.weight(1f).clickable { onAction(StoryAction.OnUserClicked) }, verticalAlignment = Alignment.CenterVertically) {
                     Avatar(user, 36.dp)
                     Spacer(Modifier.width(10.dp))
                     Column {
@@ -132,7 +148,7 @@ fun StoryScreen(userId: String, cola: List<String>, modifier: Modifier = Modifie
                         Text("${media.type.verbo} hace ${haceCuanto(log.createdAt)}".replace("hace ahora", "ahora mismo"), color = ink.copy(alpha = 0.8f), fontSize = 12.sp)
                     }
                 }
-                IconAction(Icons.Close, "Cerrar", { navegacion.volver() }, tint = ink)
+                IconAction(Icons.Close, "Cerrar", { onAction(StoryAction.OnCloseClicked) }, tint = ink)
             }
 
             Column(Modifier.weight(1f).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
@@ -150,8 +166,8 @@ fun StoryScreen(userId: String, cola: List<String>, modifier: Modifier = Modifie
             }
 
             Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)) {
-                PillButton("Ver ficha", { navegacion.volver(); navegacion.abrir(Dest.Detail(media)) }, color = ink)
-                PillButton("Responder", { navegacion.volver(); navegacion.abrir(Dest.Chat(userId)) }, color = ink, icon = Icons.Send)
+                PillButton("Ver ficha", { onAction(StoryAction.OnVerFichaClicked) }, color = ink)
+                PillButton("Responder", { onAction(StoryAction.OnResponderClicked) }, color = ink, icon = Icons.Send)
             }
         }
     }

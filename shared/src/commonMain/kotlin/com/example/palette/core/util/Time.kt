@@ -1,7 +1,5 @@
 package com.example.palette.core.util
 
-
-
 import kotlin.random.Random
 import kotlin.time.Clock
 

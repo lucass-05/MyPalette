@@ -1,7 +1,5 @@
 package com.example.palette.core.ui
 
-
-
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.FilterQuality
@@ -9,6 +7,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.decodeToImageBitmap
 
 /**
@@ -37,4 +37,13 @@ fun avatarCuadrado(foto: ByteArray, lado: Int = 512): ByteArray {
         paint = Paint().apply { filterQuality = FilterQuality.Medium },
     )
     return codificarJpeg(cuadrada, calidad = 85)
+}
+
+/** lo mismo que [avatarCuadrado] pero sin parar la interfaz mientras trabaja. devuelve null si la imagen no se puede leer. */
+suspend fun prepararAvatar(foto: ByteArray): ByteArray? = withContext(Dispatchers.Default) {
+    try {
+        avatarCuadrado(foto)
+    } catch (e: Exception) {
+        null
+    }
 }

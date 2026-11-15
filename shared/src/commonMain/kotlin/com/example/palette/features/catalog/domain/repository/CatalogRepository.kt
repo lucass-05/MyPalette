@@ -21,4 +21,9 @@ interface CatalogRepository {
     suspend fun similar(media: Media): List<Media>
 
     suspend fun tendencias(): List<Media>
+
+    // al navegar a una ficha solo se pasa el id del contenido. estas dos funciones permiten
+    // recuperar el contenido entero a partir de ese id sin volver a pedirlo a la red
+    fun recordar(media: Media)
+    fun recordado(mediaId: String): Media
 }

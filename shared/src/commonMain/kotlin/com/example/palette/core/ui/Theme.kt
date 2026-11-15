@@ -1,9 +1,5 @@
 package com.example.palette.core.ui
 
-import com.example.palette.core.model.MediaType
-import com.example.palette.core.model.ThemeColors
-
-
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
@@ -22,6 +18,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
+import com.example.palette.core.model.MediaType
+import com.example.palette.core.model.ThemeColors
 import org.jetbrains.compose.resources.Font
 import palette.shared.generated.resources.Res
 import palette.shared.generated.resources.youngserif_regular

@@ -4,8 +4,6 @@ import com.example.palette.core.model.Media
 import com.example.palette.core.model.MediaType
 import com.example.palette.core.network.json
 import com.example.palette.core.network.pedirTexto
-
-
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement

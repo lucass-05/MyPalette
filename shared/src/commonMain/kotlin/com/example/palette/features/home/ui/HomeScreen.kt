@@ -1,33 +1,5 @@
 package com.example.palette.features.home.ui
 
-import com.example.palette.core.model.LogEntry
-import com.example.palette.core.model.User
-import com.example.palette.core.ui.Avatar
-import com.example.palette.core.ui.BackBar
-import com.example.palette.core.ui.CoverByHeight
-import com.example.palette.core.ui.EmptyState
-import com.example.palette.core.ui.FollowButton
-import com.example.palette.core.ui.IconAction
-import com.example.palette.core.ui.Icons
-import com.example.palette.core.ui.Pigment
-import com.example.palette.core.ui.PillButton
-import com.example.palette.core.ui.ScreenTitle
-import com.example.palette.core.ui.SearchField
-import com.example.palette.core.ui.Stars
-import com.example.palette.core.ui.UserRow
-import com.example.palette.core.ui.formaAvatar
-import com.example.palette.core.ui.icon
-import com.example.palette.core.ui.subtitulo
-import com.example.palette.core.ui.titular
-import com.example.palette.core.ui.verbo
-import com.example.palette.core.util.haceCuanto
-import com.example.palette.navigation.BarSpace
-import com.example.palette.navigation.Dest
-import com.example.palette.navigation.LocalPalette
-import com.example.palette.navigation.Outgoing
-import com.example.palette.navigation.Palette
-
-
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -41,17 +13,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -62,66 +33,114 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.palette.core.model.Media
+import com.example.palette.core.model.User
+import com.example.palette.core.ui.Avatar
+import com.example.palette.core.ui.CoverByHeight
+import com.example.palette.core.ui.EmptyState
+import com.example.palette.core.ui.IconAction
+import com.example.palette.core.ui.Icons
+import com.example.palette.core.ui.Pigment
+import com.example.palette.core.ui.PillButton
+import com.example.palette.core.ui.ScreenTitle
+import com.example.palette.core.ui.Stars
+import com.example.palette.core.ui.formaAvatar
+import com.example.palette.core.ui.icon
+import com.example.palette.core.ui.subtitulo
+import com.example.palette.core.ui.titular
+import com.example.palette.core.ui.verbo
+import com.example.palette.core.util.haceCuanto
+import com.example.palette.di.LocalAppContainer
+import com.example.palette.features.home.domain.model.Publicacion
+import com.example.palette.features.home.presentation.HomeAction
+import com.example.palette.features.home.presentation.HomeState
+import com.example.palette.features.home.presentation.HomeViewModel
+import com.example.palette.features.messages.domain.model.Outgoing
+import com.example.palette.navigation.BarSpace
 
 // LazyVerticalGrid solo compone las celdas que se ven en pantalla, por eso aguanta listas largas.
 // la "key" de cada elemento le dice a compose cual es cual cuando la lista cambia de orden.
 
 @Composable
-fun HomeScreen(modifier: Modifier = Modifier) {
-    val app = LocalPalette.current
-    val almacen = app.almacen
-    val navegacion = app.navegacion
-    val novedades = almacen.novedades
-    val historias = almacen.historias
+fun HomeScreenRoot(
+    onOpenPeople: () -> Unit,
+    onOpenStory: (userId: String, cola: List<String>) -> Unit,
+    onOpenMedia: (Media) -> Unit,
+    onOpenUser: (String) -> Unit,
+    onSend: (Outgoing) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val container = LocalAppContainer.current
+    val viewModel = viewModel { HomeViewModel(container.feedRepository, container.libraryRepository) }
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    HomeScreen(
+        state = state,
+        onAction = { action ->
+            when (action) {
+                HomeAction.OnPeopleClicked -> onOpenPeople()
+                // la historia se abre con la fila entera, para poder pasar de una persona a la siguiente
+                is HomeAction.OnStoryClicked -> onOpenStory(action.userId, state.feed.historias.map { it.user.id })
+                is HomeAction.OnMediaClicked -> onOpenMedia(action.media)
+                is HomeAction.OnUserClicked -> onOpenUser(action.userId)
+                is HomeAction.OnSendClicked -> onSend(Outgoing.Review(action.log))
+                // me gusta y pendientes cambian datos: van al viewmodel
+                else -> viewModel.onAction(action)
+            }
+        },
+        modifier = modifier,
+    )
+}
+
+@Composable
+fun HomeScreen(state: HomeState, onAction: (HomeAction) -> Unit, modifier: Modifier = Modifier) {
+    val feed = state.feed
 
     // una columna en el movil; en pantallas anchas los logs se reparten en varias
     LazyVerticalGrid(GridCells.Adaptive(400.dp), modifier, contentPadding = PaddingValues(bottom = BarSpace)) {
         item(span = { GridItemSpan(maxLineSpan) }) {
-          Column {
-            ScreenTitle("Palette") {
-                IconAction(Icons.UserPlus, "Buscar gente", { navegacion.abrir(Dest.People) })
-            }
-            if (almacen.sinConexion) {
-                Text("Sin conexión. Estás viendo lo último que se guardó.", color = Pigment.Graphite, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
-            }
-          }
-        }
-        if (historias.isNotEmpty()) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-              Column {
-                val cola = historias.map { it.id }
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    // la forma depende del puesto en la fila: la primera historia siempre lleva la misma mancha, la segunda la siguiente...
-                    itemsIndexed(historias, key = { _, user -> user.id }) { posicion, user ->
-                        StoryBubble(user, posicion, sinVer = almacen.tieneHistoriaSinVer(user.id)) { navegacion.abrir(Dest.Story(user.id, cola)) }
-                    }
+            Column {
+                ScreenTitle("Palette") {
+                    IconAction(Icons.UserPlus, "Buscar gente", { onAction(HomeAction.OnPeopleClicked) })
                 }
-                HorizontalDivider(Modifier.padding(top = 6.dp), color = Pigment.Line)
-              }
+                if (feed.sinConexion) {
+                    Text("Sin conexión. Estás viendo lo último que se guardó.", color = Pigment.Graphite, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
+                }
             }
         }
-        if (novedades.isEmpty()) {
+        if (feed.historias.isNotEmpty()) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Column {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        // la forma depende del puesto en la fila: la primera historia siempre lleva la misma mancha, la segunda la siguiente...
+                        itemsIndexed(feed.historias, key = { _, historia -> historia.user.id }) { posicion, historia ->
+                            StoryBubble(historia.user, posicion, historia.sinVer) { onAction(HomeAction.OnStoryClicked(historia.user.id)) }
+                        }
+                    }
+                    HorizontalDivider(Modifier.padding(top = 6.dp), color = Pigment.Line)
+                }
+            }
+        }
+        if (feed.publicaciones.isEmpty()) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 EmptyState(
-                    title = if (almacen.amigos.isEmpty()) "Aún no sigues a nadie" else "Todo tranquilo por aquí",
-                    cuerpo = if (almacen.amigos.isEmpty()) "Cuando sigas a alguien, lo que vea, juegue, lea o escuche aparecerá aquí."
-                    else "La gente a la que sigues todavía no ha registrado nada.",
+                    title = if (feed.sigoAAlguien) "Todo tranquilo por aquí" else "Aún no sigues a nadie",
+                    cuerpo = if (feed.sigoAAlguien) "La gente a la que sigues todavía no ha registrado nada."
+                    else "Cuando sigas a alguien, lo que vea, juegue, lea o escuche aparecerá aquí.",
                     color = Pigment.Cadmium,
                 ) {
-                    PillButton("Buscar gente", { navegacion.abrir(Dest.People) }, icon = Icons.Search)
+                    PillButton("Buscar gente", { onAction(HomeAction.OnPeopleClicked) }, icon = Icons.Search)
                 }
             }
         }
-        gridItems(novedades, key = { it.id }) { log ->
+        gridItems(feed.publicaciones, key = { it.log.id }) { publicacion ->
             Column {
-                FeedPost(log)
+                FeedPost(publicacion, onAction)
                 HorizontalDivider(color = Pigment.Line)
             }
         }
@@ -142,15 +161,13 @@ private fun StoryBubble(user: User, posicion: Int, sinVer: Boolean, onClick: () 
 }
 
 @Composable
-private fun FeedPost(log: LogEntry) {
-    val app = LocalPalette.current
-    val almacen = app.almacen
-    val navegacion = app.navegacion
-    val autor = almacen.user(log.userId) ?: return
+private fun FeedPost(publicacion: Publicacion, onAction: (HomeAction) -> Unit) {
+    val autor = publicacion.autor
+    val log = publicacion.log
     val media = log.media
 
-    Column(Modifier.fillMaxWidth().clickable { navegacion.abrir(Dest.Detail(media)) }.padding(start = 20.dp, end = 12.dp, top = 16.dp, bottom = 6.dp)) {
-        Row(Modifier.clickable { navegacion.abrir(Dest.Profile(autor.id)) }, verticalAlignment = Alignment.CenterVertically) {
+    Column(Modifier.fillMaxWidth().clickable { onAction(HomeAction.OnMediaClicked(media)) }.padding(start = 20.dp, end = 12.dp, top = 16.dp, bottom = 6.dp)) {
+        Row(Modifier.clickable { onAction(HomeAction.OnUserClicked(autor.id)) }, verticalAlignment = Alignment.CenterVertically) {
             Avatar(autor, 34.dp)
             Spacer(Modifier.width(10.dp))
             Text(
@@ -182,53 +199,18 @@ private fun FeedPost(log: LogEntry) {
             }
         }
         Row(Modifier.padding(top = 4.dp).fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            val liked = almacen.meGusta(log.id)
             IconAction(
-                if (liked) Icons.HeartFilled else Icons.Heart,
-                if (liked) "Quitar me gusta" else "Me gusta",
-                { almacen.alternarMeGusta(log.id) },
-                tint = if (liked) Pigment.Cadmium else Pigment.Ink,
+                if (publicacion.meGusta) Icons.HeartFilled else Icons.Heart,
+                if (publicacion.meGusta) "Quitar me gusta" else "Me gusta",
+                { onAction(HomeAction.OnLikeClicked(log.id)) },
+                tint = if (publicacion.meGusta) Pigment.Cadmium else Pigment.Ink,
             )
-            IconAction(Icons.Send, "Enviar a un amigo", { navegacion.enviando = Outgoing.Review(log) })
-            val guardado = almacen.enPendientes(media.id)
+            IconAction(Icons.Send, "Enviar a un amigo", { onAction(HomeAction.OnSendClicked(log)) })
             IconAction(
-                if (guardado) Icons.BookmarkFilled else Icons.Bookmark,
-                if (guardado) "Quitar de pendientes" else "Guardar en pendientes",
-                { almacen.alternarPendiente(media) },
+                if (publicacion.enPendientes) Icons.BookmarkFilled else Icons.Bookmark,
+                if (publicacion.enPendientes) "Quitar de pendientes" else "Guardar en pendientes",
+                { onAction(HomeAction.OnWatchlistClicked(media)) },
             )
-        }
-    }
-}
-
-/** buscador de personas para empezar a seguirlas. */
-@Composable
-fun PeopleScreen(modifier: Modifier = Modifier) {
-    val app = LocalPalette.current
-    val almacen = app.almacen
-    val navegacion = app.navegacion
-    var consulta by remember { mutableStateOf("") }
-    val results = almacen.buscarGente(consulta)
-
-    Column(modifier) {
-        BackBar("Buscar gente", { navegacion.volver() })
-        SearchField(consulta, { consulta = it }, "Nombre o @usuario", Modifier.padding(horizontal = 20.dp, vertical = 6.dp))
-        LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = BarSpace)) {
-            if (consulta.isBlank() && results.isNotEmpty()) {
-                item { Text("Gente que quizá conozcas", color = Pigment.Graphite, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) }
-            }
-            items(results, key = { it.id }) { user ->
-                UserRow(user, onClick = { navegacion.abrir(Dest.Profile(user.id)) }) { FollowButton(user.id) }
-            }
-            if (results.isEmpty()) {
-                item {
-                    EmptyState(
-                        title = if (consulta.isBlank()) "Ya sigues a todo el mundo" else "Nadie con ese nombre",
-                        cuerpo = if (consulta.isBlank()) "Cuando se registre más gente aparecerá aquí." else "Prueba con su nombre de usuario, sin la arroba.",
-                        color = Pigment.Cobalt,
-                        semilla = 9,
-                    )
-                }
-            }
         }
     }
 }

@@ -1,5 +1,8 @@
 package com.example.palette.core.data
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.example.palette.core.model.Group
 import com.example.palette.core.model.LogEntry
 import com.example.palette.core.model.ME
@@ -17,13 +20,8 @@ import com.example.palette.core.storage.escribirGuardado
 import com.example.palette.core.storage.leerGuardado
 import com.example.palette.core.util.DAY
 import com.example.palette.core.util.ahora
+import com.example.palette.core.util.limpiarUsuario
 import com.example.palette.core.util.nuevoId
-import com.example.palette.navigation.Palette
-
-
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -43,11 +41,14 @@ import kotlinx.coroutines.sync.withLock
 enum class Stage { SIGNED_OUT, LOADING, NEEDS_PROFILE, READY }
 
 /**
- * estado de la app: mi perfil, mis logs, a quien sigo, mensajes...
+ * fuente de datos de la app: mi perfil, mis logs, a quien sigo, mensajes...
  *
- * las pantallas solo leen de aqui y llaman a estas funciones. cada cambio se aplica primero en
- * local, para que la pantalla responda al momento, y despues se manda a supabase. [sync] baja lo
- * que haya cambiado en el servidor (logs de amigos, mensajes nuevos, seguidores).
+ * guarda una copia en el dispositivo y habla con supabase. cada cambio se aplica primero en
+ * local, para que la pantalla responda al momento, y despues se manda al servidor. [sincronizar]
+ * baja lo que haya cambiado alli (logs de amigos, mensajes nuevos, seguidores).
+ *
+ * las pantallas no la usan directamente: cada feature tiene su repositorio (carpeta data) que
+ * lee de aqui y entrega los datos ya preparados para lo que esa feature necesita.
  */
 class PaletteStore {
 
@@ -250,12 +251,6 @@ class PaletteStore {
         subir { ponerSeguido(id, follow) }
     }
 
-    fun buscarGente(consulta: String): List<User> {
-        val q = consulta.trim().removePrefix("@")
-        if (q.isEmpty()) return estado.people.filter { it.id !in estado.following }
-        return estado.people.filter { it.username.contains(q, ignoreCase = true) || it.name.contains(q, ignoreCase = true) }
-    }
-
     fun ponerTema(theme: ThemeColors) = actualizar { it.copy(theme = theme) }
 
     fun ponerPendientesPublicos(public: Boolean) {
@@ -265,15 +260,6 @@ class PaletteStore {
     }
 
     // ---- logs
-
-    /** logs de un perfil tal y como se enseñan: fijados primero y luego de mas a menos estrellas. */
-    fun logsDePerfil(userId: String, conOcultos: Boolean = false, recientesPrimero: Boolean = false): List<LogEntry> {
-        val todos = if (userId == ME) estado.logs else estado.peopleLogs.filter { it.userId == userId }
-        val shown = todos.filter { conOcultos || !it.hidden }
-        // como diario: lo ultimo registrado arriba, sin tener en cuenta fijados ni nota
-        return if (recientesPrimero) shown.sortedByDescending { it.createdAt }
-        else shown.sortedWith(compareByDescending<LogEntry> { it.pinned }.thenByDescending { it.stars }.thenByDescending { it.createdAt })
-    }
 
     fun miLogDe(mediaId: String): LogEntry? = estado.logs.firstOrNull { it.media.id == mediaId }
 
@@ -464,10 +450,6 @@ class PaletteStore {
             estado.notices.count { !it.read }
 
     companion object {
-        /** deja un nombre de usuario como lo admite el servidor: minusculas sin acento, numeros, punto y guion bajo. */
-        fun limpiarUsuario(text: String): String =
-            text.lowercase().filter { it in 'a'..'z' || it in '0'..'9' || it == '.' || it == '_' }.take(30)
-
         private const val KEY = "palette.v1"
         private const val STORY_WINDOW = 4 * DAY
     }

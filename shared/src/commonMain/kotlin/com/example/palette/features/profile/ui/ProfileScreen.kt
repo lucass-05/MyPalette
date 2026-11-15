@@ -1,7 +1,44 @@
 package com.example.palette.features.profile.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.palette.core.model.LogEntry
-import com.example.palette.core.model.ME
 import com.example.palette.core.model.Media
 import com.example.palette.core.ui.Avatar
 import com.example.palette.core.ui.BackBar
@@ -22,66 +59,56 @@ import com.example.palette.core.ui.proporcion
 import com.example.palette.core.ui.titular
 import com.example.palette.core.util.ahora
 import com.example.palette.core.util.fechaTexto
+import com.example.palette.di.LocalAppContainer
+import com.example.palette.features.profile.presentation.ProfileAction
+import com.example.palette.features.profile.presentation.ProfileState
+import com.example.palette.features.profile.presentation.ProfileViewModel
 import com.example.palette.navigation.BarSpace
-import com.example.palette.navigation.Dest
-import com.example.palette.navigation.LocalPalette
-import com.example.palette.navigation.Screen
-
-
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.background
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import kotlin.random.Random
+
+@Composable
+fun ProfileScreenRoot(
+    userId: String,
+    onBack: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenChat: (String) -> Unit,
+    onOpenMedia: (Media) -> Unit,
+    onLogMenu: (LogEntry) -> Unit,
+    onRegistrar: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val container = LocalAppContainer.current
+    val viewModel = viewModel {
+        ProfileViewModel(userId, container.profileRepository, container.peopleRepository, container.sortProfileLogsUseCase)
+    }
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    ProfileScreen(
+        state = state,
+        onAction = { action ->
+            when (action) {
+                ProfileAction.OnBackClicked -> onBack()
+                ProfileAction.OnSettingsClicked -> onOpenSettings()
+                ProfileAction.OnMessageClicked -> onOpenChat(userId)
+                ProfileAction.OnRegistrarClicked -> onRegistrar()
+                // un log mio abre su menu (fijar, ocultar, editar...); el de otra persona, la ficha del contenido
+                is ProfileAction.OnLogClicked -> if (state.perfil?.propio == true) onLogMenu(action.log) else onOpenMedia(action.log.media)
+                is ProfileAction.OnMediaClicked -> onOpenMedia(action.media)
+                else -> viewModel.onAction(action)
+            }
+        },
+        modifier = modifier,
+    )
+}
 
 /** perfil propio (pestaña) o de otra persona (abierto encima). es la misma pantalla. */
 @Composable
-fun ProfileScreen(userId: String = ME, modifier: Modifier = Modifier) {
-    val app = LocalPalette.current
-    val almacen = app.almacen
-    val navegacion = app.navegacion
-    val user = almacen.user(userId) ?: return
-    val propio = userId == ME
-    var seccion by remember { mutableIntStateOf(0) }
-    var recientes by remember { mutableStateOf(false) }
-
-    val logs = almacen.logsDePerfil(userId, conOcultos = propio, recientesPrimero = recientes)
-    val watchlist = almacen.pendientesDe(userId)
+fun ProfileScreen(state: ProfileState, onAction: (ProfileAction) -> Unit, modifier: Modifier = Modifier) {
+    val perfil = state.perfil ?: return
+    val user = perfil.user
+    val propio = perfil.propio
+    val logs = state.logs
+    val watchlist = perfil.pendientes
 
     // cada perfil puede llevar su propio fondo; el texto se pone claro u oscuro segun cual se lea encima
     val fondo = user.background?.let { Color(it) }
@@ -89,88 +116,86 @@ fun ProfileScreen(userId: String = ME, modifier: Modifier = Modifier) {
     val suave = if (fondo == null) Pigment.Graphite else ink.copy(alpha = 0.7f)
 
     CompositionLocalProvider(LocalContentColor provides ink) {
-    Column(if (fondo == null) modifier else modifier.background(fondo)) {
-        if (propio) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.End) {
-                IconAction(Icons.Settings, "Editar perfil y ajustes", { navegacion.abrir(Dest.Settings) }, tint = ink)
-            }
-        } else {
-            BackBar("@${user.username}", { navegacion.volver() }, ink = ink)
-        }
-      BoxWithConstraints {
-        // columnas de la paleta: dos en un movil para que las portadas salgan grandes, mas cuanto mas ancha es la ventana
-        val columnas = (maxWidth / 250.dp).toInt().coerceIn(2, 7)
-        val portadasPorFila = (maxWidth / 132.dp).toInt().coerceIn(3, 12)
-        LazyColumn(contentPadding = PaddingValues(bottom = BarSpace)) {
-            item {
-                Column(Modifier.fillMaxWidth().padding(horizontal = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Avatar(user, 92.dp)
-                    Spacer(Modifier.height(12.dp))
-                    Text(user.name, style = titular(27.sp, ink), textAlign = TextAlign.Center)
-                    Text("@${user.username}", color = suave, fontSize = 14.sp)
-                    if (user.bio.isNotBlank()) {
-                        Spacer(Modifier.height(8.dp))
-                        Text(user.bio, fontSize = 14.sp, lineHeight = 20.sp, textAlign = TextAlign.Center)
-                    }
-                    if (!propio) {
-                        Spacer(Modifier.height(14.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            FollowButton(userId)
-                            PillButton("Mensaje", { navegacion.abrir(Dest.Chat(userId)) }, filled = false, color = ink, icon = Icons.Send)
-                        }
-                    }
-                }
-                Spacer(Modifier.height(18.dp))
-                Segments(
-                    listOf("Paleta (${logs.count { !it.hidden }})", "Pendientes" + (watchlist?.let { " (${it.size})" } ?: "")),
-                    seccion, { seccion = it }, if (fondo == null) Pigment.Accent else ink,
-                    Modifier.fillMaxWidth().padding(bottom = 6.dp), ink, suave,
-                )
-            }
-
-            if (seccion == 0) {
-                if (logs.isEmpty()) item {
-                    EmptyState(
-                        title = if (propio) "Tu paleta está en blanco" else "Todavía no ha registrado nada",
-                        cuerpo = if (propio) "Cada cosa que puntúes será una mancha de color aquí, de tu favorita a la que menos." else "Cuando puntúe algo aparecerá aquí.",
-                        color = Pigment.Viridian, semilla = 40, ink = ink,
-                    ) {
-                        if (propio) PillButton("Registrar lo primero", { navegacion.irA(Screen.LOG) }, color = ink, icon = Icons.Plus)
-                    }
-                }
-                if (logs.isNotEmpty()) item {
-                    // dos maneras de ordenar: por nota (con lo fijado arriba) o como diario, con su fecha
-                    Row(Modifier.padding(start = 20.dp, bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Chip("Favoritos", !recientes, ink, { recientes = false })
-                        Chip("Recientes", recientes, ink, { recientes = true })
-                    }
-                    PaletteWall(logs, columnas, propio, conFecha = recientes, suave = suave) { log ->
-                        if (propio) navegacion.menuDeLog = log else navegacion.abrir(Dest.Detail(log.media))
-                    }
+        Column(if (fondo == null) modifier else modifier.background(fondo)) {
+            if (propio) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.End) {
+                    IconAction(Icons.Settings, "Editar perfil y ajustes", { onAction(ProfileAction.OnSettingsClicked) }, tint = ink)
                 }
             } else {
-                when {
-                    watchlist == null -> item {
-                        EmptyState("Pendientes privados", "${user.name.substringBefore(' ')} prefiere no enseñar su lista.", Pigment.Graphite, semilla = 41, ink = ink)
-                    }
-                    watchlist.isEmpty() -> item {
-                        EmptyState(
-                            title = "Nada pendiente",
-                            cuerpo = if (propio) "Guarda aquí lo que quieras ver, jugar, leer o escuchar más adelante con el marcador de cada ficha." else "No tiene nada guardado ahora mismo.",
-                            color = Pigment.Viridian, semilla = 42, ink = ink,
+                BackBar("@${user.username}", { onAction(ProfileAction.OnBackClicked) }, ink = ink)
+            }
+            BoxWithConstraints {
+                // columnas de la paleta: dos en un movil para que las portadas salgan grandes, mas cuanto mas ancha es la ventana
+                val columnas = (maxWidth / 250.dp).toInt().coerceIn(2, 7)
+                val portadasPorFila = (maxWidth / 132.dp).toInt().coerceIn(3, 12)
+                LazyColumn(contentPadding = PaddingValues(bottom = BarSpace)) {
+                    item {
+                        Column(Modifier.fillMaxWidth().padding(horizontal = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Avatar(user, 92.dp)
+                            Spacer(Modifier.height(12.dp))
+                            Text(user.name, style = titular(27.sp, ink), textAlign = TextAlign.Center)
+                            Text("@${user.username}", color = suave, fontSize = 14.sp)
+                            if (user.bio.isNotBlank()) {
+                                Spacer(Modifier.height(8.dp))
+                                Text(user.bio, fontSize = 14.sp, lineHeight = 20.sp, textAlign = TextAlign.Center)
+                            }
+                            if (!propio) {
+                                Spacer(Modifier.height(14.dp))
+                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    FollowButton(perfil.loSigo, { onAction(ProfileAction.OnFollowClicked) })
+                                    PillButton("Mensaje", { onAction(ProfileAction.OnMessageClicked) }, filled = false, color = ink, icon = Icons.Send)
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(18.dp))
+                        Segments(
+                            listOf("Paleta (${logs.count { !it.hidden }})", "Pendientes" + (watchlist?.let { " (${it.size})" } ?: "")),
+                            state.seccion, { onAction(ProfileAction.OnSeccionChanged(it)) }, if (fondo == null) Pigment.Accent else ink,
+                            Modifier.fillMaxWidth().padding(bottom = 6.dp), ink, suave,
                         )
                     }
-                    else -> items(watchlist.chunked(portadasPorFila), key = { fila -> fila.joinToString("|") { it.id } }) { fila ->
-                        Row(Modifier.padding(horizontal = 20.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                            fila.forEach { media -> WatchItem(media, Modifier.weight(1f)) { navegacion.abrir(Dest.Detail(media)) } }
-                            repeat(portadasPorFila - fila.size) { Spacer(Modifier.weight(1f)) }
+
+                    if (state.seccion == 0) {
+                        if (logs.isEmpty()) item {
+                            EmptyState(
+                                title = if (propio) "Tu paleta está en blanco" else "Todavía no ha registrado nada",
+                                cuerpo = if (propio) "Cada cosa que puntúes será una mancha de color aquí, de tu favorita a la que menos." else "Cuando puntúe algo aparecerá aquí.",
+                                color = Pigment.Viridian, semilla = 40, ink = ink,
+                            ) {
+                                if (propio) PillButton("Registrar lo primero", { onAction(ProfileAction.OnRegistrarClicked) }, color = ink, icon = Icons.Plus)
+                            }
+                        }
+                        if (logs.isNotEmpty()) item {
+                            // dos maneras de ordenar: por nota (con lo fijado arriba) o como diario, con su fecha
+                            Row(Modifier.padding(start = 20.dp, bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Chip("Favoritos", !state.recientesPrimero, ink, { onAction(ProfileAction.OnOrdenChanged(false)) })
+                                Chip("Recientes", state.recientesPrimero, ink, { onAction(ProfileAction.OnOrdenChanged(true)) })
+                            }
+                            PaletteWall(logs, columnas, propio, conFecha = state.recientesPrimero, suave = suave) { onAction(ProfileAction.OnLogClicked(it)) }
+                        }
+                    } else {
+                        when {
+                            watchlist == null -> item {
+                                EmptyState("Pendientes privados", "${user.name.substringBefore(' ')} prefiere no enseñar su lista.", Pigment.Graphite, semilla = 41, ink = ink)
+                            }
+                            watchlist.isEmpty() -> item {
+                                EmptyState(
+                                    title = "Nada pendiente",
+                                    cuerpo = if (propio) "Guarda aquí lo que quieras ver, jugar, leer o escuchar más adelante con el marcador de cada ficha." else "No tiene nada guardado ahora mismo.",
+                                    color = Pigment.Viridian, semilla = 42, ink = ink,
+                                )
+                            }
+                            else -> items(watchlist.chunked(portadasPorFila), key = { fila -> fila.joinToString("|") { it.id } }) { fila ->
+                                Row(Modifier.padding(horizontal = 20.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                                    fila.forEach { media -> WatchItem(media, Modifier.weight(1f)) { onAction(ProfileAction.OnMediaClicked(media)) } }
+                                    repeat(portadasPorFila - fila.size) { Spacer(Modifier.weight(1f)) }
+                                }
+                            }
                         }
                     }
                 }
             }
         }
-      }
-    }
     }
 }
 

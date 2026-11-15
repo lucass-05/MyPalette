@@ -7,8 +7,6 @@ import com.example.palette.core.network.anioDe
 import com.example.palette.core.network.fechaCorta
 import com.example.palette.core.network.json
 import com.example.palette.core.network.pedirTexto
-
-
 import kotlinx.serialization.Serializable
 
 /** albumes y canciones. la busqueda de itunes es publica, no pide clave. */

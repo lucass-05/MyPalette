@@ -1,12 +1,6 @@
 package com.example.palette.core.ui
 
-import com.example.palette.core.model.Media
-import com.example.palette.core.model.MediaType
-import com.example.palette.core.model.User
-import com.example.palette.navigation.Dest
-import com.example.palette.navigation.LocalPalette
-
-
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,12 +20,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.palette.core.model.Media
+import com.example.palette.core.model.MediaType
+import com.example.palette.core.model.User
 
 /** "pelicula, 2014, christopher nolan" */
 fun Media.subtitulo(): String = listOfNotNull(type.label, year?.toString(), creator).joinToString(", ")
@@ -57,11 +53,10 @@ fun SectionTitle(text: String, modifier: Modifier = Modifier, dot: Color? = null
 
 /** tira horizontal de portadas con su titulo debajo. */
 @Composable
-fun MediaRow(items: List<Media>, modifier: Modifier = Modifier, coverHeight: Int = 168) {
-    val navegacion = LocalPalette.current.navegacion
+fun MediaRow(items: List<Media>, modifier: Modifier = Modifier, coverHeight: Int = 168, onClick: (Media) -> Unit) {
     LazyRow(modifier, contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         items(items, key = { it.id }) { media ->
-            Column(Modifier.width((coverHeight * media.type.proporcion).dp).clickable { navegacion.abrir(Dest.Detail(media)) }) {
+            Column(Modifier.width((coverHeight * media.type.proporcion).dp).clickable { onClick(media) }) {
                 CoverByHeight(media, coverHeight.dp)
                 Spacer(Modifier.height(7.dp))
                 Text(media.title, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 2, lineHeight = 16.sp, overflow = TextOverflow.Ellipsis)
@@ -85,16 +80,20 @@ fun UserRow(user: User, modifier: Modifier = Modifier, onClick: () -> Unit, trai
 }
 
 @Composable
-fun FollowButton(userId: String, modifier: Modifier = Modifier) {
-    val almacen = LocalPalette.current.almacen
-    val following = almacen.sigoA(userId)
+fun FollowButton(siguiendo: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     PillButton(
-        text = if (following) "Siguiendo" else "Seguir",
-        onClick = { almacen.alternarSeguir(userId) },
-        filled = !following,
-        color = if (following) Pigment.Ink else Pigment.Accent,
+        text = if (siguiendo) "Siguiendo" else "Seguir",
+        onClick = onClick,
+        filled = !siguiendo,
+        color = if (siguiendo) Pigment.Ink else Pigment.Accent,
         modifier = modifier,
     )
+}
+
+/** titulo pequeño encima de un campo de formulario. */
+@Composable
+fun Label(text: String) {
+    Text(text, fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(top = 16.dp, bottom = 6.dp))
 }
 
 /** pestañas de texto: la activa lleva una pincelada de color debajo. */

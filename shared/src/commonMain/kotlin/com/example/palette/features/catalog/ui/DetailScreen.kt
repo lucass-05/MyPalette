@@ -1,28 +1,5 @@
 package com.example.palette.features.catalog.ui
 
-import com.example.palette.core.model.Extras
-import com.example.palette.core.model.Media
-import com.example.palette.core.ui.Avatar
-import com.example.palette.core.ui.BackBar
-import com.example.palette.core.ui.CoverByHeight
-import com.example.palette.core.ui.IconAction
-import com.example.palette.core.ui.Icons
-import com.example.palette.core.ui.MediaRow
-import com.example.palette.core.ui.Pigment
-import com.example.palette.core.ui.PillButton
-import com.example.palette.core.ui.SectionTitle
-import com.example.palette.core.ui.Splat
-import com.example.palette.core.ui.Stars
-import com.example.palette.core.ui.icon
-import com.example.palette.core.ui.notaTexto
-import com.example.palette.core.ui.subtitulo
-import com.example.palette.core.ui.titular
-import com.example.palette.navigation.BarSpace
-import com.example.palette.navigation.Dest
-import com.example.palette.navigation.LocalPalette
-import com.example.palette.navigation.Outgoing
-
-
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,7 +19,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,54 +33,88 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.palette.core.model.Media
+import com.example.palette.core.ui.Avatar
+import com.example.palette.core.ui.BackBar
+import com.example.palette.core.ui.CoverByHeight
+import com.example.palette.core.ui.IconAction
+import com.example.palette.core.ui.Icons
+import com.example.palette.core.ui.MediaRow
+import com.example.palette.core.ui.Pigment
+import com.example.palette.core.ui.PillButton
+import com.example.palette.core.ui.SectionTitle
+import com.example.palette.core.ui.Splat
+import com.example.palette.core.ui.Stars
+import com.example.palette.core.ui.icon
+import com.example.palette.core.ui.notaTexto
+import com.example.palette.core.ui.subtitulo
+import com.example.palette.core.ui.titular
+import com.example.palette.di.LocalAppContainer
+import com.example.palette.features.catalog.presentation.DetailAction
+import com.example.palette.features.catalog.presentation.DetailState
+import com.example.palette.features.catalog.presentation.DetailViewModel
+import com.example.palette.features.messages.domain.model.Outgoing
+import com.example.palette.navigation.BarSpace
 
-// remember { mutableStateOf(...) } guarda un valor mientras la pantalla siga abierta.
-// la ficha se pinta primero con lo que ya se sabe del contenido y, cuando llegan los detalles
-// de la red, se cambia el valor y compose repinta lo que haga falta.
+// la ficha de un contenido es la misma pantalla para todo (peli, juego, album...).
+// DetailScreenRoot crea el viewmodel y resuelve lo que no es estado: navegar, abrir hojas y el portapapeles.
+// DetailScreen solo pinta el DetailState que le llega y avisa de lo que toca el usuario con un DetailAction.
 
-/**
- * ficha de un contenido. es la misma pantalla para todo: se pinta al momento con lo que ya
- * sabemos del resultado de busqueda y se completa con los detalles de su base de datos.
- */
 @Composable
-fun DetailScreen(inicial: Media, modifier: Modifier = Modifier) {
-    val app = LocalPalette.current
-    val almacen = app.almacen
-    val navegacion = app.navegacion
+fun DetailScreenRoot(
+    mediaId: String,
+    onBack: () -> Unit,
+    onOpenMedia: (Media) -> Unit,
+    onOpenUser: (String) -> Unit,
+    onReview: (Media) -> Unit,
+    onSend: (Outgoing) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val container = LocalAppContainer.current
     // localclipboard, el sustituto, todavia no deja crear un clipentry de texto desde codigo comun
     @Suppress("DEPRECATION")
     val portapapeles = LocalClipboardManager.current
 
-    var media by remember { mutableStateOf(inicial) }
-    var similar by remember { mutableStateOf(emptyList<Media>()) }
-    var extras by remember { mutableStateOf(Extras()) }
-    var copiado by remember { mutableStateOf(false) }
-
-    LaunchedEffect(inicial.id) {
-        media = app.catalogo.detalles(inicial)
-        extras = app.catalogo.extras(media)
-        similar = app.catalogo.similar(media).filter { it.imageUrl != null }
+    // a la pantalla solo le llega el id; el contenido lo tiene apuntado el repositorio.
+    // la ficha se pinta al momento con eso y el viewmodel pide el resto a la red
+    val viewModel = viewModel {
+        DetailViewModel(container.catalogRepository.recordado(mediaId), container.getMediaDetailUseCase, container.libraryRepository)
     }
-    LaunchedEffect(copiado) {
-        if (copiado) {
-            delay(1800)
-            copiado = false
-        }
-    }
+    val state by viewModel.state.collectAsStateWithLifecycle()
 
-    val mio = almacen.miLogDe(media.id)
-    val guardado = almacen.enPendientes(media.id)
+    DetailScreen(
+        state = state,
+        onAction = { action ->
+            when (action) {
+                DetailAction.OnBackClicked -> onBack()
+                DetailAction.OnReviewClicked -> onReview(state.media)
+                DetailAction.OnSendClicked -> onSend(Outgoing.Content(state.media))
+                DetailAction.OnShareClicked -> portapapeles.setText(AnnotatedString(state.media.link ?: state.media.title))
+                is DetailAction.OnMediaClicked -> onOpenMedia(action.media)
+                is DetailAction.OnUserClicked -> onOpenUser(action.userId)
+                else -> {}
+            }
+            // el viewmodel se entera de todas: el decide cuales cambian el estado
+            viewModel.onAction(action)
+        },
+        modifier = modifier,
+    )
+}
+
+@Composable
+fun DetailScreen(state: DetailState, onAction: (DetailAction) -> Unit, modifier: Modifier = Modifier) {
+    val media = state.media
+    val extras = state.extras
+    val mio = state.miLog
+    val guardado = state.enPendientes
     val tint = Pigment.of(media.type)
-    val logsDeAmigos = almacen.estado.peopleLogs.filter { it.media.id == media.id && almacen.sigoA(it.userId) && !it.hidden }
 
     Column(modifier) {
-        BackBar(if (copiado) "Enlace copiado" else "", { navegacion.volver() }) {
-            IconAction(Icons.Send, "Enviar a un amigo", { navegacion.enviando = Outgoing.Content(media) })
-            IconAction(Icons.Share, "Copiar enlace", {
-                portapapeles.setText(AnnotatedString(media.link ?: media.title))
-                copiado = true
-            })
+        BackBar(if (state.enlaceCopiado) "Enlace copiado" else "", { onAction(DetailAction.OnBackClicked) }) {
+            IconAction(Icons.Send, "Enviar a un amigo", { onAction(DetailAction.OnSendClicked) })
+            IconAction(Icons.Share, "Copiar enlace", { onAction(DetailAction.OnShareClicked) })
         }
         LazyColumn(contentPadding = PaddingValues(bottom = BarSpace), horizontalAlignment = Alignment.CenterHorizontally) {
             item {
@@ -141,14 +151,14 @@ fun DetailScreen(inicial: Media, modifier: Modifier = Modifier) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     PillButton(
                         text = if (mio == null) "Puntuar y reseñar" else "Editar reseña",
-                        onClick = { navegacion.enResena = media },
+                        onClick = { onAction(DetailAction.OnReviewClicked) },
                         color = tint,
                         icon = if (mio == null) Icons.Star else Icons.Pencil,
                         modifier = Modifier.weight(1f),
                     )
                     PillButton(
                         text = if (guardado) "En pendientes" else "Pendiente",
-                        onClick = { almacen.alternarPendiente(media) },
+                        onClick = { onAction(DetailAction.OnWatchlistClicked) },
                         filled = false,
                         icon = if (guardado) Icons.BookmarkCheck else Icons.Bookmark,
                         modifier = Modifier.weight(1f),
@@ -194,7 +204,7 @@ fun DetailScreen(inicial: Media, modifier: Modifier = Modifier) {
                     Spacer(Modifier.height(24.dp))
                     SectionTitle("Del álbum", Modifier.fillMaxWidth())
                     Row(
-                        Modifier.fillMaxWidth().clickable { navegacion.abrir(Dest.Detail(album)) }.padding(horizontal = 20.dp, vertical = 10.dp),
+                        Modifier.fillMaxWidth().clickable { onAction(DetailAction.OnMediaClicked(album)) }.padding(horizontal = 20.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         CoverByHeight(album, 64.dp)
@@ -215,15 +225,15 @@ fun DetailScreen(inicial: Media, modifier: Modifier = Modifier) {
                     Spacer(Modifier.height(6.dp))
                 }
                 itemsIndexed(extras.canciones, key = { _, cancion -> cancion.id }) { numero, cancion ->
-                    val registrado = almacen.miLogDe(cancion.id)
+                    val miNota = state.misNotas[cancion.id]
                     Row(
-                        Modifier.fillMaxWidth().clickable { navegacion.abrir(Dest.Detail(cancion)) }.padding(horizontal = 20.dp, vertical = 9.dp),
+                        Modifier.fillMaxWidth().clickable { onAction(DetailAction.OnMediaClicked(cancion)) }.padding(horizontal = 20.dp, vertical = 9.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text("${numero + 1}", color = Pigment.Graphite, fontSize = 14.sp, modifier = Modifier.width(30.dp))
                         Text(cancion.title, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                        if (registrado != null) {
-                            Stars(registrado.stars, size = 11.dp)
+                        if (miNota != null) {
+                            Stars(miNota, size = 11.dp)
                             Spacer(Modifier.width(10.dp))
                         }
                         cancion.extra?.let { Text(it, color = Pigment.Graphite, fontSize = 13.sp) }
@@ -231,15 +241,14 @@ fun DetailScreen(inicial: Media, modifier: Modifier = Modifier) {
                 }
             }
 
-            if (logsDeAmigos.isNotEmpty()) {
+            if (state.logsDeAmigos.isNotEmpty()) {
                 item {
                     Spacer(Modifier.height(26.dp))
                     SectionTitle("Entre tus amigos", Modifier.fillMaxWidth())
                     Spacer(Modifier.height(6.dp))
                 }
-                items(logsDeAmigos, key = { it.id }) { log ->
-                    val autor = almacen.user(log.userId) ?: return@items
-                    Row(Modifier.fillMaxWidth().clickable { navegacion.abrir(Dest.Profile(autor.id)) }.padding(horizontal = 20.dp, vertical = 10.dp)) {
+                items(state.logsDeAmigos, key = { it.log.id }) { (autor, log) ->
+                    Row(Modifier.fillMaxWidth().clickable { onAction(DetailAction.OnUserClicked(autor.id)) }.padding(horizontal = 20.dp, vertical = 10.dp)) {
                         Avatar(autor, 36.dp)
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
@@ -254,14 +263,14 @@ fun DetailScreen(inicial: Media, modifier: Modifier = Modifier) {
                 }
             }
 
-            if (similar.isNotEmpty()) {
+            if (state.parecidos.isNotEmpty()) {
                 item {
                     Spacer(Modifier.height(20.dp))
                     HorizontalDivider(color = Pigment.Line)
                     Spacer(Modifier.height(20.dp))
                     SectionTitle("En la misma línea", Modifier.fillMaxWidth())
                     Spacer(Modifier.height(12.dp))
-                    MediaRow(similar, coverHeight = 150)
+                    MediaRow(state.parecidos, coverHeight = 150, onClick = { onAction(DetailAction.OnMediaClicked(it)) })
                 }
             }
         }

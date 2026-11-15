@@ -9,8 +9,6 @@ import com.example.palette.core.model.User
 import com.example.palette.core.storage.escribirGuardado
 import com.example.palette.core.storage.leerGuardado
 import com.example.palette.core.util.ahora
-
-
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.request

@@ -1,7 +1,5 @@
 package com.example.palette.core.ui
 
-
-
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap

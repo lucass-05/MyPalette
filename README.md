@@ -1,6 +1,6 @@
 <div align="center">
 
-# MyPalette
+# Palette
 
 ### Tu diario de pelis, series, juegos, música y libros, convertido en una paleta de color.
 
@@ -35,6 +35,8 @@ da la app de Android, la de iOS, la de escritorio y la web.
 | Parte | Con qué |
 |---|---|
 | Interfaz | Compose Multiplatform 1.12, Material 3 |
+| Arquitectura | Capas `domain` / `data` / `presentation` / `ui` por funcionalidad, con ViewModel y estado inmutable |
+| Navegación | Navigation Compose, con rutas serializables |
 | Red | Ktor |
 | Imágenes | Coil 3 |
 | Servidor | Supabase: cuentas, base de datos Postgres, almacenamiento y funciones |
@@ -87,7 +89,7 @@ Para montar tu propio servidor en un proyecto de Supabase:
 2. **Registro.** En *Authentication > Sign In / Providers > Email*, desactiva *Confirm email*.
 3. **Videojuegos.** Crea una *Edge Function* llamada `igdb` con el contenido de `supabase/functions/igdb/index.ts`
    y añade los secretos `IGDB_CLIENT_ID` e `IGDB_CLIENT_SECRET` (de una app registrada en la consola de desarrolladores de Twitch).
-4. **Conexión.** Pon la URL del proyecto y su clave publicable al principio de `core/network/Supabase.kt`.
+4. **Conexión.** Pon la URL del proyecto y su clave publicable al principio de `data/remote/Supabase.kt`.
 
 ### Dónde va cada credencial
 
@@ -96,7 +98,7 @@ Para montar tu propio servidor en un proyecto de Supabase:
 | Clave de TMDB | `local.properties` de cada desarrollador | No |
 | Client ID y Client Secret de IGDB | Secretos de la función en Supabase | No |
 | *Secret key* de Supabase | Solo en el panel de Supabase | No |
-| URL y clave publicable de Supabase | `core/network/Supabase.kt` | Sí: es pública por diseño |
+| URL y clave publicable de Supabase | `data/remote/Supabase.kt` | Sí: es pública por diseño |
 
 Lo que puede hacer cada usuario no depende de la clave publicable sino de las reglas de la base de datos
 (*row level security*): cada uno solo modifica lo suyo, los registros ocultos y los pendientes privados no salen
@@ -104,20 +106,20 @@ del servidor, y un mensaje solo lo ven quienes participan en la conversación.
 
 ### Estructura
 
-Todo el código de la app está en `shared/src/commonMain/kotlin/com/example/palette`, organizado en `di`, `core` y `features`:
+Todo el código de la app está en `shared/src/commonMain/kotlin/com/example/palette`:
 
 | Carpeta | Contenido |
 |---|---|
-| `di/` | `AppContainer`: crea una sola vez repositorios y casos de uso |
-| `core/` | Red, guardado local, modelos compartidos, tema y componentes |
-| `features/<nombre>/domain` | Interfaces de repositorio y casos de uso |
-| `features/<nombre>/data` | Implementación de los repositorios: llamadas a las APIs |
-| `features/<nombre>/presentation` | Estado, acciones y ViewModel de cada pantalla |
-| `features/<nombre>/ui` | Las pantallas |
-| `navigation/` | Pestañas, pantallas apiladas y la barra de cristal |
+| `di/` | `AppContainer`: crea una sola vez los repositorios y los casos de uso y los reparte a las pantallas |
+| `core/` | Lo que no es de una funcionalidad concreta: modelos, red (Ktor y Supabase), guardado local, componentes y tema |
+| `features/<nombre>/domain` | Modelos, interfaces de repositorio y casos de uso |
+| `features/<nombre>/data` | Implementación de los repositorios |
+| `features/<nombre>/presentation` | `State`, `Action` y `ViewModel` de cada pantalla |
+| `features/<nombre>/ui` | Las pantallas: `ScreenRoot` (conecta con el ViewModel y la navegación) y `Screen` (solo pinta) |
+| `navigation/` | Rutas, `NavHost` y la barra de cristal |
 
-La funcionalidad `catalog` (buscar contenido) ya sigue este esquema de principio a fin; el resto de pantallas
-están en su carpeta pero aún leen de `core/data/PaletteStore`. El detalle está en la guía.
+Las funcionalidades son `auth`, `catalog` (buscar, ficha y descubrir), `library` (registros y pendientes), `home`
+(inicio e historias), `people`, `messages` y `profile`. En [`docs/APRENDER.md`](docs/APRENDER.md) hay una guía para leer el código.
 
 Lo específico de cada plataforma (guardado local y selector de fotos) está en `androidMain`, `iosMain`, `jvmMain`,
 `jsMain` y `wasmJsMain`. Los colores no se escriben a mano en las pantallas: salen siempre de `Pigment` (`core/ui/Theme.kt`).

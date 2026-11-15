@@ -1,19 +1,14 @@
 package com.example.palette.features.catalog.data.repository
 
 import com.example.palette.ApiKeys
-import com.example.palette.features.catalog.domain.repository.CatalogRepository
-
 import com.example.palette.core.model.Extras
 import com.example.palette.core.model.Media
 import com.example.palette.core.model.MediaType
-import com.example.palette.core.util.ahora
 import com.example.palette.features.catalog.data.remote.Igdb
 import com.example.palette.features.catalog.data.remote.Itunes
 import com.example.palette.features.catalog.data.remote.OpenLibrary
 import com.example.palette.features.catalog.data.remote.Tmdb
-import com.example.palette.navigation.Palette
-
-
+import com.example.palette.features.catalog.domain.repository.CatalogRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -29,6 +24,28 @@ class CatalogRepositoryImpl : CatalogRepository {
     private val igdb = Igdb()
     private val itunes = Itunes()
     private val openLibrary = OpenLibrary()
+
+    // contenidos que se han abierto en esta sesion, por id
+    private val vistos = mutableMapOf<String, Media>()
+
+    override fun recordar(media: Media) {
+        vistos[media.id] = media
+    }
+
+    // si no esta apuntado (la app se cerro y el sistema la ha restaurado) se rehace lo minimo a partir
+    // del id, que lleva el origen y el tipo; el resto lo completa detalles()
+    override fun recordado(mediaId: String): Media = vistos[mediaId] ?: Media(
+        id = mediaId,
+        type = when {
+            mediaId.startsWith("tmdb:tv") -> MediaType.SERIES
+            mediaId.startsWith("tmdb:") -> MediaType.MOVIE
+            mediaId.startsWith("igdb:") -> MediaType.GAME
+            mediaId.startsWith("itunes:album") -> MediaType.ALBUM
+            mediaId.startsWith("itunes:") -> MediaType.SONG
+            else -> MediaType.BOOK
+        },
+        title = "",
+    )
 
     /** tipos que ahora mismo no se pueden buscar porque falta su clave en local.properties. */
     override val noDisponibles: Set<MediaType>
