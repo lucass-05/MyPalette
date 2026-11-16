@@ -13,6 +13,7 @@ import com.example.palette.core.model.NoticeKind
 import com.example.palette.core.model.Snapshot
 import com.example.palette.core.model.ThemeColors
 import com.example.palette.core.model.User
+import com.example.palette.core.network.CorreoSinConfirmar
 import com.example.palette.core.network.Supabase
 import com.example.palette.core.network.json
 import com.example.palette.core.network.supabase
@@ -39,6 +40,10 @@ import kotlinx.coroutines.sync.withLock
 
 /** en que punto esta quien abre la app. */
 enum class Stage { SIGNED_OUT, LOADING, NEEDS_PROFILE, READY }
+
+/** lo que devuelve iniciarSesion cuando la cuenta existe pero falta meter el codigo del correo. */
+const val CORREO_SIN_CONFIRMAR = "Falta confirmar tu correo."
+
 
 /**
  * fuente de datos de la app: mi perfil, mis logs, a quien sigo, mensajes...
@@ -115,20 +120,49 @@ class PaletteStore {
 
     /** devuelve null si ha ido bien o el motivo, ya redactado para enseñarlo. */
     suspend fun iniciarSesion(email: String, password: String): String? = intentar {
-        servidor.iniciarSesion(email.trim(), password)
+        try {
+            servidor.iniciarSesion(email.trim(), password)
+        } catch (e: CorreoSinConfirmar) {
+            // se quedo a medias al crear la cuenta: se le manda otro codigo para que termine
+            servidor.reenviarCodigo(email.trim())
+            return@intentar CORREO_SIN_CONFIRMAR
+        }
         conSesion = true
         sincronizar()
         null
     }
 
+    /** si va bien el servidor manda un codigo al correo. no hay sesion hasta confirmarlo. */
     suspend fun crearCuenta(email: String, password: String): String? = intentar {
         if (servidor.crearCuenta(email.trim(), password)) {
             conSesion = true
             sincronizar()
-            null
-        } else {
-            "Cuenta creada. Te hemos mandado un correo: confírmalo y después inicia sesión."
         }
+        null
+    }
+
+    suspend fun confirmarCorreo(email: String, codigo: String): String? = intentar {
+        servidor.confirmarCorreo(email.trim(), codigo)
+        conSesion = true
+        sincronizar()
+        null
+    }
+
+    suspend fun reenviarCodigo(email: String): String? = intentar {
+        servidor.reenviarCodigo(email.trim())
+        null
+    }
+
+    suspend fun pedirRecuperacion(email: String): String? = intentar {
+        servidor.pedirRecuperacion(email.trim())
+        null
+    }
+
+    suspend fun cambiarContrasena(email: String, codigo: String, nueva: String): String? = intentar {
+        servidor.cambiarContrasena(email.trim(), codigo, nueva)
+        conSesion = true
+        sincronizar()
+        null
     }
 
     fun cerrarSesion() {

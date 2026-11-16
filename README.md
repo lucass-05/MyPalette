@@ -86,7 +86,9 @@ Para montar tu propio servidor en un proyecto de Supabase:
 
 1. **Base de datos.** En *SQL Editor*, ejecuta en orden los ficheros de `supabase/` (`001` a `004`).
    El `002` y el `004` llevan dentro la URL del proyecto: cámbiala por la tuya.
-2. **Registro.** En *Authentication > Sign In / Providers > Email*, desactiva *Confirm email*.
+2. **Registro.** En *Authentication > Sign In / Providers > Email*, activa *Confirm email* y deja *Email OTP Length* en 6.
+   En *Authentication > Emails*, cambia el enlace de las plantillas *Confirm signup* y *Reset password* por el código: `{{ .Token }}`.
+   El correo de serie de Supabase solo escribe a los miembros del proyecto: para usuarios de verdad hay que configurar un SMTP propio.
 3. **Videojuegos.** Crea una *Edge Function* llamada `igdb` con el contenido de `supabase/functions/igdb/index.ts`
    y añade los secretos `IGDB_CLIENT_ID` e `IGDB_CLIENT_SECRET` (de una app registrada en la consola de desarrolladores de Twitch).
 4. **Conexión.** Pon la URL del proyecto y su clave publicable al principio de `data/remote/Supabase.kt`.

@@ -1,5 +1,6 @@
 package com.example.palette.features.auth.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +32,8 @@ import com.example.palette.core.ui.Segments
 import com.example.palette.core.ui.Splat
 import com.example.palette.core.ui.titular
 import com.example.palette.di.LocalAppContainer
+import com.example.palette.features.auth.presentation.DIGITOS_CODIGO
+import com.example.palette.features.auth.presentation.PasoEntrada
 import com.example.palette.features.auth.presentation.SignInAction
 import com.example.palette.features.auth.presentation.SignInState
 import com.example.palette.features.auth.presentation.SignInViewModel
@@ -56,7 +59,7 @@ fun SignInScreenRoot() {
     SignInScreen(state = state, onAction = viewModel::onAction)
 }
 
-/** crear cuenta o entrar con correo y contraseña. */
+/** crear cuenta o entrar con correo y contraseña, confirmar el correo y recuperar la contraseña. */
 @Composable
 fun SignInScreen(state: SignInState, onAction: (SignInAction) -> Unit) {
     Column(
@@ -69,16 +72,42 @@ fun SignInScreen(state: SignInState, onAction: (SignInAction) -> Unit) {
         Spacer(Modifier.height(6.dp))
         Text("Lo que ves, juegas, lees y escuchas, convertido en tu paleta.", color = Pigment.Graphite, fontSize = 16.sp, lineHeight = 23.sp)
         Spacer(Modifier.height(22.dp))
-        Segments(listOf("Crear cuenta", "Ya tengo cuenta"), state.modo, { onAction(SignInAction.OnModoChanged(it)) }, Pigment.Accent, Modifier.offset(x = (-20).dp))
-        Label("Correo")
-        PlainField(state.email, { onAction(SignInAction.OnEmailChanged(it)) }, "tu@correo.com")
-        Label("Contraseña")
-        PlainField(state.password, { onAction(SignInAction.OnPasswordChanged(it)) }, if (state.creando) "Mínimo 6 caracteres" else "Tu contraseña", secret = true)
-        state.aviso?.let { Text(it, color = Pigment.Cadmium, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 12.dp)) }
+        // cada paso pinta sus campos; el aviso y el boton principal de abajo son comunes
+        when (state.paso) {
+            PasoEntrada.DATOS -> {
+                Segments(listOf("Crear cuenta", "Ya tengo cuenta"), state.modo, { onAction(SignInAction.OnModoChanged(it)) }, Pigment.Accent, Modifier.offset(x = (-20).dp))
+                Label("Correo")
+                PlainField(state.email, { onAction(SignInAction.OnEmailChanged(it)) }, "tu@correo.com")
+                Label("Contraseña")
+                PlainField(state.password, { onAction(SignInAction.OnPasswordChanged(it)) }, if (state.creando) "Mínimo 6 caracteres" else "Tu contraseña", secret = true)
+                if (!state.creando) Enlace("He olvidado mi contraseña") { onAction(SignInAction.OnOlvidadaClicked) }
+            }
+            PasoEntrada.CODIGO -> {
+                Text("Confirma tu correo", style = titular(24.sp))
+                Explicacion("Te hemos mandado un código de $DIGITOS_CODIGO cifras a ${state.email}. Escríbelo aquí para terminar de crear la cuenta.")
+                Label("Código")
+                PlainField(state.codigo, { onAction(SignInAction.OnCodigoChanged(it)) }, "0".repeat(DIGITOS_CODIGO))
+                Enlace("Mandar otro código") { onAction(SignInAction.OnReenviarClicked) }
+            }
+            PasoEntrada.RECUPERAR -> {
+                Text("Nueva contraseña", style = titular(24.sp))
+                Explicacion("Si ${state.email} tiene cuenta, le hemos mandado un código de $DIGITOS_CODIGO cifras. Escríbelo y elige una contraseña nueva.")
+                Label("Código")
+                PlainField(state.codigo, { onAction(SignInAction.OnCodigoChanged(it)) }, "0".repeat(DIGITOS_CODIGO))
+                Label("Contraseña nueva")
+                PlainField(state.nueva, { onAction(SignInAction.OnNuevaChanged(it)) }, "Mínimo 6 caracteres", secret = true)
+                Enlace("Mandar otro código") { onAction(SignInAction.OnReenviarClicked) }
+            }
+        }
+        state.aviso?.let {
+            Text(it, color = if (state.avisoEsFallo) Pigment.Cadmium else Pigment.Graphite, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 12.dp))
+        }
         Spacer(Modifier.height(24.dp))
         PillButton(
             text = when {
                 state.ocupado -> "Un momento…"
+                state.paso == PasoEntrada.CODIGO -> "Confirmar"
+                state.paso == PasoEntrada.RECUPERAR -> "Cambiar contraseña"
                 state.creando -> "Crear cuenta"
                 else -> "Entrar"
             },
@@ -87,7 +116,22 @@ fun SignInScreen(state: SignInState, onAction: (SignInAction) -> Unit) {
             color = Pigment.Accent,
             modifier = Modifier.fillMaxWidth(),
         )
+        if (state.paso != PasoEntrada.DATOS) {
+            Spacer(Modifier.height(10.dp))
+            PillButton("Volver", { onAction(SignInAction.OnVolverClicked) }, Modifier.fillMaxWidth(), filled = false)
+        }
     }
+}
+
+@Composable
+private fun Explicacion(text: String) {
+    Text(text, color = Pigment.Graphite, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.padding(top = 6.dp))
+}
+
+// accion secundaria en forma de texto, debajo de los campos
+@Composable
+private fun Enlace(text: String, onClick: () -> Unit) {
+    Text(text, color = Pigment.Accent, fontSize = 13.sp, modifier = Modifier.padding(top = 12.dp).clickable(onClick = onClick))
 }
 
 @Composable
