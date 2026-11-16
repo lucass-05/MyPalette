@@ -13,6 +13,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withTimeoutOrNull
 
 // async { } lanza una tarea sin esperar a que acabe y awaitAll() espera a todas.
 // asi las cuatro bases de datos se consultan a la vez y la busqueda tarda lo que tarde la mas lenta,
@@ -124,13 +125,20 @@ class CatalogRepositoryImpl : CatalogRepository {
 
     private suspend fun seguro(block: suspend () -> List<Media>): List<Media> = seguroO(emptyList()) { block().distinctBy { it.id } }
 
+    // una fuente que falla o que no contesta no debe dejar a las demas sin resultados
     private suspend fun <T> seguroO(porDefecto: T, block: suspend () -> T): T =
         try {
-            block()
+            withTimeoutOrNull(ESPERA_MAXIMA) { block() } ?: porDefecto
         } catch (e: CancellationException) {
             throw e
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            // Throwable y no Exception: en web ktor avisa de un fallo de red con un Error
             println("Palette: ${e.message}")
             porDefecto
         }
+
+    private companion object {
+        // milisegundos que se espera a cada fuente antes de seguir sin ella
+        const val ESPERA_MAXIMA = 10_000L
+    }
 }

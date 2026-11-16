@@ -103,7 +103,7 @@ class PaletteStore {
                     sinConexion = false
                 } catch (e: CancellationException) {
                     throw e
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     sinConexion = true
                     println("Palette: no se pudo subir un cambio (${e.message})")
                 }
@@ -173,12 +173,13 @@ class PaletteStore {
         null
     }
 
+    // se captura Throwable y no Exception porque en web ktor avisa de un fallo de red con un Error
     private suspend fun intentar(block: suspend () -> String?): String? =
         try {
             block()
         } catch (e: CancellationException) {
             throw e
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             e.message ?: "No se ha podido conectar. Revisa la conexión."
         }
 
@@ -213,7 +214,7 @@ class PaletteStore {
             sinConexion = false
         } catch (e: CancellationException) {
             throw e
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             sincronizado = true
             sinConexion = true
             println("Palette: no se pudo sincronizar (${e.message})")
@@ -230,7 +231,7 @@ class PaletteStore {
             }
         } catch (e: CancellationException) {
             throw e
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             println("Palette: no se pudieron bajar los mensajes (${e.message})")
         }
     }
