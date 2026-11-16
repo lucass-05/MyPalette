@@ -18,6 +18,7 @@ import com.example.palette.core.network.Supabase
 import com.example.palette.core.network.json
 import com.example.palette.core.network.supabase
 import com.example.palette.core.storage.escribirGuardado
+import com.example.palette.core.storage.leerEnlaceDeEntrada
 import com.example.palette.core.storage.leerGuardado
 import com.example.palette.core.util.DAY
 import com.example.palette.core.util.ahora
@@ -41,8 +42,8 @@ import kotlinx.coroutines.sync.withLock
 /** en que punto esta quien abre la app. */
 enum class Stage { SIGNED_OUT, LOADING, NEEDS_PROFILE, READY }
 
-/** lo que devuelve iniciarSesion cuando la cuenta existe pero falta meter el codigo del correo. */
-const val CORREO_SIN_CONFIRMAR = "Falta confirmar tu correo."
+/** la web se puede abrir desde el enlace de un correo de supabase: que traia ese enlace. */
+enum class EnlaceDeCorreo { NINGUNO, CONFIRMADO, RECUPERAR, CADUCADO }
 
 
 /**
@@ -68,6 +69,19 @@ class PaletteStore {
 
     var conSesion by mutableStateOf(servidor.conSesion)
         private set
+
+    // los datos del enlace con el que se ha abierto la web, en pares clave=valor separados por &
+    private val enlace: Map<String, String> = leerEnlaceDeEntrada().orEmpty().split("&")
+        .filter { "=" in it }
+        .associate { it.substringBefore("=") to it.substringAfter("=") }
+
+    val enlaceDeCorreo: EnlaceDeCorreo
+        get() = when {
+            enlace["error"] != null -> EnlaceDeCorreo.CADUCADO
+            enlace["refresh_token"] == null -> EnlaceDeCorreo.NINGUNO
+            enlace["type"] == "recovery" -> EnlaceDeCorreo.RECUPERAR
+            else -> EnlaceDeCorreo.CONFIRMADO
+        }
 
     private var sincronizado by mutableStateOf(false)
 
@@ -123,16 +137,16 @@ class PaletteStore {
         try {
             servidor.iniciarSesion(email.trim(), password)
         } catch (e: CorreoSinConfirmar) {
-            // se quedo a medias al crear la cuenta: se le manda otro codigo para que termine
-            servidor.reenviarCodigo(email.trim())
-            return@intentar CORREO_SIN_CONFIRMAR
+            // se quedo a medias al crear la cuenta: se le manda otra vez el correo para que termine
+            servidor.reenviarConfirmacion(email.trim())
+            return@intentar "Falta confirmar tu correo. Te hemos vuelto a mandar el enlace."
         }
         conSesion = true
         sincronizar()
         null
     }
 
-    /** si va bien el servidor manda un codigo al correo. no hay sesion hasta confirmarlo. */
+    /** si va bien el servidor manda un correo con un enlace. no hay sesion hasta pulsarlo. */
     suspend fun crearCuenta(email: String, password: String): String? = intentar {
         if (servidor.crearCuenta(email.trim(), password)) {
             conSesion = true
@@ -141,25 +155,17 @@ class PaletteStore {
         null
     }
 
-    suspend fun confirmarCorreo(email: String, codigo: String): String? = intentar {
-        servidor.confirmarCorreo(email.trim(), codigo)
-        conSesion = true
-        sincronizar()
-        null
-    }
-
-    suspend fun reenviarCodigo(email: String): String? = intentar {
-        servidor.reenviarCodigo(email.trim())
-        null
-    }
-
     suspend fun pedirRecuperacion(email: String): String? = intentar {
         servidor.pedirRecuperacion(email.trim())
         null
     }
 
-    suspend fun cambiarContrasena(email: String, codigo: String, nueva: String): String? = intentar {
-        servidor.cambiarContrasena(email.trim(), codigo, nueva)
+    /** entra con el enlace del correo. si era el de contraseña olvidada, guarda ademas la nueva. */
+    suspend fun entrarConEnlace(nueva: String?): String? = intentar {
+        val refreshToken = enlace["refresh_token"] ?: return@intentar "Ese enlace ya no vale. Pide otro."
+        // el enlace solo vale una vez: si un intento anterior se quedo a medias la sesion ya esta guardada
+        if (!servidor.conSesion) servidor.entrarConEnlace(refreshToken)
+        if (nueva != null) servidor.cambiarContrasena(nueva)
         conSesion = true
         sincronizar()
         null

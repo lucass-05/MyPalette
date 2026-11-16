@@ -44,7 +44,7 @@ import kotlinx.serialization.json.Json
 private const val SUPABASE_URL = "https://unlehgzkissbahwcjedp.supabase.co"
 private const val SUPABASE_KEY = "sb_publishable_hISx4izQ9ijDm-EvoN4CJg_6Md1Br4g"
 
-/** el servidor no deja entrar hasta que se confirma el correo con el codigo. */
+/** el servidor no deja entrar hasta que se confirma el correo con el enlace que manda. */
 internal class CorreoSinConfirmar : Exception()
 
 /** una sola conexion para toda la app: la usan el estado (palettestore) y la busqueda de juegos (igdb). */
@@ -93,7 +93,7 @@ internal class Supabase {
 
     // ---- cuentas
 
-    /** devuelve false si la cuenta se ha creado pero falta confirmar el correo con el codigo para poder entrar. */
+    /** devuelve false si la cuenta se ha creado pero falta confirmar el correo para poder entrar. */
     suspend fun crearCuenta(email: String, password: String): Boolean {
         val text = enviar(HttpMethod.Post, "auth/v1/signup", cuerpo = filas.encodeToString(Credentials.serializer(), Credentials(email, password)), authorized = false)
         val concedido = json.decodeFromString(Granted.serializer(), text)
@@ -110,35 +110,31 @@ internal class Supabase {
         guardarSesion(json.decodeFromString(Granted.serializer(), text))
     }
 
-    // ---- codigos por correo
-    // el servidor manda un codigo de un solo uso al correo. /auth/v1/verify lo cambia por una sesion:
-    // con type "email" confirma una cuenta nueva y con type "recovery" deja cambiar la contraseña.
+    // ---- correos de confirmacion y de recuperacion
+    // los manda supabase con sus plantillas de serie. llevan un enlace que, al pulsarlo, abre la web
+    // de la app con una sesion en la direccion (ver core/storage/Enlace.kt).
 
-    suspend fun confirmarCorreo(email: String, codigo: String) {
-        val text = enviar(HttpMethod.Post, "auth/v1/verify", cuerpo = filas.encodeToString(Verify.serializer(), Verify("email", email, codigo)), authorized = false)
-        guardarSesion(json.decodeFromString(Granted.serializer(), text))
-    }
-
-    suspend fun reenviarCodigo(email: String) {
+    suspend fun reenviarConfirmacion(email: String) {
         enviar(HttpMethod.Post, "auth/v1/resend", cuerpo = filas.encodeToString(Resend.serializer(), Resend("signup", email)), authorized = false)
     }
 
-    /** manda el codigo para cambiar la contraseña. si el correo no tiene cuenta el servidor no lo dice. */
+    /** manda el enlace para cambiar la contraseña. si el correo no tiene cuenta el servidor no lo dice. */
     suspend fun pedirRecuperacion(email: String) {
         enviar(HttpMethod.Post, "auth/v1/recover", cuerpo = filas.encodeToString(Email.serializer(), Email(email)), authorized = false)
     }
 
-    /** con el codigo de recuperacion se entra y, ya con sesion, se guarda la contraseña nueva. */
-    suspend fun cambiarContrasena(email: String, codigo: String, nueva: String) {
-        val text = enviar(HttpMethod.Post, "auth/v1/verify", cuerpo = filas.encodeToString(Verify.serializer(), Verify("recovery", email, codigo)), authorized = false)
+    /** el enlace de un correo trae un refresh token: se cambia por una sesion completa, igual que al renovarla. */
+    suspend fun entrarConEnlace(refreshToken: String) {
+        val text = enviar(
+            HttpMethod.Post, "auth/v1/token", mapOf("grant_type" to "refresh_token"),
+            cuerpo = filas.encodeToString(Refresh.serializer(), Refresh(refreshToken)), authorized = false,
+        )
         guardarSesion(json.decodeFromString(Granted.serializer(), text))
-        try {
-            enviar(HttpMethod.Put, "auth/v1/user", cuerpo = filas.encodeToString(NewPassword.serializer(), NewPassword(nueva)))
-        } catch (e: Exception) {
-            // el codigo ya esta gastado: si la contraseña no se ha guardado no se deja la sesion a medias
-            cerrarSesion()
-            throw e
-        }
+    }
+
+    /** cambia la contraseña de la cuenta con la que se ha entrado. */
+    suspend fun cambiarContrasena(nueva: String) {
+        enviar(HttpMethod.Put, "auth/v1/user", cuerpo = filas.encodeToString(NewPassword.serializer(), NewPassword(nueva)))
     }
 
     fun cerrarSesion() {
@@ -204,7 +200,7 @@ internal class Supabase {
             "user_already_exists", "email_exists" -> "Ya hay una cuenta con ese correo. Prueba a iniciar sesión."
             "weak_password" -> "La contraseña es demasiado corta: mínimo 6 caracteres."
             "email_not_confirmed" -> throw CorreoSinConfirmar()
-            "otp_expired" -> "El código no es correcto o ha caducado. Pide otro."
+            "otp_expired" -> "Ese enlace ha caducado. Pide otro."
             "same_password" -> "La contraseña nueva tiene que ser distinta de la anterior."
             "email_address_invalid", "validation_failed" -> "Ese correo no parece válido."
             "over_email_send_rate_limit", "over_request_rate_limit" -> "Demasiados intentos seguidos. Espera un momento."
@@ -370,9 +366,6 @@ internal class Supabase {
 
     @Serializable
     private class Credentials(val email: String, val password: String)
-
-    @Serializable
-    private class Verify(val type: String, val email: String, val token: String)
 
     @Serializable
     private class Resend(val type: String, val email: String)

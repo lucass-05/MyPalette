@@ -32,7 +32,6 @@ import com.example.palette.core.ui.Segments
 import com.example.palette.core.ui.Splat
 import com.example.palette.core.ui.titular
 import com.example.palette.di.LocalAppContainer
-import com.example.palette.features.auth.presentation.DIGITOS_CODIGO
 import com.example.palette.features.auth.presentation.PasoEntrada
 import com.example.palette.features.auth.presentation.SignInAction
 import com.example.palette.features.auth.presentation.SignInState
@@ -59,7 +58,7 @@ fun SignInScreenRoot() {
     SignInScreen(state = state, onAction = viewModel::onAction)
 }
 
-/** crear cuenta o entrar con correo y contraseña, confirmar el correo y recuperar la contraseña. */
+/** crear cuenta o entrar con correo y contraseña, y elegir una nueva si se llega desde el enlace de recuperacion. */
 @Composable
 fun SignInScreen(state: SignInState, onAction: (SignInAction) -> Unit) {
     Column(
@@ -82,21 +81,11 @@ fun SignInScreen(state: SignInState, onAction: (SignInAction) -> Unit) {
                 PlainField(state.password, { onAction(SignInAction.OnPasswordChanged(it)) }, if (state.creando) "Mínimo 6 caracteres" else "Tu contraseña", secret = true)
                 if (!state.creando) Enlace("He olvidado mi contraseña") { onAction(SignInAction.OnOlvidadaClicked) }
             }
-            PasoEntrada.CODIGO -> {
-                Text("Confirma tu correo", style = titular(24.sp))
-                Explicacion("Te hemos mandado un código de $DIGITOS_CODIGO cifras a ${state.email}. Escríbelo aquí para terminar de crear la cuenta.")
-                Label("Código")
-                PlainField(state.codigo, { onAction(SignInAction.OnCodigoChanged(it)) }, "0".repeat(DIGITOS_CODIGO))
-                Enlace("Mandar otro código") { onAction(SignInAction.OnReenviarClicked) }
-            }
             PasoEntrada.RECUPERAR -> {
                 Text("Nueva contraseña", style = titular(24.sp))
-                Explicacion("Si ${state.email} tiene cuenta, le hemos mandado un código de $DIGITOS_CODIGO cifras. Escríbelo y elige una contraseña nueva.")
-                Label("Código")
-                PlainField(state.codigo, { onAction(SignInAction.OnCodigoChanged(it)) }, "0".repeat(DIGITOS_CODIGO))
+                Explicacion("Elige una contraseña nueva para tu cuenta. Al guardarla entrarás directamente.")
                 Label("Contraseña nueva")
                 PlainField(state.nueva, { onAction(SignInAction.OnNuevaChanged(it)) }, "Mínimo 6 caracteres", secret = true)
-                Enlace("Mandar otro código") { onAction(SignInAction.OnReenviarClicked) }
             }
         }
         state.aviso?.let {
@@ -106,7 +95,6 @@ fun SignInScreen(state: SignInState, onAction: (SignInAction) -> Unit) {
         PillButton(
             text = when {
                 state.ocupado -> "Un momento…"
-                state.paso == PasoEntrada.CODIGO -> "Confirmar"
                 state.paso == PasoEntrada.RECUPERAR -> "Cambiar contraseña"
                 state.creando -> "Crear cuenta"
                 else -> "Entrar"

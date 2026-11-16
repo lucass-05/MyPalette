@@ -1,6 +1,7 @@
 package com.example.palette.features.auth.data.repository
 
 import androidx.compose.runtime.snapshotFlow
+import com.example.palette.core.data.EnlaceDeCorreo
 import com.example.palette.core.data.PaletteStore
 import com.example.palette.core.data.Stage
 import com.example.palette.features.auth.domain.repository.AuthRepository
@@ -18,14 +19,11 @@ class AuthRepositoryImpl(private val almacen: PaletteStore) : AuthRepository {
 
     override suspend fun crearCuenta(email: String, password: String): String? = almacen.crearCuenta(email, password)
 
-    override suspend fun confirmarCorreo(email: String, codigo: String): String? = almacen.confirmarCorreo(email, codigo)
-
-    override suspend fun reenviarCodigo(email: String): String? = almacen.reenviarCodigo(email)
+    override fun enlaceDeCorreo(): EnlaceDeCorreo = almacen.enlaceDeCorreo
 
     override suspend fun pedirRecuperacion(email: String): String? = almacen.pedirRecuperacion(email)
 
-    override suspend fun cambiarContrasena(email: String, codigo: String, nueva: String): String? =
-        almacen.cambiarContrasena(email, codigo, nueva)
+    override suspend fun entrarConEnlace(nueva: String?): String? = almacen.entrarConEnlace(nueva)
 
     override fun cerrarSesion() = almacen.cerrarSesion()
 
