@@ -13,12 +13,10 @@ import com.example.palette.core.model.NoticeKind
 import com.example.palette.core.model.Snapshot
 import com.example.palette.core.model.ThemeColors
 import com.example.palette.core.model.User
-import com.example.palette.core.network.CorreoSinConfirmar
 import com.example.palette.core.network.Supabase
 import com.example.palette.core.network.json
 import com.example.palette.core.network.supabase
 import com.example.palette.core.storage.escribirGuardado
-import com.example.palette.core.storage.leerEnlaceDeEntrada
 import com.example.palette.core.storage.leerGuardado
 import com.example.palette.core.util.DAY
 import com.example.palette.core.util.ahora
@@ -41,10 +39,6 @@ import kotlinx.coroutines.sync.withLock
 
 /** en que punto esta quien abre la app. */
 enum class Stage { SIGNED_OUT, LOADING, NEEDS_PROFILE, READY }
-
-/** la web se puede abrir desde el enlace de un correo de supabase: que traia ese enlace. */
-enum class EnlaceDeCorreo { NINGUNO, CONFIRMADO, RECUPERAR, CADUCADO }
-
 
 /**
  * fuente de datos de la app: mi perfil, mis logs, a quien sigo, mensajes...
@@ -69,19 +63,6 @@ class PaletteStore {
 
     var conSesion by mutableStateOf(servidor.conSesion)
         private set
-
-    // los datos del enlace con el que se ha abierto la web, en pares clave=valor separados por &
-    private val enlace: Map<String, String> = leerEnlaceDeEntrada().orEmpty().split("&")
-        .filter { "=" in it }
-        .associate { it.substringBefore("=") to it.substringAfter("=") }
-
-    val enlaceDeCorreo: EnlaceDeCorreo
-        get() = when {
-            enlace["error"] != null -> EnlaceDeCorreo.CADUCADO
-            enlace["refresh_token"] == null -> EnlaceDeCorreo.NINGUNO
-            enlace["type"] == "recovery" -> EnlaceDeCorreo.RECUPERAR
-            else -> EnlaceDeCorreo.CONFIRMADO
-        }
 
     private var sincronizado by mutableStateOf(false)
 
@@ -134,41 +115,20 @@ class PaletteStore {
 
     /** devuelve null si ha ido bien o el motivo, ya redactado para enseñarlo. */
     suspend fun iniciarSesion(email: String, password: String): String? = intentar {
-        try {
-            servidor.iniciarSesion(email.trim(), password)
-        } catch (e: CorreoSinConfirmar) {
-            // se quedo a medias al crear la cuenta: se le manda otra vez el correo para que termine
-            servidor.reenviarConfirmacion(email.trim())
-            return@intentar "Falta confirmar tu correo. Te hemos vuelto a mandar el enlace."
-        }
+        servidor.iniciarSesion(email.trim(), password)
         conSesion = true
         sincronizar()
         null
     }
 
-    /** si va bien el servidor manda un correo con un enlace. no hay sesion hasta pulsarlo. */
     suspend fun crearCuenta(email: String, password: String): String? = intentar {
         if (servidor.crearCuenta(email.trim(), password)) {
             conSesion = true
             sincronizar()
+            null
+        } else {
+            "Cuenta creada. Te hemos mandado un correo: confírmalo y después inicia sesión."
         }
-        null
-    }
-
-    suspend fun pedirRecuperacion(email: String): String? = intentar {
-        servidor.pedirRecuperacion(email.trim())
-        null
-    }
-
-    /** entra con el enlace del correo. si era el de contraseña olvidada, guarda ademas la nueva. */
-    suspend fun entrarConEnlace(nueva: String?): String? = intentar {
-        val refreshToken = enlace["refresh_token"] ?: return@intentar "Ese enlace ya no vale. Pide otro."
-        // el enlace solo vale una vez: si un intento anterior se quedo a medias la sesion ya esta guardada
-        if (!servidor.conSesion) servidor.entrarConEnlace(refreshToken)
-        if (nueva != null) servidor.cambiarContrasena(nueva)
-        conSesion = true
-        sincronizar()
-        null
     }
 
     fun cerrarSesion() {
