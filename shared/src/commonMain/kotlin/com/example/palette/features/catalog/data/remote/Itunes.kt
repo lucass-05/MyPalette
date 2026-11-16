@@ -18,7 +18,9 @@ internal class Itunes {
         val entidad = if (type == MediaType.ALBUM) "album" else "song"
         val pagina = json.decodeFromString(
             Page.serializer(),
-            pedirTexto("$raiz/search", mapOf("term" to consulta, "media" to "music", "entity" to entidad, "limit" to "12", "country" to "ES")),
+            // sin el parametro media=music a proposito: con el, los iphone desvian la peticion a la app
+            // de musica en vez de devolver los datos. entity ya dice que se busca un album o una cancion
+            pedirTexto("$raiz/search", mapOf("term" to consulta, "entity" to entidad, "limit" to "12", "country" to "ES")),
         )
         return pagina.results.mapNotNull { it.toMedia() }
     }
