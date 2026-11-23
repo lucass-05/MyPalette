@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -137,11 +138,12 @@ fun ProfileScreen(state: ProfileState, onAction: (ProfileAction) -> Unit, modifi
         Box(modifier.background(fondo ?: Pigment.Paper)) {
             BoxWithConstraints {
                 // columnas del muro de manchas: dos en un movil, mas cuanto mas ancha es la ventana
-                val columnas = (maxWidth / 250.dp).toInt().coerceIn(2, 7)
-                LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = BarSpace)) {
+                val columnas = (minOf(maxWidth, ANCHO_MAXIMO) / 200.dp).toInt().coerceIn(2, 6)
+                // en pantallas anchas el contenido va en una columna centrada; solo la portada llega de lado a lado
+                LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = BarSpace), horizontalAlignment = Alignment.CenterHorizontally) {
                     item {
                         Cabecera(user, fondo ?: Pigment.Paper, ink, suave, arriba)
-                        Column(Modifier.fillMaxWidth().padding(horizontal = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(Modifier.anchoDeLectura().padding(horizontal = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             if (user.bio.isNotBlank()) {
                                 Spacer(Modifier.height(8.dp))
                                 Text(user.bio, fontSize = 14.sp, lineHeight = 20.sp, textAlign = TextAlign.Center)
@@ -155,7 +157,7 @@ fun ProfileScreen(state: ProfileState, onAction: (ProfileAction) -> Unit, modifi
                             }
                         }
                         Spacer(Modifier.height(18.dp))
-                        FilaDePaginas(state, propio, ink, onAction)
+                        Box(Modifier.anchoDeLectura()) { FilaDePaginas(state, propio, ink, onAction) }
                     }
 
                     when (val seccion = state.seccion) {
@@ -163,16 +165,16 @@ fun ProfileScreen(state: ProfileState, onAction: (ProfileAction) -> Unit, modifi
                         Seccion.Favoritos -> {
                             val logs = state.favoritos
                             when {
-                                logs.isEmpty() -> item { SinRegistros(propio, ink, onAction) }
-                                diseno.favoritesBlob -> item { PaletteWall(logs, columnas, propio) { onAction(ProfileAction.OnResenaClicked(it.id)) } }
-                                else -> item { Cuadricula(logs.map { it.pieza() }, blob = false, ink = ink, onClick = { p -> p.log?.let { onAction(ProfileAction.OnResenaClicked(it.id)) } }) }
+                                logs.isEmpty() -> centrado { SinRegistros(propio, ink, onAction) }
+                                diseno.favoritesBlob -> centrado { PaletteWall(logs, columnas, propio) { onAction(ProfileAction.OnResenaClicked(it.id)) } }
+                                else -> centrado { Cuadricula(logs.map { it.pieza() }, blob = false, ink = ink, onClick = { p -> p.log?.let { onAction(ProfileAction.OnResenaClicked(it.id)) } }) }
                             }
                         }
-                        Seccion.Diario -> item {
+                        Seccion.Diario -> centrado {
                             if (perfil.logs.isEmpty()) SinRegistros(propio, ink, onAction)
                             else Diario(perfil.logs, null, diseno.diaryBlob, ink, suave) { onAction(ProfileAction.OnResenaClicked(it)) }
                         }
-                        Seccion.Pendientes -> item { Pendientes(state, ink, onAction) }
+                        Seccion.Pendientes -> centrado { Pendientes(state, ink, onAction) }
                         is Seccion.Lista -> listaEnPerfil(state, seccion.listId, ink, onAction)
                     }
                 }
@@ -187,6 +189,17 @@ fun ProfileScreen(state: ProfileState, onAction: (ProfileAction) -> Unit, modifi
             }
         }
     }
+}
+
+/** ancho maximo del contenido del perfil en pantallas anchas. */
+private val ANCHO_MAXIMO = 1000.dp
+
+/** todo el ancho en un movil; en pantallas anchas, como mucho [ANCHO_MAXIMO]. */
+private fun Modifier.anchoDeLectura(): Modifier = widthIn(max = ANCHO_MAXIMO).fillMaxWidth()
+
+/** un elemento de la lista del perfil dentro de la columna centrada. */
+private fun LazyListScope.centrado(content: @Composable () -> Unit) = item {
+    Box(Modifier.anchoDeLectura()) { content() }
 }
 
 @Composable
@@ -273,8 +286,8 @@ private fun LazyListScope.paleta(state: ProfileState, ink: Color, suave: Color, 
     val bloques = diseno.bloques.filter { !it.hidden }
     when {
         // alguien nuevo, sin nada registrado ni nada personalizado: se enseña por donde empezar
-        perfil.logs.isEmpty() && !diseno.custom && diseno.widgets.isEmpty() -> item { SinRegistros(perfil.propio, ink, onAction) }
-        bloques.isEmpty() -> item {
+        perfil.logs.isEmpty() && !diseno.custom && diseno.widgets.isEmpty() -> centrado { SinRegistros(perfil.propio, ink, onAction) }
+        bloques.isEmpty() -> centrado {
             if (perfil.propio) {
                 EmptyState("Tu paleta está vacía", "Añade bloques de favoritos, diario, listas o texto para que tu perfil hable de ti.", Pigment.Ochre, semilla = 43, ink = ink) {
                     PillButton("Personalizar", { onAction(ProfileAction.OnPersonalizarClicked) }, color = ink, icon = Icons.Brush)
@@ -283,7 +296,9 @@ private fun LazyListScope.paleta(state: ProfileState, ink: Color, suave: Color, 
                 EmptyState("Paleta en blanco", "Todavía no ha puesto nada aquí.", Pigment.Ochre, semilla = 43, ink = ink)
             }
         }
-        else -> items(bloques, key = { "w_${it.id}" }) { bloque -> BloqueView(bloque, state, ink, suave, onAction) }
+        else -> items(bloques, key = { "w_${it.id}" }) { bloque ->
+            Box(Modifier.anchoDeLectura()) { BloqueView(bloque, state, ink, suave, onAction) }
+        }
     }
 }
 
@@ -320,13 +335,13 @@ private fun LazyListScope.listaEnPerfil(state: ProfileState, listId: String, ink
     val propio = vista.propia
     val deResenas = lista.kind == ListKind.REVIEWS
     val blob = lista.id in (state.perfil?.user?.layout?.blobLists ?: emptyList())
-    if (propio) item {
+    if (propio) centrado {
         Row(Modifier.padding(start = 20.dp, bottom = 12.dp)) {
             PillButton(if (lista.size == 0) "Añadir" else "Editar lista", { onAction(ProfileAction.OnEditarListaClicked(lista.id)) }, filled = false, color = ink, icon = if (lista.size == 0) Icons.Plus else Icons.Pencil)
         }
     }
     val piezas = if (deResenas) vista.resenas.map { it.pieza() } else lista.media.map { Pieza(it) }
-    item {
+    centrado {
         if (piezas.isEmpty()) {
             EmptyState("Lista vacía", if (propio) "Entra en la lista para añadirle cosas." else "Todavía no ha añadido nada.", Pigment.Ochre, semilla = 71, ink = ink)
         } else {

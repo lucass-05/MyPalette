@@ -181,7 +181,8 @@ fun PillButton(
             Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(17.dp))
             Spacer(Modifier.width(8.dp))
         }
-        Text(text, color = tint, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1)
+        // si no cabe se corta con puntos suspensivos en vez de quedarse a medias
+        Text(text, color = tint, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
     }
 }
 

@@ -111,7 +111,7 @@ class CapturasTest {
             // un par de fotogramas para que se asienten las listas perezosas y las fuentes
             escena.render(0)
             val imagen = escena.render(500_000_000)
-            File(salida, "${nombre}_$sufijo.jpg").writeBytes(imagen.encodeToData(EncodedImageFormat.JPEG, 82)!!.bytes)
+            File(salida, "${nombre}_$sufijo.jpg").writeBytes(imagen.encodeToData(EncodedImageFormat.JPEG, 60)!!.bytes)
             escena.close()
         }
     }
