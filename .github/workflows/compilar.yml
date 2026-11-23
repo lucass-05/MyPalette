@@ -23,3 +23,13 @@ jobs:
       # escritorio (jvm) comprueba todo el codigo comun; web (wasm) sus partes propias
       - name: compilar
         run: bash ./gradlew :shared:compileKotlinJvm :shared:compileKotlinWasmJs --continue
+
+      # capturas de las pantallas con datos de ejemplo, en movil y en ordenador, para revisarlas a ojo
+      - name: capturas
+        run: bash ./gradlew :shared:jvmTest --tests "*CapturasTest*"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: capturas
+          path: shared/build/capturas

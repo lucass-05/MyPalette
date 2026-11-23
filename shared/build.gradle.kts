@@ -132,6 +132,10 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
+        // las capturas de pantalla de los tests (jvmTest) necesitan el motor grafico de escritorio
+        jvmTest.dependencies {
+            implementation(compose.desktop.currentOs)
+        }
         jsMain.dependencies {
             implementation(libs.wrappers.browser)
             implementation(libs.ktor.client.js)
