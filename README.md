@@ -84,8 +84,8 @@ Mientras falte, esos dos tipos no aparecen en el buscador. Música y libros no n
 
 Para montar tu propio servidor en un proyecto de Supabase:
 
-1. **Base de datos.** En *SQL Editor*, ejecuta en orden los ficheros de `supabase/` (`001` a `004`).
-   El `002` y el `004` llevan dentro la URL del proyecto: cámbiala por la tuya.
+1. **Base de datos.** En *SQL Editor*, ejecuta en orden los ficheros de `supabase/` (`001` a `005`).
+   El `002`, el `004` y el `005` llevan dentro la URL del proyecto: cámbiala por la tuya.
 2. **Registro.** En *Authentication > Sign In / Providers > Email*, desactiva *Confirm email*.
 3. **Videojuegos.** Crea una *Edge Function* llamada `igdb` con el contenido de `supabase/functions/igdb/index.ts`
    y añade los secretos `IGDB_CLIENT_ID` e `IGDB_CLIENT_SECRET` (de una app registrada en la consola de desarrolladores de Twitch).

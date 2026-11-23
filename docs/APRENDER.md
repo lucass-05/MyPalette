@@ -23,12 +23,14 @@ Las features:
 | Feature | Pantallas | Repositorio |
 |---|---|---|
 | `auth` | Entrar, crear el perfil | `AuthRepository` |
-| `catalog` | Registrar (buscador), ficha, Descubrir | `CatalogRepository` (TMDB, IGDB, iTunes, Open Library) |
+| `catalog` | Registrar (buscador), ficha (con dónde verlo), Descubrir, buscador en hoja para listas y bloques | `CatalogRepository` (TMDB, IGDB, iTunes, Open Library) |
 | `library` | Hoja de reseña, menú de un registro | `LibraryRepository` (mis registros y pendientes) |
 | `home` | Inicio, historias | `FeedRepository` |
 | `people` | Buscar gente | `PeopleRepository` |
-| `messages` | Chats, grupos, avisos, hoja de enviar | `MessagesRepository` |
-| `profile` | Perfil, ajustes | `ProfileRepository` |
+| `messages` | Chats, grupos (editables), avisos, hoja de enviar | `MessagesRepository` |
+| `profile` | Perfil, modo personalización (portada, fondo, bloques), ajustes | `ProfileRepository` |
+| `reviews` | Una reseña con sus me gusta y comentarios | `ReviewsRepository` |
+| `lists` | Listas de contenido o de reseñas, hoja para crear una | `ListsRepository` |
 
 ## El camino de un toque
 
