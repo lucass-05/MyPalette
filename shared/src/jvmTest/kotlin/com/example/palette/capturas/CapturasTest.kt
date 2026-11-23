@@ -98,7 +98,7 @@ class CapturasTest {
     /** pinta [contenido] como en el movil (390 x 844) y como en el ordenador (1280 x 860, con la barra a un lado). */
     private fun capturar(nombre: String, ancho: Dp?, contenido: @Composable () -> Unit) {
         for ((sufijo, w, h, wide) in listOf(Tamano("movil", 390, 844, false), Tamano("ordenador", 1280, 860, true))) {
-            val escena = ImageComposeScene(w * 2, h * 2, Density(2f)) {
+            val escena = ImageComposeScene(w, h, Density(1f)) {
                 CompositionLocalProvider(LocalWide provides wide) {
                     PaletteTheme {
                         // como en AppNavigation: en pantalla ancha la barra va a la izquierda y algunas pantallas se centran
@@ -111,7 +111,7 @@ class CapturasTest {
             // un par de fotogramas para que se asienten las listas perezosas y las fuentes
             escena.render(0)
             val imagen = escena.render(500_000_000)
-            File(salida, "${nombre}_$sufijo.png").writeBytes(imagen.encodeToData(EncodedImageFormat.PNG)!!.bytes)
+            File(salida, "${nombre}_$sufijo.jpg").writeBytes(imagen.encodeToData(EncodedImageFormat.JPEG, 82)!!.bytes)
             escena.close()
         }
     }

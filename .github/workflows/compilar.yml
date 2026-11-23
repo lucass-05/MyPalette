@@ -28,13 +28,12 @@ jobs:
       - name: capturas
         run: bash ./gradlew :shared:jvmTest --tests "*CapturasTest*"
 
-      # las capturas tambien salen en el registro (reducidas y en texto), para poder verlas sin descargar nada
+      # las capturas tambien salen en el registro (en texto), para poder verlas sin descargar nada
       - name: capturas en el registro
         run: |
           cd shared/build/capturas
-          for f in *.png; do
-            convert "$f" -resize 50% -quality 72 "${f%.png}.jpg"
-            echo "=====CAPTURA ${f%.png}"
-            base64 -w 0 "${f%.png}.jpg"
+          for f in *.jpg; do
+            echo "=====CAPTURA ${f%.jpg}"
+            base64 -w 0 "$f"
             echo
           done
