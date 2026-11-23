@@ -112,6 +112,29 @@ y entregan a cada feature solo lo que necesita, ya preparado (`Feed`, `Perfil`, 
 | Navegación | Navigation Compose |
 | Datos en el dispositivo | Un JSON guardado con `expect`/`actual` (`core/storage`). No hay base de datos SQL local: la base de datos es el Postgres de Supabase |
 
+## El perfil
+
+Un perfil tiene páginas: **Paleta** (la que se abre al entrar), **Favoritos**, **Diario**, **Pendientes** y una
+por cada lista. La paleta se arma con bloques (`ProfileWidget`: texto, favoritos, diario, pendientes, una lista
+o portadas elegidas) que su dueño elige, ordena y esconde en el modo personalización. Todo eso se guarda en
+`ProfileLayout` (dentro del perfil, columna `layout`), junto con qué páginas se ven y si se pintan como manchas
+o como recuadros. Quien nunca lo ha personalizado ve `BLOQUES_POR_DEFECTO`: 5 favoritos y 5 días de diario.
+
+| Pieza | Dónde |
+|---|---|
+| Páginas y su estado | `features/profile/presentation/ProfileViewModel.kt` (`Seccion`) |
+| Pintar los bloques, la cuadrícula y el diario | `features/profile/ui/ProfileWidgets.kt` |
+| Modo personalización | `features/profile/presentation/CustomizeViewModel.kt` y `ui/CustomizeScreen.kt` |
+
+## Pruebas y capturas
+
+- `shared/src/commonTest` tiene pruebas de la lógica que no depende de la pantalla: formatos, el orden de
+  favoritos, los bloques por defecto y el cálculo de avisos (`core/data/Avisos.kt`, una función pura).
+- `shared/src/jvmTest/.../CapturasTest.kt` pinta las pantallas principales con datos de ejemplo a ancho de
+  móvil y de ordenador, y las guarda en `shared/build/capturas`. Sirve para revisar los diseños sin abrir la app.
+- Todo se ejecuta con `./gradlew :shared:jvmTest`. En GitHub lo hace solo el workflow `compilar` en cada rama
+  que no es `main`; `main` es lo que se publica en la web.
+
 ## Convenciones del proyecto
 
 - **Nombres.** Variables, parámetros y funciones propias van en español. Se quedan en inglés los nombres de

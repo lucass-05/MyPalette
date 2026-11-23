@@ -159,7 +159,7 @@ fun DetailScreen(state: DetailState, onAction: (DetailAction) -> Unit, modifier:
                 Spacer(Modifier.height(20.dp))
                 Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     PillButton(
-                        text = if (mio == null) "Puntuar y reseñar" else "Editar reseña",
+                        text = if (mio == null) "Reseñar" else "Editar",
                         onClick = { onAction(DetailAction.OnReviewClicked) },
                         color = tint,
                         icon = if (mio == null) Icons.Star else Icons.Pencil,
