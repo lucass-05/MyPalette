@@ -29,8 +29,6 @@ class ProfileRepositoryImpl(private val almacen: PaletteStore) : ProfileReposito
 
     override suspend fun ponerFoto(jpeg: ByteArray?): String? = almacen.ponerFoto(jpeg)
 
-    override fun ponerPendientesPublicos(publicos: Boolean) = almacen.ponerPendientesPublicos(publicos)
-
     override fun guardarDiseno(layout: ProfileLayout, background: Long?, pendientesPublicos: Boolean) =
         almacen.guardarDiseno(layout, background, pendientesPublicos)
 

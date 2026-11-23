@@ -286,12 +286,6 @@ class PaletteStore {
 
     fun ponerTema(theme: ThemeColors) = actualizar { it.copy(theme = theme) }
 
-    fun ponerPendientesPublicos(public: Boolean) {
-        actualizar { it.copy(me = it.me.copy(watchlistPublic = public)) }
-        val profile = estado.me
-        subir { guardarPerfil(profile) }
-    }
-
     // ---- logs
 
     fun miLogDe(mediaId: String): LogEntry? = estado.logs.firstOrNull { it.media.id == mediaId }

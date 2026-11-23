@@ -20,8 +20,6 @@ interface ProfileRepository {
     /** sube una foto de perfil ya recortada (jpeg). con null se quita la que hubiera. */
     suspend fun ponerFoto(jpeg: ByteArray?): String?
 
-    fun ponerPendientesPublicos(publicos: Boolean)
-
     /** guarda como se ve el perfil: bloques, paginas, color de fondo (null: sin color propio) y si los pendientes se ven. */
     fun guardarDiseno(layout: ProfileLayout, background: Long?, pendientesPublicos: Boolean)
 

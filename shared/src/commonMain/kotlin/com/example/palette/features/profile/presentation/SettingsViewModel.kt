@@ -22,7 +22,6 @@ data class SettingsState(
     val username: String,
     val bio: String,
     val favorite: Long,
-    val background: Long?,
     val theme: ThemeColors,
     val guardando: Boolean = false,
     val subiendoFoto: Boolean = false,
@@ -41,10 +40,8 @@ sealed interface SettingsAction {
     data class OnUsernameChanged(val username: String) : SettingsAction
     data class OnBioChanged(val bio: String) : SettingsAction
     data class OnFavoriteChanged(val favorite: Long) : SettingsAction
-    data class OnBackgroundChanged(val background: Long?) : SettingsAction
     data class OnFotoElegida(val foto: ByteArray) : SettingsAction
     data object OnQuitarFotoClicked : SettingsAction
-    data class OnPendientesPublicosChanged(val publicos: Boolean) : SettingsAction
     data class OnThemeChanged(val theme: ThemeColors) : SettingsAction
     data object OnGuardarClicked : SettingsAction
     data object OnCerrarSesionClicked : SettingsAction
@@ -61,7 +58,7 @@ class SettingsViewModel(
     // el formulario arranca con lo que hay guardado
     private val _state = MutableStateFlow(
         profileRepository.yo().let {
-            SettingsState(it, it.name, it.username, it.bio, it.favorite, it.background, profileRepository.tema())
+            SettingsState(it, it.name, it.username, it.bio, it.favorite, profileRepository.tema())
         },
     )
     val state: StateFlow<SettingsState> = _state.asStateFlow()
@@ -81,13 +78,11 @@ class SettingsViewModel(
             is SettingsAction.OnUsernameChanged -> _state.update { it.copy(username = limpiarUsuario(action.username)) }
             is SettingsAction.OnBioChanged -> _state.update { it.copy(bio = action.bio.take(150)) }
             is SettingsAction.OnFavoriteChanged -> _state.update { it.copy(favorite = action.favorite) }
-            is SettingsAction.OnBackgroundChanged -> _state.update { it.copy(background = action.background) }
             is SettingsAction.OnFotoElegida -> cambiarFoto(action.foto)
             SettingsAction.OnQuitarFotoClicked -> viewModelScope.launch {
                 val problema = profileRepository.ponerFoto(null)
                 _state.update { it.copy(problema = problema) }
             }
-            is SettingsAction.OnPendientesPublicosChanged -> profileRepository.ponerPendientesPublicos(action.publicos)
             // los colores de la app se guardan al momento, sin esperar al boton de guardar
             is SettingsAction.OnThemeChanged -> profileRepository.ponerTema(action.theme)
             SettingsAction.OnGuardarClicked -> guardar()
@@ -114,7 +109,7 @@ class SettingsViewModel(
         if (datos.guardando || !datos.valido) return
         _state.update { it.copy(guardando = true) }
         viewModelScope.launch {
-            val problema = profileRepository.guardarPerfil(datos.name, datos.username, datos.bio, datos.favorite, datos.background)
+            val problema = profileRepository.guardarPerfil(datos.name, datos.username, datos.bio, datos.favorite, datos.yo.background)
             _state.update { it.copy(guardando = false, problema = problema, guardado = problema == null) }
         }
     }

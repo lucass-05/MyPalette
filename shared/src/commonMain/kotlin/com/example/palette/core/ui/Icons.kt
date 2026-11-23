@@ -217,18 +217,7 @@ object Icons {
         "M22 11L16 11",
     )
 
-    val UserCheck: ImageVector get() = icon(
-        "user-check",
-        "m16 11 2 2 4-4",
-        "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2",
-        "M5 7a4 4 0 1 0 8 0a4 4 0 1 0 -8 0z",
-    )
 
-    val Bell: ImageVector get() = icon(
-        "bell",
-        "M10.268 21a2 2 0 0 0 3.464 0",
-        "M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326",
-    )
 
     val Lock: ImageVector get() = icon(
         "lock",
@@ -248,11 +237,6 @@ object Icons {
         "m9 18 6-6-6-6",
     )
 
-    val Link: ImageVector get() = icon(
-        "link",
-        "M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71",
-        "M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71",
-    )
 
     val Star: ImageVector get() = icon(
         "star",
@@ -265,12 +249,6 @@ object Icons {
         filled = true,
     )
 
-    val Filter: ImageVector get() = icon(
-        "list-filter",
-        "M2 5h20",
-        "M6 12h12",
-        "M9 19h6",
-    )
 
     val Comment: ImageVector get() = icon(
         "message-circle",

@@ -16,8 +16,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,7 +48,6 @@ import com.example.palette.core.ui.Swatch
 import com.example.palette.core.ui.aGuardado
 import com.example.palette.core.ui.contraste
 import com.example.palette.core.ui.icon
-import com.example.palette.core.ui.legible
 import com.example.palette.core.ui.recordarSelectorDeFotos
 import com.example.palette.core.ui.titular
 import com.example.palette.core.ui.toHex
@@ -119,7 +116,6 @@ fun SettingsScreen(state: SettingsState, onAction: (SettingsAction) -> Unit, onE
 
     val cambiarTema = { nuevo: ThemeColors -> onAction(SettingsAction.OnThemeChanged(nuevo)) }
     val huecoFavorito = ColorSlot("Tu color favorito", Color(state.favorite)) { onAction(SettingsAction.OnFavoriteChanged(it)) }
-    val huecoFondo = ColorSlot("Fondo de tu perfil", state.background?.let { Color(it) } ?: Pigment.Paper) { onAction(SettingsAction.OnBackgroundChanged(it)) }
     val huecosApp = listOf(
         ColorSlot("Fondo", Pigment.Paper) { cambiarTema(theme.copy(paper = it)) },
         ColorSlot("Texto", Pigment.Ink) { cambiarTema(theme.copy(ink = it)) },
@@ -135,7 +131,7 @@ fun SettingsScreen(state: SettingsState, onAction: (SettingsAction) -> Unit, onE
     )
 
     Column(modifier.imePadding()) {
-        BackBar("Ajustes", { onAction(SettingsAction.OnBackClicked) }) {
+        BackBar("Perfil y cuenta", { onAction(SettingsAction.OnBackClicked) }) {
             PillButton(
                 if (state.guardando) "Guardando…" else "Guardar",
                 { onAction(SettingsAction.OnGuardarClicked) },
@@ -167,31 +163,8 @@ fun SettingsScreen(state: SettingsState, onAction: (SettingsAction) -> Unit, onE
             PlainField(state.bio, { onAction(SettingsAction.OnBioChanged(it)) }, "Una línea que te defina", singleLine = false, minHeight = 80.dp)
             Spacer(Modifier.height(8.dp))
             ColorRow(huecoFavorito) { editando = huecoFavorito.label }
+            // el fondo del perfil y que paginas se ven estan en personalizar, junto al resto del aspecto del perfil
             Text("Es el color de tu avatar y del anillo de tus historias.", color = Pigment.Graphite, fontSize = 13.sp)
-            Spacer(Modifier.height(8.dp))
-            ColorRow(huecoFondo) { editando = huecoFondo.label }
-            Text(
-                if (state.background == null) "Ahora tu perfil se ve con el fondo que tenga cada uno en su app. Si eliges un color, lo verá igual todo el que te visite."
-                else "Todo el que visite tu perfil lo verá con este fondo. Toca aquí para quitarlo.",
-                color = Pigment.Graphite, fontSize = 13.sp, lineHeight = 18.sp,
-                modifier = Modifier.clickable(enabled = state.background != null) { onAction(SettingsAction.OnBackgroundChanged(null)) },
-            )
-
-            Spacer(Modifier.height(22.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f).padding(end = 12.dp)) {
-                    Text("Pendientes a la vista", fontSize = 15.sp, fontWeight = FontWeight.Medium)
-                    Text("Quien visite tu perfil podrá ver tu lista de pendientes.", color = Pigment.Graphite, fontSize = 13.sp, lineHeight = 18.sp)
-                }
-                Switch(
-                    checked = yo.watchlistPublic,
-                    onCheckedChange = { onAction(SettingsAction.OnPendientesPublicosChanged(it)) },
-                    colors = SwitchDefaults.colors(
-                        checkedTrackColor = Pigment.Accent, checkedThumbColor = Pigment.Accent.legible(),
-                        uncheckedTrackColor = Pigment.Mist, uncheckedBorderColor = Pigment.Line, uncheckedThumbColor = Pigment.Graphite,
-                    ),
-                )
-            }
 
             Spacer(Modifier.height(30.dp))
             Text("Colores de la app", style = titular(21.sp))
@@ -246,7 +219,7 @@ fun SettingsScreen(state: SettingsState, onAction: (SettingsAction) -> Unit, onE
         }
     }
 
-    (listOf(huecoFavorito, huecoFondo) + huecosApp + huecosTipo).firstOrNull { it.label == editando }?.let { hueco ->
+    (listOf(huecoFavorito) + huecosApp + huecosTipo).firstOrNull { it.label == editando }?.let { hueco ->
         ColorSheet(hueco) { editando = null }
     }
 }
