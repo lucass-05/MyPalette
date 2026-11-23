@@ -130,8 +130,13 @@ fun TutorialScreen(state: TutorialState, onAction: (TutorialAction) -> Unit, mod
                 PasoView(pasos[pagina], ancha)
             }
 
-            // abajo: atras y siguiente; en el ultimo paso, las dos formas de terminar
-            Row(
+            // abajo: atras y siguiente; en el ultimo paso, las dos formas de terminar (en el movil, una encima de otra)
+            if (ultimo && !ancha) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    PillButton("Empezar", { onAction(TutorialAction.OnEmpezarClicked) }, Modifier.fillMaxWidth(), color = Pigment.Accent)
+                    PillButton("Personalizar mi perfil", { onAction(TutorialAction.OnPersonalizarClicked) }, Modifier.fillMaxWidth(), filled = false, icon = Icons.Brush)
+                }
+            } else Row(
                 Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,

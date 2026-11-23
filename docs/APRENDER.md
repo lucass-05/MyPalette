@@ -31,6 +31,7 @@ Las features:
 | `profile` | Perfil, modo personalización (portada, fondo, bloques), ajustes | `ProfileRepository` |
 | `reviews` | Una reseña con sus me gusta y comentarios | `ReviewsRepository` |
 | `lists` | Listas de contenido o de reseñas, hoja para crear una | `ListsRepository` |
+| `tutorial` | Los pasos que se ven al abrir la app por primera vez | `TutorialRepository` |
 
 ## El camino de un toque
 
@@ -125,6 +126,17 @@ o como recuadros. Quien nunca lo ha personalizado ve `BLOQUES_POR_DEFECTO`: 5 fa
 | Páginas y su estado | `features/profile/presentation/ProfileViewModel.kt` (`Seccion`) |
 | Pintar los bloques, la cuadrícula y el diario | `features/profile/ui/ProfileWidgets.kt` |
 | Modo personalización | `features/profile/presentation/CustomizeViewModel.kt` y `ui/CustomizeScreen.kt` |
+
+## El tutorial
+
+Se enseña encima de todo (en `Shell`, después de las hojas) mientras `Snapshot.tutorialVisto` sea false: a
+quien acaba de llegar y, una vez, a quien ya tenía cuenta. Saltar, Empezar o Personalizar lo marcan como visto,
+y en Perfil y cuenta hay un botón para verlo otra vez. Es del dispositivo, como los colores: cerrar sesión no lo borra.
+
+Cada paso pinta una pantalla de verdad (`ProfileScreen`, `HomeScreen`...) en pequeño (`MiniMovil`): como son
+pantallas sin estado propio, basta con darles un estado hecho a mano. Ese estado lo arma
+`PrepararEjemplosUseCase` con mi perfil real y, si tengo menos de 6 logs, contenidos inventados. No pasa por el
+almacén, así que nada de lo inventado acaba guardado.
 
 ## Pruebas y capturas
 
