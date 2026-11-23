@@ -286,6 +286,8 @@ data class Snapshot(
     val people: List<User> = emptyList(),
     val peopleLogs: List<LogEntry> = emptyList(),
     val peopleWatchlists: Map<String, List<Media>> = emptyMap(),
+    // true cuando ya se ha visto (o saltado) el tutorial en este dispositivo
+    val tutorialVisto: Boolean = false,
 )
 
 /** el contenido sin lo que pesa y se puede volver a pedir (la sinopsis): para guardarlo dentro de listas y bloques. */

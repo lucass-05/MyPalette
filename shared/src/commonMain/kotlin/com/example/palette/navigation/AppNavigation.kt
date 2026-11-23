@@ -72,6 +72,7 @@ import com.example.palette.features.profile.ui.CustomizeScreenRoot
 import com.example.palette.features.lists.ui.ListScreenRoot
 import com.example.palette.features.lists.ui.NewListSheetRoot
 import com.example.palette.features.reviews.ui.ReviewDetailScreenRoot
+import com.example.palette.features.tutorial.ui.TutorialScreenRoot
 
 // la navegacion usa la libreria navigation de compose:
 //  - cada pantalla tiene una ruta (Routes.kt)
@@ -83,7 +84,7 @@ import com.example.palette.features.reviews.ui.ReviewDetailScreenRoot
 @Composable
 fun AppNavigation() {
     val container = LocalAppContainer.current
-    val viewModel = viewModel { AppViewModel(container.authRepository, container.messagesRepository, container.profileRepository) }
+    val viewModel = viewModel { AppViewModel(container.authRepository, container.messagesRepository, container.profileRepository, container.tutorialRepository) }
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     BoxWithConstraints(Modifier.fillMaxSize().background(Pigment.Paper)) {
@@ -95,7 +96,7 @@ fun AppNavigation() {
                 Stage.SIGNED_OUT -> ConViewModelsPropios { Centered(480.dp) { Box(it) { SignInScreenRoot() } } }
                 Stage.LOADING -> LoadingScreen()
                 Stage.NEEDS_PROFILE -> ConViewModelsPropios { Centered(480.dp) { Box(it) { ProfileSetupScreenRoot() } } }
-                Stage.READY -> Shell(state.sinLeer)
+                Stage.READY -> Shell(state.sinLeer, state.tutorial)
             }
         }
     }
@@ -127,7 +128,7 @@ private fun NavDestination.pestana(): Screen? = when {
 }
 
 @Composable
-private fun Shell(sinLeer: Int) {
+private fun Shell(sinLeer: Int, tutorial: Boolean) {
     val container = LocalAppContainer.current
     val navController = rememberNavController()
     val hojas = remember { Hojas() }
@@ -383,6 +384,15 @@ private fun Shell(sinLeer: Int) {
     }
     hojas.infoDeGrupo?.let { groupId ->
         ConViewModelsPropios { GroupInfoSheetRoot(groupId, onClose = { hojas.infoDeGrupo = null }, onOpenUser = ::abrirPerfil) }
+    }
+    // el tutorial va encima de todo. al terminar con "personalizar" se abre el pincel desde mi perfil
+    if (tutorial) {
+        ConViewModelsPropios {
+            TutorialScreenRoot(onPersonalizar = {
+                irA(Screen.PROFILE)
+                navController.abrir(CustomizeRoute)
+            })
+        }
     }
 }
 

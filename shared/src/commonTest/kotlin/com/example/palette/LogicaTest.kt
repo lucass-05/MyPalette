@@ -12,8 +12,11 @@ import com.example.palette.core.model.Notice
 import com.example.palette.core.model.NoticeKind
 import com.example.palette.core.model.ProfileLayout
 import com.example.palette.core.model.ProfileWidget
+import com.example.palette.core.model.User
 import com.example.palette.core.model.WidgetKind
+import com.example.palette.core.util.DAY
 import com.example.palette.features.profile.domain.usecases.SortProfileLogsUseCase
+import com.example.palette.features.tutorial.domain.usecases.PrepararEjemplosUseCase
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -83,5 +86,22 @@ class LogicaTest {
         assertTrue(avisos.getValue("f_marta").read)      // ya estaba leido
         assertTrue(avisos.getValue("l_ana_l1").read)     // anterior a desde
         assertFalse(avisos.getValue("l_pepe_l1").read)   // nuevo
+    }
+
+    @Test
+    fun tutorialRellenaUnPerfilVacioYRespetaUnoLleno() {
+        val preparar = PrepararEjemplosUseCase(SortProfileLogsUseCase())
+        val yo = User(ME, "lucas", "Lucas")
+
+        // sin nada registrado salen contenidos inventados, para que ninguna pagina quede vacia
+        val vacio = preparar(yo, emptyList(), emptyList(), ahora = 10 * DAY)
+        assertEquals(8, vacio.misLogs.size)
+        assertTrue(vacio.pendientes.isNotEmpty())
+        assertTrue(vacio.resena.log.review.isNotBlank())
+
+        // con logs de sobra se usan los mios tal cual, sin mezclar inventados
+        val mios = (1..7).map { log("l$it", ME, "m$it") }
+        val lleno = preparar(yo, mios, emptyList(), ahora = 10 * DAY)
+        assertEquals(mios.map { it.id }.toSet(), lleno.misLogs.map { it.id }.toSet())
     }
 }

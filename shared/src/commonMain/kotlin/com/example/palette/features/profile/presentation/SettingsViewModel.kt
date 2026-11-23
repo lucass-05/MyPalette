@@ -8,6 +8,7 @@ import com.example.palette.core.ui.prepararAvatar
 import com.example.palette.core.util.limpiarUsuario
 import com.example.palette.features.auth.domain.repository.AuthRepository
 import com.example.palette.features.profile.domain.repository.ProfileRepository
+import com.example.palette.features.tutorial.domain.repository.TutorialRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -44,6 +45,7 @@ sealed interface SettingsAction {
     data object OnQuitarFotoClicked : SettingsAction
     data class OnThemeChanged(val theme: ThemeColors) : SettingsAction
     data object OnGuardarClicked : SettingsAction
+    data object OnVerTutorialClicked : SettingsAction
     data object OnCerrarSesionClicked : SettingsAction
     data object OnBorrarCuentaClicked : SettingsAction
     data object OnBorrarCuentaCancelado : SettingsAction
@@ -53,6 +55,7 @@ sealed interface SettingsAction {
 class SettingsViewModel(
     private val profileRepository: ProfileRepository,
     private val authRepository: AuthRepository,
+    private val tutorialRepository: TutorialRepository,
 ) : ViewModel() {
 
     // el formulario arranca con lo que hay guardado
@@ -86,6 +89,8 @@ class SettingsViewModel(
             // los colores de la app se guardan al momento, sin esperar al boton de guardar
             is SettingsAction.OnThemeChanged -> profileRepository.ponerTema(action.theme)
             SettingsAction.OnGuardarClicked -> guardar()
+            // el tutorial se abre solo encima de todo en cuanto vuelve a estar pendiente
+            SettingsAction.OnVerTutorialClicked -> tutorialRepository.volverAVer()
             SettingsAction.OnCerrarSesionClicked -> authRepository.cerrarSesion()
             SettingsAction.OnBorrarCuentaClicked -> _state.update { it.copy(confirmandoBorrado = true) }
             SettingsAction.OnBorrarCuentaCancelado -> _state.update { it.copy(confirmandoBorrado = false) }

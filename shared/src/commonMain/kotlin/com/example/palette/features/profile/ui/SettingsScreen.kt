@@ -91,7 +91,7 @@ private fun ColorSheet(hueco: ColorSlot, onDone: () -> Unit) {
 @Composable
 fun SettingsScreenRoot(onBack: () -> Unit, modifier: Modifier = Modifier) {
     val container = LocalAppContainer.current
-    val viewModel = viewModel { SettingsViewModel(container.profileRepository, container.authRepository) }
+    val viewModel = viewModel { SettingsViewModel(container.profileRepository, container.authRepository, container.tutorialRepository) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val elegirFoto = recordarSelectorDeFotos { viewModel.onAction(SettingsAction.OnFotoElegida(it)) }
 
@@ -183,6 +183,11 @@ fun SettingsScreen(state: SettingsState, onAction: (SettingsAction) -> Unit, onE
             Spacer(Modifier.height(12.dp))
             // negro fijo para que el boton se vea aunque los colores elegidos no se distingan
             PillButton("Volver a los colores originales", { onAction(SettingsAction.OnThemeChanged(ThemeColors())) }, color = Color(0xFF17171A))
+
+            Spacer(Modifier.height(30.dp))
+            Text("Ayuda", style = titular(21.sp))
+            Text("Un repaso de todo lo que se puede hacer en la app y en tu perfil.", color = Pigment.Graphite, fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp, bottom = 10.dp))
+            PillButton("Ver el tutorial otra vez", { onAction(SettingsAction.OnVerTutorialClicked) }, filled = false)
 
             Spacer(Modifier.height(30.dp))
             PillButton("Cerrar sesión", { onAction(SettingsAction.OnCerrarSesionClicked) }, filled = false)

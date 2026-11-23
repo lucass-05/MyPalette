@@ -141,8 +141,8 @@ class PaletteStore {
         servidor.cerrarSesion()
         conSesion = false
         sincronizado = false
-        // los colores de la app son del dispositivo, no de la cuenta: se quedan
-        actualizar { Snapshot(theme = it.theme) }
+        // los colores de la app y el tutorial ya visto son del dispositivo, no de la cuenta: se quedan
+        actualizar { Snapshot(theme = it.theme, tutorialVisto = it.tutorialVisto) }
     }
 
     /** borra la cuenta y todo lo suyo del servidor, y deja la app como recien instalada (salvo los colores). */
@@ -150,7 +150,7 @@ class PaletteStore {
         cola.withLock { servidor.borrarCuenta() }
         conSesion = false
         sincronizado = false
-        actualizar { Snapshot(theme = it.theme) }
+        actualizar { Snapshot(theme = it.theme, tutorialVisto = it.tutorialVisto) }
         null
     }
 
@@ -264,6 +264,9 @@ class PaletteStore {
     }
 
     fun ponerTema(theme: ThemeColors) = actualizar { it.copy(theme = theme) }
+
+    /** true: ya no se enseña al abrir la app. false: se vuelve a enseñar (desde ajustes). */
+    fun ponerTutorialVisto(visto: Boolean) = actualizar { it.copy(tutorialVisto = visto) }
 
     // ---- logs
 

@@ -47,6 +47,7 @@ import com.example.palette.features.messages.domain.model.Aviso
 import com.example.palette.features.messages.presentation.ActivityState
 import com.example.palette.features.messages.ui.ActivityScreen
 import com.example.palette.features.profile.domain.model.Perfil
+import com.example.palette.features.profile.domain.usecases.SortProfileLogsUseCase
 import com.example.palette.features.profile.presentation.CustomizeState
 import com.example.palette.features.profile.presentation.ProfileState
 import com.example.palette.features.profile.presentation.Seccion
@@ -56,11 +57,14 @@ import com.example.palette.features.reviews.domain.model.Comentario
 import com.example.palette.features.reviews.domain.model.Resena
 import com.example.palette.features.reviews.presentation.ReviewDetailState
 import com.example.palette.features.reviews.ui.ReviewDetailScreen
+import com.example.palette.features.tutorial.domain.usecases.PrepararEjemplosUseCase
+import com.example.palette.features.tutorial.presentation.TutorialState
+import com.example.palette.features.tutorial.ui.TutorialScreen
 import com.example.palette.navigation.LocalWide
 import com.example.palette.navigation.RailSpace
-import org.jetbrains.skia.EncodedImageFormat
 import java.io.File
 import kotlin.test.Test
+import org.jetbrains.skia.EncodedImageFormat
 
 // capturas de las pantallas principales con datos de ejemplo, a ancho de movil y de ordenador.
 // no comprueban nada: sirven para revisar a ojo como quedan los diseños sin tener que abrir la app.
@@ -93,16 +97,21 @@ class CapturasTest {
         capturar("personalizar", ancho = 760.dp) {
             CustomizeScreen(CustomizeState(d.yo, d.yo.layout.copy(widgets = d.yo.layout.bloques), null, true, d.listas), {}, {})
         }
+        // el tutorial de alguien recien llegado, sin nada registrado: todo sale de los ejemplos inventados
+        val tutorial = TutorialState(PrepararEjemplosUseCase(SortProfileLogsUseCase())(d.yo, emptyList(), emptyList(), d.ahora))
+        for (paso in listOf(0, 1, 6, 7, 11, 12, 15)) {
+            capturar("tutorial_$paso", ancho = null, conBarra = false) { TutorialScreen(tutorial, {}, pasoInicial = paso) }
+        }
     }
 
     /** pinta [contenido] como en el movil (390 x 844) y como en el ordenador (1280 x 860, con la barra a un lado). */
-    private fun capturar(nombre: String, ancho: Dp?, contenido: @Composable () -> Unit) {
+    private fun capturar(nombre: String, ancho: Dp?, conBarra: Boolean = true, contenido: @Composable () -> Unit) {
         for ((sufijo, w, h, wide) in listOf(Tamano("movil", 390, 844, false), Tamano("ordenador", 1280, 860, true))) {
             val escena = ImageComposeScene(w, h, Density(1f)) {
                 CompositionLocalProvider(LocalWide provides wide) {
                     PaletteTheme {
                         // como en AppNavigation: en pantalla ancha la barra va a la izquierda y algunas pantallas se centran
-                        Box(Modifier.fillMaxSize().background(Pigment.Paper).padding(start = if (wide) RailSpace else 0.dp), contentAlignment = Alignment.TopCenter) {
+                        Box(Modifier.fillMaxSize().background(Pigment.Paper).padding(start = if (wide && conBarra) RailSpace else 0.dp), contentAlignment = Alignment.TopCenter) {
                             Box(if (ancho != null) Modifier.widthIn(max = ancho).fillMaxSize() else Modifier.fillMaxSize()) { contenido() }
                         }
                     }
@@ -122,6 +131,7 @@ class CapturasTest {
 /** datos de ejemplo: contenidos sin portada (sale el color de su tipo), gente, reseñas y listas. */
 private object Datos {
     private const val AHORA = 1_795_000_000_000L
+    val ahora = AHORA
 
     val contenidos = listOf(
         Media("tmdb:movie:1", MediaType.MOVIE, "Dune: parte dos", "Denis Villeneuve", 2024, score = 8.2, scoreSource = "TMDB"),

@@ -14,6 +14,8 @@ import com.example.palette.features.home.data.repository.FeedRepositoryImpl
 import com.example.palette.features.home.domain.repository.FeedRepository
 import com.example.palette.features.library.data.repository.LibraryRepositoryImpl
 import com.example.palette.features.library.domain.repository.LibraryRepository
+import com.example.palette.features.lists.data.repository.ListsRepositoryImpl
+import com.example.palette.features.lists.domain.repository.ListsRepository
 import com.example.palette.features.messages.data.repository.MessagesRepositoryImpl
 import com.example.palette.features.messages.domain.repository.MessagesRepository
 import com.example.palette.features.people.data.repository.PeopleRepositoryImpl
@@ -24,8 +26,9 @@ import com.example.palette.features.profile.domain.repository.ProfileRepository
 import com.example.palette.features.profile.domain.usecases.SortProfileLogsUseCase
 import com.example.palette.features.reviews.data.repository.ReviewsRepositoryImpl
 import com.example.palette.features.reviews.domain.repository.ReviewsRepository
-import com.example.palette.features.lists.data.repository.ListsRepositoryImpl
-import com.example.palette.features.lists.domain.repository.ListsRepository
+import com.example.palette.features.tutorial.data.repository.TutorialRepositoryImpl
+import com.example.palette.features.tutorial.domain.repository.TutorialRepository
+import com.example.palette.features.tutorial.domain.usecases.PrepararEjemplosUseCase
 
 // inyeccion de dependencias hecha a mano: el contenedor sabe construir cada repositorio y cada
 // caso de uso, y las pantallas se los piden a el en vez de crearlos ellas.
@@ -43,6 +46,7 @@ interface AppContainer {
     val profileRepository: ProfileRepository
     val reviewsRepository: ReviewsRepository
     val listsRepository: ListsRepository
+    val tutorialRepository: TutorialRepository
 
     // casos de uso: solo donde hay una regla que no es ni de pantalla ni de datos
     val searchMediaUseCase: SearchMediaUseCase
@@ -50,6 +54,7 @@ interface AppContainer {
     val getRecommendationsUseCase: GetRecommendationsUseCase
     val searchPeopleUseCase: SearchPeopleUseCase
     val sortProfileLogsUseCase: SortProfileLogsUseCase
+    val prepararEjemplosUseCase: PrepararEjemplosUseCase
 }
 
 class DefaultAppContainer : AppContainer {
@@ -68,12 +73,14 @@ class DefaultAppContainer : AppContainer {
     override val profileRepository: ProfileRepository by lazy { ProfileRepositoryImpl(almacen) }
     override val reviewsRepository: ReviewsRepository by lazy { ReviewsRepositoryImpl(almacen) }
     override val listsRepository: ListsRepository by lazy { ListsRepositoryImpl(almacen) }
+    override val tutorialRepository: TutorialRepository by lazy { TutorialRepositoryImpl(almacen) }
 
     override val searchMediaUseCase: SearchMediaUseCase by lazy { SearchMediaUseCase(catalogRepository) }
     override val getMediaDetailUseCase: GetMediaDetailUseCase by lazy { GetMediaDetailUseCase(catalogRepository) }
     override val getRecommendationsUseCase: GetRecommendationsUseCase by lazy { GetRecommendationsUseCase(catalogRepository) }
     override val searchPeopleUseCase: SearchPeopleUseCase by lazy { SearchPeopleUseCase() }
     override val sortProfileLogsUseCase: SortProfileLogsUseCase by lazy { SortProfileLogsUseCase() }
+    override val prepararEjemplosUseCase: PrepararEjemplosUseCase by lazy { PrepararEjemplosUseCase(sortProfileLogsUseCase) }
 }
 
 /** el contenedor, al alcance de cualquier pantalla. lo pone App al arrancar. */
