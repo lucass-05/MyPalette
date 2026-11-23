@@ -19,7 +19,6 @@ import com.example.palette.core.model.Snapshot
 import com.example.palette.core.model.ThemeColors
 import com.example.palette.core.model.User
 import com.example.palette.core.model.ligero
-import com.example.palette.core.network.Remote
 import com.example.palette.core.network.Supabase
 import com.example.palette.core.network.json
 import com.example.palette.core.network.supabase
@@ -213,7 +212,11 @@ class PaletteStore {
                         comments = recibido.comments,
                         lists = recibido.lists,
                         groups = recibido.groups,
-                        notices = avisos(recibido, s.notices, desde),
+                        notices = calcularAvisos(
+                            misLogs = recibido.logs, logsDeOtros = recibido.peopleLogs, siguiendo = recibido.following,
+                            seguidores = recibido.followers, meGustas = recibido.likes, comentarios = recibido.comments,
+                            anteriores = s.notices, desde = desde,
+                        ).take(MAX_AVISOS),
                         avisosDesde = desde,
                     )
                 }
@@ -227,30 +230,6 @@ class PaletteStore {
             sinConexion = true
             println("Palette: no se pudo sincronizar (${e.message})")
         }
-    }
-
-    /**
-     * los avisos de la pestaña actividad. no se guardan en el servidor: salen de los datos que ya se bajan
-     * (quien me sigue, los me gusta y comentarios de mis reseñas, lo que reseñan mis amigos).
-     * cada aviso tiene un id fijo, asi el que ya estaba leido sigue leido al volver a calcularlos.
-     */
-    private fun avisos(recibido: Remote, anteriores: List<Notice>, desde: Long): List<Notice> {
-        val leidos = anteriores.associate { it.id to it.read }
-        fun aviso(id: String, kind: NoticeKind, userId: String, logId: String?, at: Long) =
-            Notice(id, kind, userId, logId, at, read = leidos[id] ?: (kind != NoticeKind.FOLLOW && at < desde))
-
-        val misLogs = recibido.logs.map { it.id }.toSet()
-        val misContenidos = recibido.logs.map { it.media.id }.toSet()
-        val seguidores = recibido.followers.map { (userId, at) -> aviso("f_$userId", NoticeKind.FOLLOW, userId, null, at) }
-        // los me gusta antiguos no tienen fecha (0): de esos no se avisa
-        val meGustas = recibido.likes.filter { it.logId in misLogs && it.userId != ME && it.createdAt > 0 }
-            .map { aviso("l_${it.userId}_${it.logId}", NoticeKind.LIKE, it.userId, it.logId, it.createdAt) }
-        val comentarios = recibido.comments.filter { it.logId in misLogs && it.userId != ME }
-            .map { aviso("c_${it.id}", NoticeKind.COMMENT, it.userId, it.logId, it.createdAt) }
-        val coincidencias = recibido.peopleLogs
-            .filter { it.userId in recibido.following && !it.hidden && it.media.id in misContenidos }
-            .map { aviso("s_${it.id}", NoticeKind.SAME_MEDIA, it.userId, it.id, it.createdAt) }
-        return (seguidores + meGustas + comentarios + coincidencias).sortedByDescending { it.at }.take(MAX_AVISOS)
     }
 
     /** solo los mensajes: lo usa el chat abierto para refrescar mas a menudo. */

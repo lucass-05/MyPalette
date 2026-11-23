@@ -24,9 +24,9 @@ jobs:
       - name: compilar
         run: bash ./gradlew :shared:compileKotlinJvm :shared:compileKotlinWasmJs --continue
 
-      # capturas de las pantallas con datos de ejemplo, en movil y en ordenador, para revisarlas a ojo
-      - name: capturas
-        run: bash ./gradlew :shared:jvmTest --tests "*CapturasTest*"
+      # pruebas de la logica y capturas de las pantallas
+      - name: pruebas y capturas
+        run: bash ./gradlew :shared:jvmTest
 
       # las capturas tambien salen en el registro (en texto), para poder verlas sin descargar nada
       - name: capturas en el registro
