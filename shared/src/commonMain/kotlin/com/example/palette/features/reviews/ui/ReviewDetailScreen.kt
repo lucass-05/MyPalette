@@ -61,6 +61,7 @@ fun ReviewDetailScreenRoot(
     onOpenMedia: (Media) -> Unit,
     onEdit: (Media) -> Unit,
     onSend: (LogEntry) -> Unit,
+    onLogMenu: (LogEntry) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val container = LocalAppContainer.current
@@ -76,6 +77,7 @@ fun ReviewDetailScreenRoot(
                 is ReviewDetailAction.OnMediaClicked -> onOpenMedia(action.media)
                 is ReviewDetailAction.OnEditarClicked -> onEdit(action.media)
                 is ReviewDetailAction.OnSendClicked -> onSend(action.log)
+                is ReviewDetailAction.OnMenuClicked -> onLogMenu(action.log)
                 else -> viewModel.onAction(action)
             }
         },
@@ -91,6 +93,8 @@ fun ReviewDetailScreen(state: ReviewDetailState, onAction: (ReviewDetailAction) 
     Column(modifier.navigationBarsPadding().imePadding()) {
         BackBar("Reseña", { onAction(ReviewDetailAction.OnBackClicked) }) {
             if (resena != null) IconAction(Icons.Send, "Enviar a un amigo", { onAction(ReviewDetailAction.OnSendClicked(resena.log)) })
+            // en una reseña mia, el menu de siempre: fijar, ocultar, editar, borrar...
+            if (resena?.propia == true) IconAction(Icons.More, "Más opciones", { onAction(ReviewDetailAction.OnMenuClicked(resena.log)) })
         }
         if (resena == null) {
             // mientras llega no se enseña nada; si no llega es que se ha borrado o se ha ocultado

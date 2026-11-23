@@ -139,6 +139,8 @@ private fun Shell(sinLeer: Int) {
     val entrada by navController.currentBackStackEntryAsState()
     val destino = entrada?.destination
 
+    val perfilHastaArriba = destino?.let { it.hasRoute<MyProfileRoute>() || it.hasRoute<ProfileRoute>() } == true
+
     // pestaña marcada en la barra. si se vuelve atras hasta otra pestaña, se marca esa
     var apartado by rememberSaveable { mutableStateOf(Screen.HOME) }
     LaunchedEffect(destino) { destino?.pestana()?.let { apartado = it } }
@@ -185,7 +187,8 @@ private fun Shell(sinLeer: Int) {
                     fondo.record { this@drawWithContent.drawContent() }
                     drawLayer(fondo)
                 }
-                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                // el perfil llega hasta arriba del todo (su portada va debajo de la barra de estado): ahi se deja solo el margen de los lados
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(if (perfilHastaArriba) WindowInsetsSides.Horizontal else WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
                 .padding(start = if (ancha) RailSpace else 0.dp),
             // las pantallas cambian al momento, sin fundido
             enterTransition = { EnterTransition.None },
@@ -229,11 +232,9 @@ private fun Shell(sinLeer: Int) {
                 ProfileScreenRoot(
                     userId = ME,
                     onBack = ::volver,
-                    onOpenSettings = { navController.abrir(SettingsRoute) },
                     onOpenChat = ::abrirChat,
                     onOpenMedia = ::abrirFicha,
                     onOpenReview = ::abrirResena,
-                    onLogMenu = { hojas.menuDeLog = it },
                     onRegistrar = { irA(Screen.LOG) },
                     onOpenList = ::abrirLista,
                     onNewList = { hojas.creandoLista = true },
@@ -264,11 +265,9 @@ private fun Shell(sinLeer: Int) {
                 ProfileScreenRoot(
                     userId = entry.toRoute<ProfileRoute>().userId,
                     onBack = ::volver,
-                    onOpenSettings = { navController.abrir(SettingsRoute) },
                     onOpenChat = ::abrirChat,
                     onOpenMedia = ::abrirFicha,
                     onOpenReview = ::abrirResena,
-                    onLogMenu = { hojas.menuDeLog = it },
                     onRegistrar = { irA(Screen.LOG) },
                     onOpenList = ::abrirLista,
                     onNewList = { hojas.creandoLista = true },
@@ -318,6 +317,7 @@ private fun Shell(sinLeer: Int) {
                         onOpenUser = ::abrirPerfil,
                         onOpenMedia = ::abrirFicha,
                         onEdit = { media -> hojas.enResena = media },
+                        onLogMenu = { log -> hojas.menuDeLog = log },
                         onSend = { log -> hojas.enviando = Outgoing.Review(log) },
                         modifier = it,
                     )
@@ -330,7 +330,7 @@ private fun Shell(sinLeer: Int) {
                 }
             }
             composable<CustomizeRoute> {
-                Centered(760.dp) { CustomizeScreenRoot(onClose = ::volver, modifier = it) }
+                Centered(760.dp) { CustomizeScreenRoot(onClose = ::volver, onOpenSettings = { navController.abrir(SettingsRoute) }, modifier = it) }
             }
         }
 

@@ -438,10 +438,10 @@ class PaletteStore {
 
     // ---- perfil personalizado
 
-    /** guarda los bloques del perfil y el color de fondo. */
-    fun guardarDiseno(layout: ProfileLayout, background: Long?) {
+    /** guarda como se ve el perfil: bloques, paginas, color de fondo y si los pendientes son publicos. */
+    fun guardarDiseno(layout: ProfileLayout, background: Long?, pendientesPublicos: Boolean) {
         val limpio = layout.copy(widgets = layout.widgets.map { w -> w.copy(items = w.items.map { it.copy(media = it.media.ligero()) }) })
-        actualizar { it.copy(me = it.me.copy(layout = limpio, background = background)) }
+        actualizar { it.copy(me = it.me.copy(layout = limpio, background = background, watchlistPublic = pendientesPublicos)) }
         val profile = estado.me
         subir { guardarPerfil(profile) }
     }

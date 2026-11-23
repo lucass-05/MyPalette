@@ -3,6 +3,10 @@ package com.example.palette.features.profile.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.text.style.TextAlign
+import com.example.palette.features.profile.presentation.Pagina
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,7 +43,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
-import com.example.palette.core.model.ListKind
 import com.example.palette.core.model.ProfileWidget
 import com.example.palette.core.model.WidgetKind
 import com.example.palette.core.ui.Chip
@@ -62,7 +65,7 @@ import com.example.palette.features.profile.presentation.CustomizeViewModel
 import com.example.palette.navigation.BarSpace
 
 @Composable
-fun CustomizeScreenRoot(onClose: () -> Unit, modifier: Modifier = Modifier) {
+fun CustomizeScreenRoot(onClose: () -> Unit, onOpenSettings: () -> Unit, modifier: Modifier = Modifier) {
     val container = LocalAppContainer.current
     val viewModel = viewModel { CustomizeViewModel(container.profileRepository, container.listsRepository) }
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -71,12 +74,21 @@ fun CustomizeScreenRoot(onClose: () -> Unit, modifier: Modifier = Modifier) {
     // al guardar se vuelve al perfil, que ya enseña los cambios
     LaunchedEffect(state.guardado) { if (state.guardado) onClose() }
 
-    CustomizeScreen(state, viewModel::onAction, onElegirBanner = elegirBanner, modifier = modifier)
+    CustomizeScreen(
+        state,
+        onAction = { action ->
+            viewModel.onAction(action)
+            // los ajustes de la cuenta son otra pantalla; el viewmodel guarda antes lo que haya
+            if (action == CustomizeAction.OnAjustesClicked) onOpenSettings()
+        },
+        onElegirBanner = elegirBanner,
+        modifier = modifier,
+    )
 }
 
 /**
- * modo personalizacion: la cabecera, el fondo, que listas se ven y los bloques del perfil.
- * los cambios se guardan todos juntos al pulsar guardar (o al volver atras).
+ * modo personalizacion: portada, fondo, que paginas se ven y como, y los bloques de la paleta.
+ * desde aqui tambien se llega a los ajustes de la cuenta. se guarda todo junto al pulsar guardar (o la flecha).
  */
 @Composable
 fun CustomizeScreen(state: CustomizeState, onAction: (CustomizeAction) -> Unit, onElegirBanner: () -> Unit, modifier: Modifier = Modifier) {
@@ -87,15 +99,31 @@ fun CustomizeScreen(state: CustomizeState, onAction: (CustomizeAction) -> Unit, 
             PillButton("Guardar", { onAction(CustomizeAction.OnGuardarClicked) }, color = Pigment.Accent)
         }
         LazyColumn(contentPadding = PaddingValues(bottom = BarSpace)) {
+            item {
+                Row(
+                    Modifier.fillMaxWidth().clickable { onAction(CustomizeAction.OnAjustesClicked) }.padding(horizontal = 20.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.size(40.dp).clip(CircleShape).background(Pigment.Mist), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Settings, contentDescription = null, tint = Pigment.Ink, modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Perfil y cuenta", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                        Text("Nombre, foto, colores de la app, cerrar sesión", color = Pigment.Graphite, fontSize = 13.sp)
+                    }
+                    Icon(Icons.ChevronRight, contentDescription = null, tint = Pigment.Graphite, modifier = Modifier.size(18.dp))
+                }
+            }
             item { SeccionBanner(state, onAction, onElegirBanner) }
             item { SeccionFondo(state, onAction) }
-            item { SeccionListas(state, onAction) }
+            item { SeccionPaginas(state, onAction) }
             item {
-                Titulo("Bloques", "Salen debajo de tu nombre, en este orden. Puedes esconderlos sin borrarlos.")
+                Titulo("Tu paleta", "Es la página que se abre al entrar en tu perfil. Pon los bloques que quieras, en el orden que quieras: todos son opcionales.")
             }
             items(state.widgets, key = { it.id }) { widget ->
                 val posicion = state.widgets.indexOf(widget)
-                TarjetaBloque(widget, primero = posicion == 0, ultimo = posicion == state.widgets.lastIndex, onAction = onAction)
+                TarjetaBloque(widget, state, primero = posicion == 0, ultimo = posicion == state.widgets.lastIndex, onAction = onAction)
             }
             item {
                 PillButton(
@@ -108,7 +136,7 @@ fun CustomizeScreen(state: CustomizeState, onAction: (CustomizeAction) -> Unit, 
         }
     }
 
-    if (state.eligiendoBloque) HojaNuevoBloque(onAction)
+    if (state.eligiendoBloque) HojaNuevoBloque(hayListas = state.listas.isNotEmpty(), onAction = onAction)
     if (state.eligiendoFondo) HojaFondo(state.background, onAction)
     state.llenando?.let { id ->
         val bloque = state.widgets.firstOrNull { it.id == id }
@@ -176,30 +204,53 @@ private fun SeccionFondo(state: CustomizeState, onAction: (CustomizeAction) -> U
     }
 }
 
+/** las paginas del perfil: si los demas las ven y si sus portadas van como manchas o como recuadros. */
 @Composable
-private fun SeccionListas(state: CustomizeState, onAction: (CustomizeAction) -> Unit) {
-    Titulo("Listas", "Elige cuáles se ven en tu perfil. Las ocultas solo las ves tú.")
-    if (state.listas.isEmpty()) {
-        Text("Todavía no tienes listas. Créalas con el + de tu perfil, junto a Favoritos y Recientes.", color = Pigment.Graphite, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.padding(horizontal = 20.dp))
-    }
-    state.listas.forEach { vista ->
-        val lista = vista.lista
-        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(if (lista.kind == ListKind.REVIEWS) Icons.Star else Icons.ListBullets, contentDescription = null, tint = Pigment.Graphite, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(12.dp))
-            Text(lista.name, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-            Chip(
-                if (lista.visible) "Visible" else "Oculta", lista.visible, Pigment.Ink,
-                { onAction(CustomizeAction.OnListaVisibleToggled(lista.id)) },
-                icon = if (lista.visible) Icons.Eye else Icons.EyeOff,
-            )
+private fun SeccionPaginas(state: CustomizeState, onAction: (CustomizeAction) -> Unit) {
+    Titulo("Páginas", "Salen arriba de tu perfil, después de tu paleta. Elige cuáles ven los demás y cómo se pintan.")
+    val paginas = listOf<Pair<Pagina, String>>(Pagina.Favoritos to "Favoritos", Pagina.Diario to "Diario", Pagina.Pendientes to "Pendientes") +
+        state.listas.map { Pagina.Lista(it.lista.id) to it.lista.name }
+    paginas.forEach { (pagina, nombre) ->
+        val visible = state.visible(pagina)
+        val manchas = state.enManchas(pagina)
+        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(nombre, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                Chip(
+                    if (visible) "La ven todos" else "Solo tú", visible, Pigment.Ink,
+                    { onAction(CustomizeAction.OnPaginaVisibleToggled(pagina)) },
+                    icon = if (visible) Icons.Eye else Icons.Lock,
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            ElegirForma(manchas) { onAction(CustomizeAction.OnPaginaManchasChanged(pagina, it)) }
         }
+    }
+}
+
+/** manchas de pintura o recuadros: dos chips, uno marcado. */
+@Composable
+private fun ElegirForma(manchas: Boolean, alCambiar: (Boolean) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Chip("Manchas", manchas, Pigment.Accent, { alCambiar(true) }, icon = Icons.Droplet)
+        Chip("Recuadros", !manchas, Pigment.Accent, { alCambiar(false) }, icon = Icons.Square)
+    }
+}
+
+/** cuantos elementos como mucho: un - y un + a los lados del numero. */
+@Composable
+private fun ElegirCantidad(texto: String, cantidad: Int, alCambiar: (Int) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(texto, fontSize = 14.sp, modifier = Modifier.weight(1f))
+        IconAction(Icons.Minus, "Menos", { alCambiar(cantidad - 1) }, tint = if (cantidad > 1) Pigment.Ink else Pigment.Line)
+        Text("$cantidad", style = titular(20.sp), modifier = Modifier.width(34.dp), textAlign = TextAlign.Center)
+        IconAction(Icons.Plus, "Más", { alCambiar(cantidad + 1) })
     }
 }
 
 /** un bloque en el editor: su tipo, los botones para moverlo, esconderlo o borrarlo, y sus campos. */
 @Composable
-private fun TarjetaBloque(widget: ProfileWidget, primero: Boolean, ultimo: Boolean, onAction: (CustomizeAction) -> Unit) {
+private fun TarjetaBloque(widget: ProfileWidget, state: CustomizeState, primero: Boolean, ultimo: Boolean, onAction: (CustomizeAction) -> Unit) {
     val forma = RoundedCornerShape(18.dp)
     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp).clip(forma).border(1.dp, Pigment.Line, forma).padding(vertical = 6.dp)) {
         Row(Modifier.padding(start = 14.dp, end = 2.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -217,17 +268,38 @@ private fun TarjetaBloque(widget: ProfileWidget, primero: Boolean, ultimo: Boole
             IconAction(Icons.Trash, "Borrar bloque", { onAction(CustomizeAction.OnBorrarBloqueClicked(widget.id)) }, tint = Pigment.Cadmium)
         }
         Column(Modifier.padding(horizontal = 14.dp).alpha(if (widget.hidden) 0.5f else 1f)) {
-            PlainField(widget.title, { onAction(CustomizeAction.OnTituloChanged(widget.id, it)) }, "Título (opcional)")
+            PlainField(
+                widget.title, { onAction(CustomizeAction.OnTituloChanged(widget.id, it)) },
+                if (widget.kind == WidgetKind.LIST) "Título (si no, el de la lista)" else "Título (opcional)",
+            )
+            Spacer(Modifier.height(8.dp))
             when (widget.kind) {
                 WidgetKind.TEXT -> {
-                    Spacer(Modifier.height(8.dp))
                     PlainField(widget.text, { onAction(CustomizeAction.OnTextoChanged(widget.id, it)) }, "Escribe lo que quieras contar", singleLine = false, minHeight = 96.dp)
                 }
                 WidgetKind.SHELF -> EditorPortadas(widget, onAction)
-                WidgetKind.DIARY -> Text(
-                    "Enseña los últimos días en los que registraste algo, con lo que registraste cada día.",
-                    color = Pigment.Graphite, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 8.dp),
-                )
+                WidgetKind.FAVORITES, WidgetKind.WATCHLIST -> {
+                    ElegirCantidad("Cuántos enseña, como mucho", widget.count) { onAction(CustomizeAction.OnCantidadChanged(widget.id, it)) }
+                    ElegirForma(widget.blob) { onAction(CustomizeAction.OnManchasChanged(widget.id, it)) }
+                }
+                WidgetKind.DIARY -> {
+                    ElegirCantidad("Cuántos días enseña, como mucho", widget.count) { onAction(CustomizeAction.OnCantidadChanged(widget.id, it)) }
+                    ElegirForma(widget.blob) { onAction(CustomizeAction.OnManchasChanged(widget.id, it)) }
+                }
+                WidgetKind.LIST -> {
+                    if (state.listas.isEmpty()) {
+                        Text("No tienes listas. Créalas con el + de tu perfil.", color = Pigment.Graphite, fontSize = 13.sp)
+                    } else {
+                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            state.listas.forEach { vista ->
+                                Chip(vista.lista.name, widget.listId == vista.lista.id, Pigment.Ink, { onAction(CustomizeAction.OnListaDelBloqueChanged(widget.id, vista.lista.id)) })
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    ElegirCantidad("Cuántos enseña, como mucho", widget.count) { onAction(CustomizeAction.OnCantidadChanged(widget.id, it)) }
+                    ElegirForma(widget.blob) { onAction(CustomizeAction.OnManchasChanged(widget.id, it)) }
+                }
             }
             Spacer(Modifier.height(8.dp))
         }
@@ -273,13 +345,17 @@ private fun Insignia(icon: ImageVector, modifier: Modifier, onClick: (() -> Unit
 }
 
 @Composable
-private fun HojaNuevoBloque(onAction: (CustomizeAction) -> Unit) {
+private fun HojaNuevoBloque(hayListas: Boolean, onAction: (CustomizeAction) -> Unit) {
     Sheet({ onAction(CustomizeAction.OnAnadirBloqueCerrado) }) {
         Text("Añadir bloque", style = titular(22.sp), modifier = Modifier.padding(horizontal = 22.dp))
         Spacer(Modifier.height(8.dp))
         WidgetKind.entries.forEach { kind ->
+            // un bloque de lista necesita alguna lista que enseñar
+            val disponible = kind != WidgetKind.LIST || hayListas
             Row(
-                Modifier.fillMaxWidth().clickable { onAction(CustomizeAction.OnBloqueElegido(kind)) }.padding(horizontal = 22.dp, vertical = 12.dp),
+                Modifier.fillMaxWidth().alpha(if (disponible) 1f else 0.45f)
+                    .clickable(enabled = disponible) { onAction(CustomizeAction.OnBloqueElegido(kind)) }
+                    .padding(horizontal = 22.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(Modifier.size(42.dp).clip(CircleShape).background(Pigment.Mist), contentAlignment = Alignment.Center) {
@@ -288,7 +364,7 @@ private fun HojaNuevoBloque(onAction: (CustomizeAction) -> Unit) {
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
                     Text(kind.nombre, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                    Text(kind.descripcion, color = Pigment.Graphite, fontSize = 13.sp, lineHeight = 18.sp)
+                    Text(if (disponible) kind.descripcion else "Crea antes una lista con el + de tu perfil.", color = Pigment.Graphite, fontSize = 13.sp, lineHeight = 18.sp)
                 }
             }
         }
@@ -311,20 +387,29 @@ private fun HojaFondo(background: Long?, onAction: (CustomizeAction) -> Unit) {
 private val WidgetKind.nombre: String
     get() = when (this) {
         WidgetKind.TEXT -> "Texto"
-        WidgetKind.SHELF -> "Portadas"
+        WidgetKind.FAVORITES -> "Favoritos"
         WidgetKind.DIARY -> "Diario"
+        WidgetKind.WATCHLIST -> "Pendientes"
+        WidgetKind.LIST -> "Lista"
+        WidgetKind.SHELF -> "Portadas elegidas"
     }
 
 private val WidgetKind.descripcion: String
     get() = when (this) {
         WidgetKind.TEXT -> "Un título y lo que quieras contar."
-        WidgetKind.SHELF -> "Una fila de portadas elegidas por ti, como manchas o como portadas."
+        WidgetKind.FAVORITES -> "Tus reseñas con más nota, de la mejor a la peor."
         WidgetKind.DIARY -> "Los últimos días en los que registraste algo, con su fecha en grande."
+        WidgetKind.WATCHLIST -> "Lo que tienes guardado para más adelante."
+        WidgetKind.LIST -> "Lo que hay en una de tus listas."
+        WidgetKind.SHELF -> "Una fila de portadas que eliges tú, una a una."
     }
 
 private val WidgetKind.icono: ImageVector
     get() = when (this) {
         WidgetKind.TEXT -> Icons.Type
-        WidgetKind.SHELF -> Icons.Image
+        WidgetKind.FAVORITES -> Icons.Star
         WidgetKind.DIARY -> Icons.Calendar
+        WidgetKind.WATCHLIST -> Icons.Bookmark
+        WidgetKind.LIST -> Icons.ListBullets
+        WidgetKind.SHELF -> Icons.Image
     }

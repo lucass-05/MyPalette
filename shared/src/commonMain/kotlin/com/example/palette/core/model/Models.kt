@@ -73,18 +73,27 @@ enum class WidgetKind {
     /** un titulo y un texto libre. */
     TEXT,
 
-    /** una fila de portadas elegidas a mano: "mis favoritos", "lo mejor de 2026"... */
-    SHELF,
+    /** las reseñas con mas nota, como la pagina favoritos. */
+    FAVORITES,
 
     /** los ultimos dias en los que registro algo, con lo que registro cada dia. */
     DIARY,
+
+    /** lo que tiene guardado para mas adelante. */
+    WATCHLIST,
+
+    /** una de sus listas. */
+    LIST,
+
+    /** una fila de portadas elegidas a mano. */
+    SHELF,
 }
 
-/** una portada de un bloque. [blob] dice si se pinta como mancha de pintura o como portada rectangular. */
+/** una portada de un bloque de portadas elegidas. [blob] dice si se pinta como mancha de pintura o como recuadro. */
 @Serializable
 data class ShelfItem(val media: Media, val blob: Boolean = true)
 
-/** un bloque del perfil. los campos que no usa su tipo se quedan vacios. */
+/** un bloque de la paleta del perfil. los campos que no usa su tipo se quedan como vienen. */
 @Serializable
 data class ProfileWidget(
     val id: String,
@@ -94,10 +103,41 @@ data class ProfileWidget(
     val items: List<ShelfItem> = emptyList(),
     // oculto: sigue guardado, pero no sale en el perfil
     val hidden: Boolean = false,
+    // cuantos elementos (o dias, en el diario) como mucho
+    val count: Int = 5,
+    // manchas de pintura o recuadros
+    val blob: Boolean = false,
+    // en los bloques de lista, que lista enseñan
+    val listId: String? = null,
 )
 
+/**
+ * como se ve el perfil: los bloques de la paleta y, de las demas paginas, si se ven y como.
+ * la pagina pendientes no esta aqui: si se ve lo dice watchlistPublic, que el servidor usa para no mandarla.
+ */
 @Serializable
-data class ProfileLayout(val widgets: List<ProfileWidget> = emptyList())
+data class ProfileLayout(
+    val widgets: List<ProfileWidget> = emptyList(),
+    // false hasta que se guarda desde personalizar: mientras, la paleta lleva los bloques por defecto
+    val custom: Boolean = false,
+    val favoritesVisible: Boolean = true,
+    val diaryVisible: Boolean = true,
+    val favoritesBlob: Boolean = true,
+    val diaryBlob: Boolean = false,
+    val watchlistBlob: Boolean = false,
+    // ids de las listas que se pintan con manchas (el resto, con recuadros)
+    val blobLists: List<String> = emptyList(),
+) {
+    /** los bloques que se pintan: los elegidos o, si nunca ha personalizado nada, los de por defecto. */
+    val bloques: List<ProfileWidget>
+        get() = if (custom || widgets.isNotEmpty()) widgets else BLOQUES_POR_DEFECTO
+}
+
+/** la paleta de quien no la ha personalizado: sus 5 favoritos y sus 5 ultimos dias. */
+val BLOQUES_POR_DEFECTO = listOf(
+    ProfileWidget("def_fav", WidgetKind.FAVORITES, title = "Favoritos", count = 5, blob = true),
+    ProfileWidget("def_diary", WidgetKind.DIARY, title = "Diario", count = 5),
+)
 
 @Serializable
 data class Message(

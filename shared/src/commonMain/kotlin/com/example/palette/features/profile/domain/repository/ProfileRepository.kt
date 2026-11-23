@@ -22,8 +22,8 @@ interface ProfileRepository {
 
     fun ponerPendientesPublicos(publicos: Boolean)
 
-    /** guarda los bloques del perfil y su color de fondo (null: sin color propio). */
-    fun guardarDiseno(layout: ProfileLayout, background: Long?)
+    /** guarda como se ve el perfil: bloques, paginas, color de fondo (null: sin color propio) y si los pendientes se ven. */
+    fun guardarDiseno(layout: ProfileLayout, background: Long?, pendientesPublicos: Boolean)
 
     /** sube la foto de cabecera ya recortada (jpeg). con null se quita. devuelve el motivo si falla. */
     suspend fun ponerBanner(jpeg: ByteArray?): String?

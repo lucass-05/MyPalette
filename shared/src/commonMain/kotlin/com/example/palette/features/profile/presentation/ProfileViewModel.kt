@@ -16,37 +16,46 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+/**
+ * las paginas de un perfil. las cuatro primeras estan siempre (aunque los demas solo ven las que
+ * su dueño deja visibles); despues va una por cada lista.
+ */
+sealed interface Seccion {
+    data object Paleta : Seccion
+    data object Favoritos : Seccion
+    data object Diario : Seccion
+    data object Pendientes : Seccion
+    data class Lista(val listId: String) : Seccion
+}
+
 data class ProfileState(
     // null hasta que llega el perfil, o si esa persona no existe
     val perfil: Perfil? = null,
-    // los logs del perfil ya en el orden elegido
-    val logs: List<LogEntry> = emptyList(),
-    // 0: paleta, 1: pendientes
-    val seccion: Int = 0,
-    val recientesPrimero: Boolean = false,
+    // sus logs en el orden de favoritos
+    val favoritos: List<LogEntry> = emptyList(),
     // las listas que se ven en este perfil (en el mio, todas)
     val listas: List<ListaVista> = emptyList(),
-    // la lista que se esta viendo en lugar de la paleta; null: la paleta
-    val listaAbierta: String? = null,
+    val seccion: Seccion = Seccion.Paleta,
 ) {
-    val lista: ListaVista? get() = listas.firstOrNull { it.lista.id == listaAbierta }
+    // las paginas que puede abrir quien mira: en mi perfil todas, en el de otro solo las que deja ver
+    val verFavoritos: Boolean get() = perfil?.let { it.propio || it.user.layout.favoritesVisible } == true
+    val verDiario: Boolean get() = perfil?.let { it.propio || it.user.layout.diaryVisible } == true
+    val verPendientes: Boolean get() = perfil?.let { it.propio || it.pendientes != null } == true
+
+    fun lista(listId: String?): ListaVista? = listas.firstOrNull { it.lista.id == listId }
 }
 
 sealed interface ProfileAction {
     data object OnBackClicked : ProfileAction
-    data object OnSettingsClicked : ProfileAction
+    data object OnPersonalizarClicked : ProfileAction
     data object OnMessageClicked : ProfileAction
     data object OnFollowClicked : ProfileAction
     data object OnRegistrarClicked : ProfileAction
-    data class OnSeccionChanged(val seccion: Int) : ProfileAction
-    data class OnOrdenChanged(val recientesPrimero: Boolean) : ProfileAction
-    data class OnLogClicked(val log: LogEntry) : ProfileAction
+    data class OnSeccionChanged(val seccion: Seccion) : ProfileAction
     data class OnMediaClicked(val media: Media) : ProfileAction
     data class OnResenaClicked(val logId: String) : ProfileAction
-    data class OnListaClicked(val listId: String) : ProfileAction
     data object OnNuevaListaClicked : ProfileAction
     data class OnEditarListaClicked(val listId: String) : ProfileAction
-    data object OnPersonalizarClicked : ProfileAction
 }
 
 class ProfileViewModel(
@@ -63,29 +72,35 @@ class ProfileViewModel(
     init {
         viewModelScope.launch {
             profileRepository.observarPerfil(userId).collect { perfil ->
-                _state.update { it.copy(perfil = perfil, logs = ordenar(perfil, it.recientesPrimero)) }
+                _state.update { it.copy(perfil = perfil, favoritos = sortProfileLogsUseCase(perfil?.logs.orEmpty())).conSeccionValida() }
             }
         }
         viewModelScope.launch {
             listsRepository.observarListas(userId).collect { listas ->
-                // si la lista abierta deja de existir se vuelve a la paleta
-                _state.update { s -> s.copy(listas = listas, listaAbierta = s.listaAbierta?.takeIf { id -> listas.any { it.lista.id == id } }) }
+                _state.update { it.copy(listas = listas).conSeccionValida() }
             }
         }
     }
 
     fun onAction(action: ProfileAction) {
         when (action) {
-            is ProfileAction.OnSeccionChanged -> _state.update { it.copy(seccion = action.seccion) }
-            is ProfileAction.OnOrdenChanged -> _state.update {
-                it.copy(recientesPrimero = action.recientesPrimero, logs = ordenar(it.perfil, action.recientesPrimero), listaAbierta = null)
-            }
-            is ProfileAction.OnListaClicked -> _state.update { it.copy(listaAbierta = action.listId) }
+            is ProfileAction.OnSeccionChanged -> _state.update { it.copy(seccion = action.seccion).conSeccionValida() }
             ProfileAction.OnFollowClicked -> peopleRepository.alternarSeguir(userId)
+            // el resto es navegacion: lo resuelve ProfileScreenRoot
             else -> {}
         }
     }
 
-    private fun ordenar(perfil: Perfil?, recientesPrimero: Boolean): List<LogEntry> =
-        sortProfileLogsUseCase(perfil?.logs.orEmpty(), recientesPrimero)
+    // si la pagina abierta deja de existir o de verse (una lista borrada, unos pendientes que pasan a privados)
+    // se vuelve a la paleta
+    private fun ProfileState.conSeccionValida(): ProfileState {
+        val valida = when (val s = seccion) {
+            Seccion.Paleta -> true
+            Seccion.Favoritos -> verFavoritos
+            Seccion.Diario -> verDiario
+            Seccion.Pendientes -> verPendientes
+            is Seccion.Lista -> lista(s.listId) != null
+        }
+        return if (valida || perfil == null) this else copy(seccion = Seccion.Paleta)
+    }
 }

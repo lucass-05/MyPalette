@@ -30,6 +30,7 @@ sealed interface ReviewDetailAction {
     data class OnMediaClicked(val media: Media) : ReviewDetailAction
     data class OnEditarClicked(val media: Media) : ReviewDetailAction
     data class OnSendClicked(val log: LogEntry) : ReviewDetailAction
+    data class OnMenuClicked(val log: LogEntry) : ReviewDetailAction
 }
 
 class ReviewDetailViewModel(
