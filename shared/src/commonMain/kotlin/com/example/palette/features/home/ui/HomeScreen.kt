@@ -1,5 +1,6 @@
 package com.example.palette.features.home.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -59,6 +60,9 @@ import com.example.palette.features.home.presentation.HomeState
 import com.example.palette.features.home.presentation.HomeViewModel
 import com.example.palette.features.messages.domain.model.Outgoing
 import com.example.palette.navigation.BarSpace
+import org.jetbrains.compose.resources.painterResource
+import palette.shared.generated.resources.Res
+import palette.shared.generated.resources.logo
 
 // LazyVerticalGrid solo compone las celdas que se ven en pantalla, por eso aguanta listas largas.
 // la "key" de cada elemento le dice a compose cual es cual cuando la lista cambia de orden.
@@ -104,7 +108,7 @@ fun HomeScreen(state: HomeState, onAction: (HomeAction) -> Unit, modifier: Modif
     LazyVerticalGrid(GridCells.Adaptive(400.dp), modifier, contentPadding = PaddingValues(bottom = BarSpace)) {
         item(span = { GridItemSpan(maxLineSpan) }) {
             Column {
-                ScreenTitle("Palette") {
+                ScreenTitle("Palette", icono = { Image(painterResource(Res.drawable.logo), contentDescription = null, modifier = Modifier.size(34.dp)) }) {
                     IconAction(Icons.UserPlus, "Buscar gente", { onAction(HomeAction.OnPeopleClicked) })
                 }
                 if (feed.sinConexion) {

@@ -129,8 +129,18 @@ fun notaTexto(score: Double): String {
 }
 
 @Composable
-fun ScreenTitle(text: String, modifier: Modifier = Modifier, actions: @Composable RowScope.() -> Unit = {}) {
+fun ScreenTitle(
+    text: String,
+    modifier: Modifier = Modifier,
+    // algo a la izquierda del titulo (el logo, en inicio)
+    icono: (@Composable () -> Unit)? = null,
+    actions: @Composable RowScope.() -> Unit = {},
+) {
     Row(modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 10.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (icono != null) {
+            icono()
+            Spacer(Modifier.width(10.dp))
+        }
         Text(text, style = titular(30.sp), modifier = Modifier.weight(1f))
         actions()
     }

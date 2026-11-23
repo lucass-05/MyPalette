@@ -151,7 +151,15 @@ data class Message(
     val read: Boolean = false,
     // en un mensaje de grupo va el grupo y toid queda vacio
     val groupId: String? = null,
+    // el mensaje al que contesta (deslizandolo a la derecha en el chat)
+    val replyTo: Cita? = null,
+    // true si es la respuesta a una historia: en log va el log de la historia
+    val story: Boolean = false,
 )
+
+/** un trozo del mensaje al que se responde: quien lo escribio y lo que decia, para enseñarlo encima. */
+@Serializable
+data class Cita(val messageId: String, val fromId: String, val text: String)
 
 @Serializable
 data class Group(

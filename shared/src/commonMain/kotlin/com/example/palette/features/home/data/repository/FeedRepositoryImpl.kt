@@ -29,7 +29,7 @@ class FeedRepositoryImpl(private val almacen: PaletteStore) : FeedRepository {
     override fun historiaDe(userId: String): Historia? {
         val user = almacen.user(userId) ?: return null
         val logs = almacen.historiaDe(userId)
-        return if (logs.isEmpty()) null else Historia(user, logs, almacen.tieneHistoriaSinVer(userId))
+        return if (logs.isEmpty()) null else Historia(user, logs, almacen.tieneHistoriaSinVer(userId), almacen.historiaVistaHasta(userId))
     }
 
     override fun alternarMeGusta(logId: String) = almacen.alternarMeGusta(logId)

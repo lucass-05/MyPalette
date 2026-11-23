@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -15,22 +16,32 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -65,11 +76,10 @@ fun StoryScreenRoot(
     onOpenStory: (String) -> Unit,
     onOpenUser: (String) -> Unit,
     onOpenMedia: (Media) -> Unit,
-    onReply: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val container = LocalAppContainer.current
-    val viewModel = viewModel { StoryViewModel(userId, container.feedRepository) }
+    val viewModel = viewModel { StoryViewModel(userId, container.feedRepository, container.messagesRepository) }
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     // la historia de esta persona ya no existe: no hay nada que enseñar
@@ -89,7 +99,8 @@ fun StoryScreenRoot(
                 StoryAction.OnCloseClicked -> onClose()
                 StoryAction.OnUserClicked -> onOpenUser(userId)
                 StoryAction.OnVerFichaClicked -> state.log?.let { onOpenMedia(it.media) }
-                StoryAction.OnResponderClicked -> onReply(userId)
+                // escribir y mandar la respuesta lo lleva el viewmodel
+                else -> {}
             }
             // moverse dentro de los logs de esta persona lo lleva el viewmodel
             viewModel.onAction(action)
@@ -111,21 +122,45 @@ fun StoryScreen(state: StoryState, onAction: (StoryAction) -> Unit, modifier: Mo
     // con rememberUpdatedState llaman siempre a la ultima
     val accion by rememberUpdatedState(onAction)
 
-    // la barra de progreso es una animacion, asi que vive en la pantalla: cuando se llena pide el siguiente
+    // mientras se escribe una respuesta la historia se queda quieta, como en instagram
+    var escribiendo by remember { mutableStateOf(false) }
+    val pausada = escribiendo || state.respuesta.isNotEmpty()
+    val foco = LocalFocusManager.current
+    // el gesto se crea una vez: lee si hay foco a traves de esto
+    val enfocado = rememberUpdatedState(escribiendo)
+    // al mandarla el campo desaparece: se suelta el foco para que la historia siga
+    LaunchedEffect(state.enviada) {
+        if (state.enviada) {
+            foco.clearFocus()
+            escribiendo = false
+        }
+    }
+
+    // la barra de progreso es una animacion, asi que vive en la pantalla: cuando se llena pide el siguiente.
+    // al pausar se para donde esta y al seguir termina lo que le quedaba
     val progreso = remember { Animatable(0f) }
-    LaunchedEffect(state.index) {
-        progreso.snapTo(0f)
-        progreso.animateTo(1f, tween(6000, easing = LinearEasing))
+    var indiceAnimado by remember { mutableStateOf(-1) }
+    LaunchedEffect(state.index, pausada) {
+        if (indiceAnimado != state.index) {
+            progreso.snapTo(0f)
+            indiceAnimado = state.index
+        }
+        if (pausada) return@LaunchedEffect
+        progreso.animateTo(1f, tween(((1f - progreso.value) * DURACION).toInt(), easing = LinearEasing))
         accion(StoryAction.OnNextTapped)
     }
 
     Box(
         modifier.background(tint).pointerInput(Unit) {
             // tocar la parte derecha avanza; el tercio izquierdo vuelve atras
-            detectTapGestures { offset -> accion(if (offset.x > size.width / 3) StoryAction.OnNextTapped else StoryAction.OnPreviousTapped) }
+            // con el teclado abierto, tocar fuera solo lo cierra
+            detectTapGestures { offset ->
+                if (enfocado.value) foco.clearFocus()
+                else accion(if (offset.x > size.width / 3) StoryAction.OnNextTapped else StoryAction.OnPreviousTapped)
+            }
         },
     ) {
-        Column(Modifier.align(Alignment.TopCenter).widthIn(max = 560.dp).fillMaxSize().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp)) {
+        Column(Modifier.align(Alignment.TopCenter).widthIn(max = 560.dp).fillMaxSize().navigationBarsPadding().imePadding().padding(horizontal = 16.dp, vertical = 10.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 historia.logs.forEachIndexed { i, _ ->
                     val filled = when {
@@ -165,10 +200,50 @@ fun StoryScreen(state: StoryState, onAction: (StoryAction) -> Unit, modifier: Mo
                 }
             }
 
-            Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)) {
+            Box(Modifier.fillMaxWidth().padding(bottom = 14.dp), contentAlignment = Alignment.Center) {
                 PillButton("Ver ficha", { onAction(StoryAction.OnVerFichaClicked) }, color = ink)
-                PillButton("Responder", { onAction(StoryAction.OnResponderClicked) }, color = ink, icon = Icons.Send)
+            }
+            // abajo, el campo para responder. se queda con sus toques para que no pasen la historia
+            Row(
+                Modifier.fillMaxWidth().padding(bottom = 8.dp).pointerInput(Unit) { detectTapGestures { } },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (state.enviada) {
+                    Text("Enviado a ${user.name.substringBefore(' ')}", color = ink, fontSize = 15.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f).padding(vertical = 14.dp), textAlign = TextAlign.Center)
+                } else {
+                    CampoDeRespuesta(
+                        valor = state.respuesta,
+                        alCambiar = { onAction(StoryAction.OnRespuestaChanged(it)) },
+                        pista = "Responder a ${user.name.substringBefore(' ')}…",
+                        ink = ink,
+                        modifier = Modifier.weight(1f).onFocusChanged { escribiendo = it.isFocused },
+                    )
+                    if (state.respuesta.isNotBlank()) {
+                        IconAction(Icons.Send, "Enviar", { onAction(StoryAction.OnEnviarRespuestaClicked) }, tint = ink)
+                    }
+                }
             }
         }
     }
+}
+
+private const val DURACION = 6000
+
+/** el campo de responder: transparente con un borde del color del texto, para que vaya con el fondo de la historia. */
+@Composable
+private fun CampoDeRespuesta(valor: String, alCambiar: (String) -> Unit, pista: String, ink: Color, modifier: Modifier = Modifier) {
+    BasicTextField(
+        value = valor,
+        onValueChange = alCambiar,
+        textStyle = TextStyle(color = ink, fontSize = 15.sp),
+        cursorBrush = SolidColor(ink),
+        maxLines = 4,
+        modifier = modifier.heightIn(min = 46.dp).border(1.dp, ink.copy(alpha = 0.6f), RoundedCornerShape(24.dp)).padding(horizontal = 18.dp, vertical = 12.dp),
+        decorationBox = { campo ->
+            Box {
+                if (valor.isEmpty()) Text(pista, color = ink.copy(alpha = 0.7f), fontSize = 15.sp)
+                campo()
+            }
+        },
+    )
 }

@@ -262,6 +262,12 @@ object Icons {
         "M9.969 17.031 21.378 5.624a1 1 0 0 0-3.002-3.002L6.967 14.031",
     )
 
+    val Reply: ImageVector get() = icon(
+        "reply",
+        "m9 17-5-5 5-5",
+        "M20 18v-2a4 4 0 0 0-4-4H4",
+    )
+
     val ArrowUp: ImageVector get() = icon(
         "arrow-up",
         "m5 12 7-7 7 7",

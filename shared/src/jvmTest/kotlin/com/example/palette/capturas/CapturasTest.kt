@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.example.palette.core.model.Cita
 import com.example.palette.core.model.Comment
 import com.example.palette.core.model.Extras
 import com.example.palette.core.model.ListKind
@@ -21,6 +22,7 @@ import com.example.palette.core.model.ME
 import com.example.palette.core.model.Media
 import com.example.palette.core.model.MediaList
 import com.example.palette.core.model.MediaType
+import com.example.palette.core.model.Message
 import com.example.palette.core.model.ModoDeVer
 import com.example.palette.core.model.NoticeKind
 import com.example.palette.core.model.Plataforma
@@ -36,16 +38,22 @@ import com.example.palette.features.catalog.presentation.LogState
 import com.example.palette.features.catalog.ui.DetailScreen
 import com.example.palette.features.catalog.ui.LogScreen
 import com.example.palette.features.home.domain.model.Feed
+import com.example.palette.features.home.domain.model.Historia
 import com.example.palette.features.home.domain.model.Publicacion
 import com.example.palette.features.home.presentation.HomeState
+import com.example.palette.features.home.presentation.StoryState
 import com.example.palette.features.home.ui.HomeScreen
+import com.example.palette.features.home.ui.StoryScreen
 import com.example.palette.features.library.domain.model.LogDeAmigo
 import com.example.palette.features.lists.domain.model.ListaVista
 import com.example.palette.features.lists.presentation.ListState
 import com.example.palette.features.lists.ui.ListScreen
 import com.example.palette.features.messages.domain.model.Aviso
+import com.example.palette.features.messages.domain.model.Conversacion
 import com.example.palette.features.messages.presentation.ActivityState
+import com.example.palette.features.messages.presentation.ChatState
 import com.example.palette.features.messages.ui.ActivityScreen
+import com.example.palette.features.messages.ui.ChatScreen
 import com.example.palette.features.profile.domain.model.Perfil
 import com.example.palette.features.profile.domain.usecases.SortProfileLogsUseCase
 import com.example.palette.features.profile.presentation.CustomizeState
@@ -97,6 +105,8 @@ class CapturasTest {
         capturar("personalizar", ancho = 760.dp) {
             CustomizeScreen(CustomizeState(d.yo, d.yo.layout.copy(widgets = d.yo.layout.bloques), null, true, d.listas), {}, {})
         }
+        capturar("chat", ancho = 760.dp) { ChatScreen(ChatState(d.conversacion, respondiendoA = d.conversacion.mensajes[1]), {}) }
+        capturar("historia", ancho = null) { StoryScreen(StoryState(Historia(d.ana, d.misLogs.take(3).map { it.copy(userId = d.ana.id) }, sinVer = true), index = 1), {}) }
         // el tutorial de alguien recien llegado, sin nada registrado: todo sale de los ejemplos inventados
         val tutorial = TutorialState(PrepararEjemplosUseCase(SortProfileLogsUseCase())(d.yo, emptyList(), emptyList(), d.ahora))
         for (paso in listOf(0, 1, 6, 7, 11, 12, 15)) {
@@ -192,6 +202,17 @@ private object Datos {
         Aviso("l_1", NoticeKind.LIKE, marta, AHORA - 3_600_000L, leido = false, loSigo = true, log = misLogs[0]),
         Aviso("s_1", NoticeKind.SAME_MEDIA, ana, AHORA - 2 * DAY, leido = true, loSigo = true, log = misLogs[2].copy(id = "a2", userId = ana.id)),
         Aviso("f_1", NoticeKind.FOLLOW, marta, AHORA - 3 * DAY, leido = true, loSigo = false),
+    )
+
+    val conversacion = Conversacion(
+        user = ana,
+        mensajes = listOf(
+            Message("m1", ME, ana.id, "Qué ganas de verla", log = misLogs[0].copy(userId = ana.id), sentAt = AHORA - 7_200_000L, story = true),
+            Message("m2", ana.id, ME, "¿La vemos el sábado?", sentAt = AHORA - 3_600_000L),
+            Message("m3", ME, ana.id, "¡Hecho! A las ocho", sentAt = AHORA - 1_800_000L, replyTo = Cita("m2", ana.id, "¿La vemos el sábado?")),
+            Message("m4", ana.id, ME, "Me encantó tu reseña", misLogs[2].media, sentAt = AHORA - 600_000L),
+        ),
+        autores = mapOf(ana.id to ana),
     )
 
     @Suppress("unused")

@@ -3,6 +3,7 @@ package com.example.palette.core.data
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.example.palette.core.model.Cita
 import com.example.palette.core.model.Comment
 import com.example.palette.core.model.Group
 import com.example.palette.core.model.Like
@@ -335,9 +336,12 @@ class PaletteStore {
     fun historiaDe(userId: String): List<LogEntry> =
         estado.peopleLogs.filter { it.userId == userId && !it.hidden && ahora() - it.createdAt < STORY_WINDOW }.sortedBy { it.createdAt }
 
+    /** la fecha del ultimo log de su historia que ya he visto (0 si ninguno). */
+    fun historiaVistaHasta(userId: String): Long = estado.seenStories[userId] ?: 0
+
     fun tieneHistoriaSinVer(userId: String): Boolean {
         val last = historiaDe(userId).lastOrNull() ?: return false
-        return last.createdAt > (estado.seenStories[userId] ?: 0)
+        return last.createdAt > historiaVistaHasta(userId)
     }
 
     /** amigos con historia: primero los que tienen algo sin ver. */
@@ -459,9 +463,9 @@ class PaletteStore {
     fun mensajesCon(userId: String): List<Message> =
         estado.messages.filter { it.groupId == null && (it.fromId == userId || it.toId == userId) }.sortedBy { it.sentAt }
 
-    fun enviar(toId: String, text: String = "", media: Media? = null, log: LogEntry? = null) {
+    fun enviar(toId: String, text: String = "", media: Media? = null, log: LogEntry? = null, replyTo: Cita? = null, story: Boolean = false) {
         if (text.isBlank() && media == null && log == null) return
-        val message = Message(nuevoId("m"), ME, toId, text.trim(), media, log, ahora(), read = false)
+        val message = Message(nuevoId("m"), ME, toId, text.trim(), media, log, ahora(), read = false, replyTo = replyTo, story = story)
         actualizar { s -> s.copy(messages = s.messages + message) }
         subir { enviarMensaje(message) }
     }
@@ -489,9 +493,9 @@ class PaletteStore {
         actualizar { it.copy(seenGroups = it.seenGroups + (groupId to ultimo)) }
     }
 
-    fun enviarAGrupo(groupId: String, text: String = "", media: Media? = null, log: LogEntry? = null) {
+    fun enviarAGrupo(groupId: String, text: String = "", media: Media? = null, log: LogEntry? = null, replyTo: Cita? = null) {
         if (text.isBlank() && media == null && log == null) return
-        val message = Message(nuevoId("m"), ME, "", text.trim(), media, log, ahora(), groupId = groupId)
+        val message = Message(nuevoId("m"), ME, "", text.trim(), media, log, ahora(), groupId = groupId, replyTo = replyTo)
         actualizar { s -> s.copy(messages = s.messages + message, seenGroups = s.seenGroups + (groupId to message.sentAt)) }
         subir { enviarMensaje(message) }
     }
@@ -557,7 +561,8 @@ class PaletteStore {
 
     companion object {
         private const val KEY = "palette.v1"
-        private const val STORY_WINDOW = 4 * DAY
+        // las historias duran 5 dias, como mucho
+        private const val STORY_WINDOW = 5 * DAY
         private const val MAX_AVISOS = 150
     }
 }

@@ -1,5 +1,6 @@
 package com.example.palette.features.messages.domain.repository
 
+import com.example.palette.core.model.Cita
 import com.example.palette.core.model.Group
 import com.example.palette.core.model.LogEntry
 import com.example.palette.core.model.Media
@@ -21,8 +22,11 @@ interface MessagesRepository {
     fun observarChat(userId: String): Flow<Conversacion?>
     fun observarGrupo(groupId: String): Flow<Conversacion?>
 
-    fun enviar(userId: String, text: String = "", media: Media? = null, log: LogEntry? = null)
-    fun enviarAGrupo(groupId: String, text: String = "", media: Media? = null, log: LogEntry? = null)
+    fun enviar(userId: String, text: String = "", media: Media? = null, log: LogEntry? = null, replyTo: Cita? = null)
+    fun enviarAGrupo(groupId: String, text: String = "", media: Media? = null, log: LogEntry? = null, replyTo: Cita? = null)
+
+    /** contesta a una historia: el mensaje lleva el log de la historia para que se vea a que responde. */
+    fun responderHistoria(userId: String, log: LogEntry, text: String)
 
     fun marcarLeido(userId: String)
     fun marcarGrupoVisto(groupId: String)

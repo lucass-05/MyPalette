@@ -300,7 +300,6 @@ private fun Shell(sinLeer: Int, tutorial: Boolean) {
                         container.catalogRepository.recordar(media)
                         sustituir(DetailRoute(media.id))
                     },
-                    onReply = { userId -> sustituir(ChatRoute(userId)) },
                     modifier = Modifier.fillMaxSize(),
                 )
             }

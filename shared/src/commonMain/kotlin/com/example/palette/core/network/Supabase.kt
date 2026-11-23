@@ -1,15 +1,16 @@
 package com.example.palette.core.network
 
+import com.example.palette.core.model.Cita
 import com.example.palette.core.model.Comment
 import com.example.palette.core.model.Group
 import com.example.palette.core.model.Like
 import com.example.palette.core.model.ListKind
-import com.example.palette.core.model.MediaList
-import com.example.palette.core.model.ProfileLayout
 import com.example.palette.core.model.LogEntry
 import com.example.palette.core.model.ME
 import com.example.palette.core.model.Media
+import com.example.palette.core.model.MediaList
 import com.example.palette.core.model.Message
+import com.example.palette.core.model.ProfileLayout
 import com.example.palette.core.model.User
 import com.example.palette.core.storage.escribirGuardado
 import com.example.palette.core.storage.leerGuardado
@@ -98,6 +99,9 @@ internal class Supabase {
     // true cuando el servidor ya tiene lo de supabase/005 (comentarios, listas, perfil personalizable).
     // mientras no lo tenga, las columnas nuevas no se mandan para que el resto siga funcionando
     private var conVersion5 = true
+
+    // lo mismo con supabase/006 (respuestas a mensajes y a historias)
+    private var conVersion6 = true
 
     /** la fila en json, sin [columnasNuevas] si el servidor todavia no las tiene. */
     private fun <T> aJson(serializer: KSerializer<T>, valor: T, vararg columnasNuevas: String): String {
@@ -223,7 +227,10 @@ internal class Supabase {
         // comentarios y listas llegaron despues (supabase/005): si el servidor aun no los tiene, se sigue sin ellos
         val comentarios = async { opcional { leerTabla("comments", CommentRow.serializer(), mapOf("order" to "created_at.asc")) } }
         val listas = async { opcional { leerTabla("lists", ListRow.serializer(), mapOf("order" to "created_at.asc")) } }
+        // si el servidor no tiene la columna story, esta lectura falla y se sabe que falta la 006
+        val conColumnas6 = async { opcional { leerTabla("messages", SondaRow.serializer(), mapOf("select" to "story", "limit" to "1")) } }
         conVersion5 = comentarios.await() != null
+        conVersion6 = conColumnas6.await() != null
         val groups = async { leerTabla("groups", GroupRow.serializer()) }
         val members = async { leerTabla("group_members", MemberRow.serializer()) }
 
@@ -298,8 +305,12 @@ internal class Supabase {
     suspend fun enviarMensaje(message: Message) {
         // la reseña adjunta viaja con mi id real para que quien la reciba sepa de quien es
         val log = message.log?.let { if (it.userId == ME) it.copy(userId = miId) else it }
-        val fila = MessageRow(message.id, miId, message.toId.takeIf { message.groupId == null }, message.text, message.media, log, false, message.sentAt, message.groupId)
-        enviar(HttpMethod.Post, "rest/v1/messages", cuerpo = filas.encodeToString(MessageRow.serializer(), fila), prefer = "return=minimal")
+        val cita = message.replyTo?.let { if (it.fromId == ME) it.copy(fromId = miId) else it }
+        val fila = MessageRow(message.id, miId, message.toId.takeIf { message.groupId == null }, message.text, message.media, log, false, message.sentAt, message.groupId, cita, message.story)
+        val objeto = filas.encodeToJsonElement(MessageRow.serializer(), fila).jsonObject
+        // sin la 006 el mensaje sale igual, solo que sin la cita (y la respuesta a una historia, como una reseña enviada)
+        val cuerpo = if (conVersion6) objeto else JsonObject(objeto.filterKeys { it != "reply_to" && it != "story" })
+        enviar(HttpMethod.Post, "rest/v1/messages", cuerpo = cuerpo.toString(), prefer = "return=minimal")
     }
 
     suspend fun marcarLeido(fromId: String) {
@@ -418,7 +429,10 @@ internal class Supabase {
     private fun LogRow.toLog() = LogEntry(id, idLocal(userId), media, stars, review, createdAt, pinned, hidden)
 
     private fun MessageRow.toMessage() =
-        Message(id, idLocal(fromId), toId?.let(::idLocal).orEmpty(), text, media, log?.let { it.copy(userId = idLocal(it.userId)) }, sentAt, read, groupId)
+        Message(
+            id, idLocal(fromId), toId?.let(::idLocal).orEmpty(), text, media, log?.let { it.copy(userId = idLocal(it.userId)) }, sentAt, read, groupId,
+            replyTo = replyTo?.let { it.copy(fromId = idLocal(it.fromId)) }, story = story,
+        )
 
     @Serializable
     private class Credentials(val email: String, val password: String)
@@ -499,7 +513,13 @@ internal class Supabase {
         val read: Boolean = false,
         @SerialName("sent_at") val sentAt: Long = 0,
         @SerialName("group_id") val groupId: String? = null,
+        @SerialName("reply_to") val replyTo: Cita? = null,
+        val story: Boolean = false,
     )
+
+    // solo para preguntar si existe la columna story
+    @Serializable
+    private class SondaRow(val story: Boolean = false)
 
     @Serializable
     private class GroupRow(

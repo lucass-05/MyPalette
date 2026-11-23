@@ -205,6 +205,7 @@ private fun ThreadRow(hilo: Hilo, onClick: () -> Unit) {
 
 /** resumen de un mensaje para la lista. en los grupos se antepone quien lo escribio. */
 private fun resumen(m: Message, autor: User?): String {
+    if (m.story) return if (m.fromId == ME) "Has respondido a su historia" else "Ha respondido a tu historia"
     val quien = when {
         m.fromId == ME -> "Tú: "
         autor != null -> autor.name.substringBefore(' ') + ": "

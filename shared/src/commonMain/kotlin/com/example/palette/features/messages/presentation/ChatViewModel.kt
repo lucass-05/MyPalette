@@ -2,7 +2,9 @@ package com.example.palette.features.messages.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.palette.core.model.Cita
 import com.example.palette.core.model.Media
+import com.example.palette.core.model.Message
 import com.example.palette.features.messages.domain.model.Conversacion
 import com.example.palette.features.messages.domain.repository.MessagesRepository
 import kotlinx.coroutines.delay
@@ -15,6 +17,8 @@ import kotlinx.coroutines.launch
 data class ChatState(
     val conversacion: Conversacion = Conversacion(),
     val borrador: String = "",
+    // el mensaje al que se va a contestar (se elige deslizandolo a la derecha)
+    val respondiendoA: Message? = null,
     // pasa a false si la persona o el grupo dejan de existir: la pantalla se cierra
     val existe: Boolean = true,
 )
@@ -25,6 +29,8 @@ sealed interface ChatAction {
     data class OnBorradorChanged(val value: String) : ChatAction
     data object OnSendClicked : ChatAction
     data class OnMediaClicked(val media: Media) : ChatAction
+    data class OnResponderMensaje(val message: Message) : ChatAction
+    data object OnCancelarRespuesta : ChatAction
 }
 
 // el mismo viewmodel sirve para el chat con una persona y para el de un grupo:
@@ -65,6 +71,8 @@ class ChatViewModel(
         when (action) {
             is ChatAction.OnBorradorChanged -> _state.update { it.copy(borrador = action.value.take(2000)) }
             ChatAction.OnSendClicked -> enviar()
+            is ChatAction.OnResponderMensaje -> _state.update { it.copy(respondiendoA = action.message) }
+            ChatAction.OnCancelarRespuesta -> _state.update { it.copy(respondiendoA = null) }
             else -> {}
         }
     }
@@ -72,7 +80,17 @@ class ChatViewModel(
     private fun enviar() {
         val texto = _state.value.borrador
         if (texto.isBlank()) return
-        if (groupId != null) messagesRepository.enviarAGrupo(groupId, texto) else messagesRepository.enviar(userId.orEmpty(), texto)
-        _state.update { it.copy(borrador = "") }
+        val cita = _state.value.respondiendoA?.let { Cita(it.id, it.fromId, it.resumen()) }
+        if (groupId != null) messagesRepository.enviarAGrupo(groupId, texto, replyTo = cita) else messagesRepository.enviar(userId.orEmpty(), texto, replyTo = cita)
+        _state.update { it.copy(borrador = "", respondiendoA = null) }
     }
+}
+
+/** lo que se enseña de un mensaje cuando se cita: su texto o, si no tiene, lo que lleva adjunto. */
+fun Message.resumen(): String = when {
+    text.isNotBlank() -> text.take(140)
+    story && log != null -> "Historia: ${log.media.title}"
+    log != null -> "Reseña de ${log.media.title}"
+    media != null -> media.title
+    else -> ""
 }

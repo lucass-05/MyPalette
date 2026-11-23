@@ -2,6 +2,7 @@ package com.example.palette.features.messages.data.repository
 
 import androidx.compose.runtime.snapshotFlow
 import com.example.palette.core.data.PaletteStore
+import com.example.palette.core.model.Cita
 import com.example.palette.core.model.Group
 import com.example.palette.core.model.LogEntry
 import com.example.palette.core.model.Media
@@ -51,9 +52,11 @@ class MessagesRepositoryImpl(private val almacen: PaletteStore) : MessagesReposi
         }
     }
 
-    override fun enviar(userId: String, text: String, media: Media?, log: LogEntry?) = almacen.enviar(userId, text, media, log)
+    override fun enviar(userId: String, text: String, media: Media?, log: LogEntry?, replyTo: Cita?) = almacen.enviar(userId, text, media, log, replyTo)
 
-    override fun enviarAGrupo(groupId: String, text: String, media: Media?, log: LogEntry?) = almacen.enviarAGrupo(groupId, text, media, log)
+    override fun responderHistoria(userId: String, log: LogEntry, text: String) = almacen.enviar(userId, text, log = log, story = true)
+
+    override fun enviarAGrupo(groupId: String, text: String, media: Media?, log: LogEntry?, replyTo: Cita?) = almacen.enviarAGrupo(groupId, text, media, log, replyTo)
 
     override fun marcarLeido(userId: String) = almacen.marcarLeido(userId)
 

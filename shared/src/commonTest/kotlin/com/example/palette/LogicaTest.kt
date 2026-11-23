@@ -15,6 +15,7 @@ import com.example.palette.core.model.ProfileWidget
 import com.example.palette.core.model.User
 import com.example.palette.core.model.WidgetKind
 import com.example.palette.core.util.DAY
+import com.example.palette.features.home.domain.model.Historia
 import com.example.palette.features.profile.domain.usecases.SortProfileLogsUseCase
 import com.example.palette.features.tutorial.domain.usecases.PrepararEjemplosUseCase
 import kotlin.test.Test
@@ -103,5 +104,16 @@ class LogicaTest {
         val mios = (1..7).map { log("l$it", ME, "m$it") }
         val lleno = preparar(yo, mios, emptyList(), ahora = 10 * DAY)
         assertEquals(mios.map { it.id }.toSet(), lleno.misLogs.map { it.id }.toSet())
+    }
+
+    @Test
+    fun historiaSeAbrePorLoPrimeroSinVer() {
+        val logs = listOf(log("h1", "u1", "a", at = 10), log("h2", "u1", "b", at = 20), log("h3", "u1", "c", at = 30))
+        val ana = User("u1", "ana", "Ana")
+        assertEquals(0, Historia(ana, logs, sinVer = true, vistoHasta = 0).primeroSinVer)
+        // vi hasta la segunda: se abre por la tercera, la nueva
+        assertEquals(2, Historia(ana, logs, sinVer = true, vistoHasta = 20).primeroSinVer)
+        // ya vista entera: vuelve a empezar por el principio
+        assertEquals(0, Historia(ana, logs, sinVer = false, vistoHasta = 30).primeroSinVer)
     }
 }
