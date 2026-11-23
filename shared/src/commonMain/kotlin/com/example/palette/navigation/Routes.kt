@@ -33,6 +33,11 @@ import kotlinx.serialization.Serializable
 @Serializable data class StoryRoute(val userId: String, val cola: String)
 @Serializable data object PeopleRoute
 @Serializable data object SettingsRoute
+// una reseña con sus me gusta y comentarios
+@Serializable data class ReviewRoute(val logId: String)
+// una lista; abrirSelector abre el buscador nada mas entrar (al crearla, que esta vacia)
+@Serializable data class ListRoute(val listId: String, val abrirSelector: Boolean = false)
+@Serializable data object CustomizeRoute
 
 enum class Screen(val route: Any) {
     HOME(HomeRoute),
@@ -52,6 +57,7 @@ class Hojas {
     var menuDeLog by mutableStateOf<LogEntry?>(null)
     var creandoGrupo by mutableStateOf(false)
     var infoDeGrupo by mutableStateOf<String?>(null)
+    var creandoLista by mutableStateOf(false)
 }
 
 /** true cuando la ventana es ancha (escritorio, web, tablet o movil tumbado): la barra pasa al lateral. */

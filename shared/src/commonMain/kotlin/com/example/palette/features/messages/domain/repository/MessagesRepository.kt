@@ -35,6 +35,11 @@ interface MessagesRepository {
     suspend fun crearGrupo(name: String, idsMiembros: Set<String>, foto: ByteArray?): String?
     suspend fun ponerFotoDeGrupo(groupId: String, foto: ByteArray): String?
 
+    // cualquier miembro puede cambiar el nombre y meter gente; sacar a alguien solo quien lo creo
+    fun renombrarGrupo(groupId: String, name: String)
+    fun anadirAGrupo(groupId: String, ids: Set<String>)
+    fun quitarDeGrupo(groupId: String, userId: String)
+
     /** salir de un grupo o, si lo cree yo, borrarlo para todos. */
     fun salirDeGrupo(groupId: String)
 }

@@ -40,6 +40,7 @@ fun LogMenuSheetRoot(
     onReview: (Media) -> Unit,
     onSend: (Outgoing) -> Unit,
     onOpenMedia: (Media) -> Unit,
+    onOpenReview: (String) -> Unit,
 ) {
     val container = LocalAppContainer.current
     val viewModel = viewModel { LogMenuViewModel(log, container.libraryRepository) }
@@ -63,6 +64,10 @@ fun LogMenuSheetRoot(
                 LogMenuAction.OnVerFichaClicked -> {
                     onClose()
                     onOpenMedia(log.media)
+                }
+                LogMenuAction.OnVerResenaClicked -> {
+                    onClose()
+                    onOpenReview(log.id)
                 }
                 else -> onClose()
             }
@@ -88,6 +93,7 @@ fun LogMenuSheet(state: LogMenuState, onAction: (LogMenuAction) -> Unit) {
             Text(log.review, fontSize = 14.sp, lineHeight = 20.sp, maxLines = 4, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 22.dp, vertical = 6.dp))
         }
         Spacer(Modifier.height(6.dp))
+        SheetRow(Icons.Comment, "Ver reseña, me gusta y comentarios", { onAction(LogMenuAction.OnVerResenaClicked) })
         SheetRow(if (log.pinned) Icons.PinOff else Icons.Pin, if (log.pinned) "Dejar de fijar" else "Fijar arriba del perfil", { onAction(LogMenuAction.OnFijarClicked) })
         SheetRow(if (log.hidden) Icons.Eye else Icons.EyeOff, if (log.hidden) "Volver a mostrar en el perfil" else "Ocultar del perfil", { onAction(LogMenuAction.OnOcultarClicked) })
         SheetRow(Icons.Pencil, "Editar nota y reseña", { onAction(LogMenuAction.OnEditarClicked) })

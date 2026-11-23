@@ -63,7 +63,41 @@ data class User(
     val watchlistPublic: Boolean = true,
     // color de fondo de su perfil, igual para quien lo visite. null: el fondo que tenga cada uno en su app
     val background: Long? = null,
+    // foto de cabecera del perfil, detras de la foto de perfil
+    val bannerUrl: String? = null,
+    // los bloques que ha puesto en su perfil (textos, portadas, diario)
+    val layout: ProfileLayout = ProfileLayout(),
 )
+
+enum class WidgetKind {
+    /** un titulo y un texto libre. */
+    TEXT,
+
+    /** una fila de portadas elegidas a mano: "mis favoritos", "lo mejor de 2026"... */
+    SHELF,
+
+    /** los ultimos dias en los que registro algo, con lo que registro cada dia. */
+    DIARY,
+}
+
+/** una portada de un bloque. [blob] dice si se pinta como mancha de pintura o como portada rectangular. */
+@Serializable
+data class ShelfItem(val media: Media, val blob: Boolean = true)
+
+/** un bloque del perfil. los campos que no usa su tipo se quedan vacios. */
+@Serializable
+data class ProfileWidget(
+    val id: String,
+    val kind: WidgetKind,
+    val title: String = "",
+    val text: String = "",
+    val items: List<ShelfItem> = emptyList(),
+    // oculto: sigue guardado, pero no sale en el perfil
+    val hidden: Boolean = false,
+)
+
+@Serializable
+data class ProfileLayout(val widgets: List<ProfileWidget> = emptyList())
 
 @Serializable
 data class Message(
@@ -96,9 +130,36 @@ class Extras(
     val canciones: List<Media> = emptyList(),
     /** album al que pertenece una cancion. */
     val album: Media? = null,
+    /** donde se puede ver ahora mismo en españa una peli o serie, segun justwatch. */
+    val plataformas: List<Plataforma> = emptyList(),
+    /** pagina con todas las opciones para verlo. */
+    val enlacePlataformas: String? = null,
 )
 
-enum class NoticeKind { FOLLOW }
+/** un servicio donde ver algo: netflix por suscripcion, apple tv de alquiler... */
+class Plataforma(val nombre: String, val logoUrl: String?, val modo: ModoDeVer)
+
+enum class ModoDeVer(val label: String) {
+    SUSCRIPCION("Con suscripción"),
+    GRATIS("Gratis"),
+    ANUNCIOS("Gratis con anuncios"),
+    ALQUILER("Alquiler"),
+    COMPRA("Compra"),
+}
+
+enum class NoticeKind {
+    /** alguien ha empezado a seguirme. */
+    FOLLOW,
+
+    /** a alguien le gusta una reseña mia. */
+    LIKE,
+
+    /** alguien ha comentado una reseña mia. */
+    COMMENT,
+
+    /** alguien a quien sigo ha reseñado algo que yo tambien reseñe. */
+    SAME_MEDIA,
+}
 
 @Serializable
 data class Notice(
@@ -109,6 +170,36 @@ data class Notice(
     val at: Long,
     val read: Boolean = false,
 )
+
+@Serializable
+data class Like(val userId: String, val logId: String, val createdAt: Long = 0)
+
+@Serializable
+data class Comment(
+    val id: String,
+    val logId: String,
+    val userId: String,
+    val text: String,
+    val createdAt: Long,
+)
+
+enum class ListKind { MEDIA, REVIEWS }
+
+/** una lista hecha a mano: de contenidos ([media]) o de reseñas mias ([logIds]). */
+@Serializable
+data class MediaList(
+    val id: String,
+    val userId: String,
+    val name: String,
+    val kind: ListKind,
+    val media: List<Media> = emptyList(),
+    val logIds: List<String> = emptyList(),
+    // visible en mi perfil para los demas
+    val visible: Boolean = true,
+    val createdAt: Long = 0,
+) {
+    val size: Int get() = if (kind == ListKind.MEDIA) media.size else logIds.size
+}
 
 /**
  * colores de la app elegidos por el usuario, en argb. los grises (lineas, textos secundarios,
@@ -141,6 +232,13 @@ data class Snapshot(
     val messages: List<Message> = emptyList(),
     val notices: List<Notice> = emptyList(),
     val liked: Set<String> = emptySet(),
+    // todos los me gusta que veo (los mios y los de los demas), para contarlos y avisar de ellos
+    val likes: List<Like> = emptyList(),
+    val comments: List<Comment> = emptyList(),
+    // mis listas y las publicas de los demas
+    val lists: List<MediaList> = emptyList(),
+    // desde cuando se avisa de me gusta, comentarios y reseñas de amigos. lo anterior cuenta como leido
+    val avisosDesde: Long = 0,
     val seenStories: Map<String, Long> = emptyMap(),
     val groups: List<Group> = emptyList(),
     // hasta cuando he leido cada grupo (en los grupos no hay "leido" por mensaje)
@@ -149,6 +247,9 @@ data class Snapshot(
     val peopleLogs: List<LogEntry> = emptyList(),
     val peopleWatchlists: Map<String, List<Media>> = emptyMap(),
 )
+
+/** el contenido sin lo que pesa y se puede volver a pedir (la sinopsis): para guardarlo dentro de listas y bloques. */
+fun Media.ligero(): Media = copy(overview = null, backdropUrl = null, genres = emptyList())
 
 /** mi propio id dentro de la app. en el servidor es un uuid; se traduce al subir y al bajar datos. */
 const val ME = "me"

@@ -21,6 +21,7 @@ sealed interface LogMenuAction {
     data object OnEditarClicked : LogMenuAction
     data object OnEnviarClicked : LogMenuAction
     data object OnVerFichaClicked : LogMenuAction
+    data object OnVerResenaClicked : LogMenuAction
     data object OnBorrarClicked : LogMenuAction
     data object OnBorrarCancelado : LogMenuAction
     data object OnBorrarConfirmado : LogMenuAction

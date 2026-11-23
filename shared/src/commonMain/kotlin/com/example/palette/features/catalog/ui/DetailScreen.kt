@@ -1,5 +1,12 @@
 package com.example.palette.features.catalog.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.layout.ContentScale
+import coil3.compose.AsyncImage
+import androidx.compose.material3.Icon
+import com.example.palette.core.model.Plataforma
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -68,6 +75,7 @@ fun DetailScreenRoot(
     onBack: () -> Unit,
     onOpenMedia: (Media) -> Unit,
     onOpenUser: (String) -> Unit,
+    onOpenReview: (String) -> Unit,
     onReview: (Media) -> Unit,
     onSend: (Outgoing) -> Unit,
     modifier: Modifier = Modifier,
@@ -94,6 +102,7 @@ fun DetailScreenRoot(
                 DetailAction.OnShareClicked -> portapapeles.setText(AnnotatedString(state.media.link ?: state.media.title))
                 is DetailAction.OnMediaClicked -> onOpenMedia(action.media)
                 is DetailAction.OnUserClicked -> onOpenUser(action.userId)
+                is DetailAction.OnResenaClicked -> onOpenReview(action.logId)
                 else -> {}
             }
             // el viewmodel se entera de todas: el decide cuales cambian el estado
@@ -198,6 +207,11 @@ fun DetailScreen(state: DetailState, onAction: (DetailAction) -> Unit, modifier:
                 }
             }
 
+            // donde verlo ahora mismo (pelis y series). tocar abre la pagina con todas las opciones
+            if (extras.plataformas.isNotEmpty()) item {
+                DondeVerlo(extras.plataformas, extras.enlacePlataformas)
+            }
+
             // una cancion enlaza con su album
             extras.album?.let { album ->
                 item {
@@ -248,8 +262,9 @@ fun DetailScreen(state: DetailState, onAction: (DetailAction) -> Unit, modifier:
                     Spacer(Modifier.height(6.dp))
                 }
                 items(state.logsDeAmigos, key = { it.log.id }) { (autor, log) ->
-                    Row(Modifier.fillMaxWidth().clickable { onAction(DetailAction.OnUserClicked(autor.id)) }.padding(horizontal = 20.dp, vertical = 10.dp)) {
-                        Avatar(autor, 36.dp)
+                    // la fila abre su reseña con los comentarios; la foto, su perfil
+                    Row(Modifier.fillMaxWidth().clickable { onAction(DetailAction.OnResenaClicked(log.id)) }.padding(horizontal = 20.dp, vertical = 10.dp)) {
+                        Avatar(autor, 36.dp, Modifier.clickable { onAction(DetailAction.OnUserClicked(autor.id)) })
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -274,5 +289,42 @@ fun DetailScreen(state: DetailState, onAction: (DetailAction) -> Unit, modifier:
                 }
             }
         }
+    }
+}
+
+/** los servicios donde se puede ver, agrupados por como (suscripcion, alquiler...). */
+@Composable
+private fun DondeVerlo(plataformas: List<Plataforma>, enlace: String?) {
+    val abrirEnlace = LocalUriHandler.current
+    Column(
+        Modifier.fillMaxWidth().padding(top = 24.dp)
+            .then(if (enlace != null) Modifier.clickable { abrirEnlace.openUri(enlace) } else Modifier)
+            .padding(vertical = 4.dp),
+    ) {
+        Row(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Tv2, contentDescription = null, tint = Pigment.Ink, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Dónde verlo", style = titular(19.sp))
+        }
+        plataformas.groupBy { it.modo }.forEach { (modo, deEseModo) ->
+            Text(modo.label, color = Pigment.Graphite, fontSize = 13.sp, modifier = Modifier.padding(start = 20.dp, top = 4.dp, bottom = 6.dp))
+            LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                items(deEseModo, key = { it.nombre }) { plataforma ->
+                    Column(Modifier.width(64.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)).background(Pigment.Mist), contentAlignment = Alignment.Center) {
+                            Text(plataforma.nombre.take(1), style = titular(18.sp))
+                            plataforma.logoUrl?.let {
+                                AsyncImage(it, contentDescription = plataforma.nombre, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
+                            }
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text(plataforma.nombre, fontSize = 11.sp, lineHeight = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+        // justwatch da estos datos a tmdb y pide que se diga
+        Text("Datos de JustWatch", color = Pigment.Graphite, fontSize = 11.sp, modifier = Modifier.padding(start = 20.dp, top = 2.dp))
     }
 }

@@ -3,6 +3,7 @@ package com.example.palette.features.profile.data.repository
 import androidx.compose.runtime.snapshotFlow
 import com.example.palette.core.data.PaletteStore
 import com.example.palette.core.model.ME
+import com.example.palette.core.model.ProfileLayout
 import com.example.palette.core.model.ThemeColors
 import com.example.palette.core.model.User
 import com.example.palette.features.profile.domain.model.Perfil
@@ -29,6 +30,10 @@ class ProfileRepositoryImpl(private val almacen: PaletteStore) : ProfileReposito
     override suspend fun ponerFoto(jpeg: ByteArray?): String? = almacen.ponerFoto(jpeg)
 
     override fun ponerPendientesPublicos(publicos: Boolean) = almacen.ponerPendientesPublicos(publicos)
+
+    override fun guardarDiseno(layout: ProfileLayout, background: Long?) = almacen.guardarDiseno(layout, background)
+
+    override suspend fun ponerBanner(jpeg: ByteArray?): String? = almacen.ponerBanner(jpeg)
 
     override fun tema(): ThemeColors = almacen.estado.theme
 

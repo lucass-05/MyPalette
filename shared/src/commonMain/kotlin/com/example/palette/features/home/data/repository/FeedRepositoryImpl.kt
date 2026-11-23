@@ -14,7 +14,11 @@ class FeedRepositoryImpl(private val almacen: PaletteStore) : FeedRepository {
         Feed(
             publicaciones = almacen.novedades.mapNotNull { log ->
                 val autor = almacen.user(log.userId) ?: return@mapNotNull null
-                Publicacion(autor, log, almacen.meGusta(log.id), almacen.enPendientes(log.media.id))
+                Publicacion(
+                    autor, log, almacen.meGusta(log.id), almacen.enPendientes(log.media.id),
+                    meGustas = almacen.meGustasDe(log.id),
+                    comentarios = almacen.comentariosDe(log.id).size,
+                )
             },
             historias = almacen.historias.mapNotNull { historiaDe(it.id) },
             sigoAAlguien = almacen.amigos.isNotEmpty(),

@@ -35,6 +35,7 @@ sealed interface DetailAction {
     data object OnShareClicked : DetailAction
     data class OnMediaClicked(val media: Media) : DetailAction
     data class OnUserClicked(val userId: String) : DetailAction
+    data class OnResenaClicked(val logId: String) : DetailAction
 }
 
 class DetailViewModel(

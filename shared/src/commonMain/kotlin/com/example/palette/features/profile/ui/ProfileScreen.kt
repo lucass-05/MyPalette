@@ -1,6 +1,18 @@
 package com.example.palette.features.profile.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
+import coil3.compose.AsyncImage
+import com.example.palette.core.model.ListKind
+import com.example.palette.core.model.User
+import com.example.palette.features.lists.domain.model.ListaVista
+import com.example.palette.features.lists.ui.PortadaDeLista
+import com.example.palette.features.lists.ui.ResenaDeLista
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -73,13 +85,17 @@ fun ProfileScreenRoot(
     onOpenSettings: () -> Unit,
     onOpenChat: (String) -> Unit,
     onOpenMedia: (Media) -> Unit,
+    onOpenReview: (String) -> Unit,
     onLogMenu: (LogEntry) -> Unit,
     onRegistrar: () -> Unit,
+    onOpenList: (String) -> Unit,
+    onNewList: () -> Unit,
+    onCustomize: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val container = LocalAppContainer.current
     val viewModel = viewModel {
-        ProfileViewModel(userId, container.profileRepository, container.peopleRepository, container.sortProfileLogsUseCase)
+        ProfileViewModel(userId, container.profileRepository, container.peopleRepository, container.listsRepository, container.sortProfileLogsUseCase)
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -91,9 +107,13 @@ fun ProfileScreenRoot(
                 ProfileAction.OnSettingsClicked -> onOpenSettings()
                 ProfileAction.OnMessageClicked -> onOpenChat(userId)
                 ProfileAction.OnRegistrarClicked -> onRegistrar()
-                // un log mio abre su menu (fijar, ocultar, editar...); el de otra persona, la ficha del contenido
-                is ProfileAction.OnLogClicked -> if (state.perfil?.propio == true) onLogMenu(action.log) else onOpenMedia(action.log.media)
+                // un log mio abre su menu (fijar, ocultar, editar...); el de otra persona, su reseña con los comentarios
+                is ProfileAction.OnLogClicked -> if (state.perfil?.propio == true) onLogMenu(action.log) else onOpenReview(action.log.id)
                 is ProfileAction.OnMediaClicked -> onOpenMedia(action.media)
+                is ProfileAction.OnResenaClicked -> onOpenReview(action.logId)
+                ProfileAction.OnNuevaListaClicked -> onNewList()
+                is ProfileAction.OnEditarListaClicked -> onOpenList(action.listId)
+                ProfileAction.OnPersonalizarClicked -> onCustomize()
                 else -> viewModel.onAction(action)
             }
         },
@@ -109,6 +129,7 @@ fun ProfileScreen(state: ProfileState, onAction: (ProfileAction) -> Unit, modifi
     val propio = perfil.propio
     val logs = state.logs
     val watchlist = perfil.pendientes
+    val bloques = user.layout.widgets.filter { !it.hidden }
 
     // cada perfil puede llevar su propio fondo; el texto se pone claro u oscuro segun cual se lea encima
     val fondo = user.background?.let { Color(it) }
@@ -119,6 +140,7 @@ fun ProfileScreen(state: ProfileState, onAction: (ProfileAction) -> Unit, modifi
         Column(if (fondo == null) modifier else modifier.background(fondo)) {
             if (propio) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.End) {
+                    IconAction(Icons.Brush, "Personalizar perfil", { onAction(ProfileAction.OnPersonalizarClicked) }, tint = ink)
                     IconAction(Icons.Settings, "Editar perfil y ajustes", { onAction(ProfileAction.OnSettingsClicked) }, tint = ink)
                 }
             } else {
@@ -130,11 +152,8 @@ fun ProfileScreen(state: ProfileState, onAction: (ProfileAction) -> Unit, modifi
                 val portadasPorFila = (maxWidth / 132.dp).toInt().coerceIn(3, 12)
                 LazyColumn(contentPadding = PaddingValues(bottom = BarSpace)) {
                     item {
+                        Cabecera(user, fondo ?: Pigment.Paper, ink, suave)
                         Column(Modifier.fillMaxWidth().padding(horizontal = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Avatar(user, 92.dp)
-                            Spacer(Modifier.height(12.dp))
-                            Text(user.name, style = titular(27.sp, ink), textAlign = TextAlign.Center)
-                            Text("@${user.username}", color = suave, fontSize = 14.sp)
                             if (user.bio.isNotBlank()) {
                                 Spacer(Modifier.height(8.dp))
                                 Text(user.bio, fontSize = 14.sp, lineHeight = 20.sp, textAlign = TextAlign.Center)
@@ -145,8 +164,24 @@ fun ProfileScreen(state: ProfileState, onAction: (ProfileAction) -> Unit, modifi
                                     FollowButton(perfil.loSigo, { onAction(ProfileAction.OnFollowClicked) })
                                     PillButton("Mensaje", { onAction(ProfileAction.OnMessageClicked) }, filled = false, color = ink, icon = Icons.Send)
                                 }
+                            } else if (bloques.isEmpty() && user.bannerUrl == null) {
+                                // mientras el perfil esta sin decorar se enseña el camino para hacerlo
+                                Spacer(Modifier.height(14.dp))
+                                PillButton("Personalizar perfil", { onAction(ProfileAction.OnPersonalizarClicked) }, filled = false, color = ink, icon = Icons.Brush)
                             }
                         }
+                    }
+
+                    // los bloques que ha elegido para su perfil, en su orden
+                    items(bloques, key = { "w_${it.id}" }) { bloque ->
+                        WidgetView(
+                            bloque, perfil.logs, ink, suave,
+                            onOpenMedia = { onAction(ProfileAction.OnMediaClicked(it)) },
+                            onOpenReview = { onAction(ProfileAction.OnResenaClicked(it)) },
+                        )
+                    }
+
+                    item {
                         Spacer(Modifier.height(18.dp))
                         Segments(
                             listOf("Paleta (${logs.count { !it.hidden }})", "Pendientes" + (watchlist?.let { " (${it.size})" } ?: "")),
@@ -156,22 +191,25 @@ fun ProfileScreen(state: ProfileState, onAction: (ProfileAction) -> Unit, modifi
                     }
 
                     if (state.seccion == 0) {
-                        if (logs.isEmpty()) item {
-                            EmptyState(
-                                title = if (propio) "Tu paleta está en blanco" else "Todavía no ha registrado nada",
-                                cuerpo = if (propio) "Cada cosa que puntúes será una mancha de color aquí, de tu favorita a la que menos." else "Cuando puntúe algo aparecerá aquí.",
-                                color = Pigment.Viridian, semilla = 40, ink = ink,
-                            ) {
-                                if (propio) PillButton("Registrar lo primero", { onAction(ProfileAction.OnRegistrarClicked) }, color = ink, icon = Icons.Plus)
-                            }
+                        // orden de la paleta, listas y el + para crear una nueva, todo en la misma fila
+                        if (propio || logs.isNotEmpty() || state.listas.isNotEmpty()) item {
+                            FilaDeListas(state, propio, ink, onAction)
                         }
-                        if (logs.isNotEmpty()) item {
-                            // dos maneras de ordenar: por nota (con lo fijado arriba) o como diario, con su fecha
-                            Row(Modifier.padding(start = 20.dp, bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Chip("Favoritos", !state.recientesPrimero, ink, { onAction(ProfileAction.OnOrdenChanged(false)) })
-                                Chip("Recientes", state.recientesPrimero, ink, { onAction(ProfileAction.OnOrdenChanged(true)) })
+                        val abierta = state.lista
+                        when {
+                            abierta != null -> listaEnPerfil(abierta, propio, portadasPorFila, ink, onAction)
+                            logs.isEmpty() -> item {
+                                EmptyState(
+                                    title = if (propio) "Tu paleta está en blanco" else "Todavía no ha registrado nada",
+                                    cuerpo = if (propio) "Cada cosa que puntúes será una mancha de color aquí, de tu favorita a la que menos." else "Cuando puntúe algo aparecerá aquí.",
+                                    color = Pigment.Viridian, semilla = 40, ink = ink,
+                                ) {
+                                    if (propio) PillButton("Registrar lo primero", { onAction(ProfileAction.OnRegistrarClicked) }, color = ink, icon = Icons.Plus)
+                                }
                             }
-                            PaletteWall(logs, columnas, propio, conFecha = state.recientesPrimero, suave = suave) { onAction(ProfileAction.OnLogClicked(it)) }
+                            else -> item {
+                                PaletteWall(logs, columnas, propio, conFecha = state.recientesPrimero, suave = suave) { onAction(ProfileAction.OnLogClicked(it)) }
+                            }
                         }
                     } else {
                         when {
@@ -194,6 +232,98 @@ fun ProfileScreen(state: ProfileState, onAction: (ProfileAction) -> Unit, modifi
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * foto, nombre y usuario. si hay foto de cabecera va detras, y se funde con el fondo del perfil
+ * con un degradado para que la foto de perfil quede encima sin un corte brusco.
+ */
+@Composable
+private fun Cabecera(user: User, fondo: Color, ink: Color, suave: Color) {
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        val banner = user.bannerUrl
+        if (banner != null) {
+            Box(Modifier.fillMaxWidth().height(206.dp)) {
+                AsyncImage(banner, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxWidth().height(170.dp))
+                Box(
+                    Modifier.fillMaxWidth().height(170.dp).background(
+                        Brush.verticalGradient(0.35f to Color.Transparent, 1f to fondo),
+                    ),
+                )
+                Avatar(user, 92.dp, Modifier.align(Alignment.BottomCenter))
+            }
+        } else {
+            Avatar(user, 92.dp)
+        }
+        Spacer(Modifier.height(12.dp))
+        Text(user.name, style = titular(27.sp, ink), textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 28.dp))
+        Text("@${user.username}", color = suave, fontSize = 14.sp)
+    }
+}
+
+@Composable
+private fun FilaDeListas(state: ProfileState, propio: Boolean, ink: Color, onAction: (ProfileAction) -> Unit) {
+    val abierta = state.listaAbierta
+    Row(
+        Modifier.horizontalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Chip("Favoritos", abierta == null && !state.recientesPrimero, ink, { onAction(ProfileAction.OnOrdenChanged(false)) })
+        Chip("Recientes", abierta == null && state.recientesPrimero, ink, { onAction(ProfileAction.OnOrdenChanged(true)) })
+        state.listas.forEach { vista ->
+            val lista = vista.lista
+            Chip(
+                lista.name, abierta == lista.id, ink, { onAction(ProfileAction.OnListaClicked(lista.id)) },
+                // las listas que no se ven en mi perfil publico llevan un candado
+                icon = if (propio && !lista.visible) Icons.Lock else if (lista.kind == ListKind.REVIEWS) Icons.Star else Icons.ListBullets,
+            )
+        }
+        if (propio) {
+            Box(
+                Modifier.size(36.dp).clip(CircleShape).border(1.dp, Pigment.Line, CircleShape).clickable { onAction(ProfileAction.OnNuevaListaClicked) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Plus, contentDescription = "Lista nueva", tint = ink, modifier = Modifier.size(18.dp))
+            }
+        }
+    }
+}
+
+/** una lista vista desde el perfil, en lugar de la paleta. */
+private fun LazyListScope.listaEnPerfil(vista: ListaVista, propio: Boolean, porFila: Int, ink: Color, onAction: (ProfileAction) -> Unit) {
+    val lista = vista.lista
+    val deResenas = lista.kind == ListKind.REVIEWS
+    if (propio) item {
+        Row(Modifier.padding(start = 20.dp, bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            PillButton("Editar lista", { onAction(ProfileAction.OnEditarListaClicked(lista.id)) }, filled = false, color = ink, icon = Icons.Pencil)
+        }
+    }
+    val vacia = if (deResenas) vista.resenas.isEmpty() else lista.media.isEmpty()
+    if (vacia) {
+        item {
+            EmptyState(
+                "Lista vacía",
+                if (propio) "Entra en la lista para añadirle cosas." else "Todavía no ha añadido nada.",
+                Pigment.Ochre, semilla = 71, ink = ink,
+            ) {
+                if (propio) PillButton("Añadir", { onAction(ProfileAction.OnEditarListaClicked(lista.id)) }, color = ink, icon = Icons.Plus)
+            }
+        }
+    } else if (deResenas) {
+        items(vista.resenas, key = { "r_${it.id}" }) { log ->
+            ResenaDeLista(log, propia = false, onClick = { onAction(ProfileAction.OnResenaClicked(log.id)) }, onQuitar = {})
+        }
+    } else {
+        items(lista.media.chunked(porFila), key = { fila -> "m_" + fila.joinToString("|") { it.id } }) { fila ->
+            Row(Modifier.padding(horizontal = 20.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                fila.forEach { media ->
+                    PortadaDeLista(media, propia = false, modifier = Modifier.weight(1f), onClick = { onAction(ProfileAction.OnMediaClicked(media)) }, onQuitar = {})
+                }
+                repeat(porFila - fila.size) { Spacer(Modifier.weight(1f)) }
             }
         }
     }

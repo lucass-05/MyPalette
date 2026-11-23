@@ -22,6 +22,10 @@ import com.example.palette.features.people.domain.usecases.SearchPeopleUseCase
 import com.example.palette.features.profile.data.repository.ProfileRepositoryImpl
 import com.example.palette.features.profile.domain.repository.ProfileRepository
 import com.example.palette.features.profile.domain.usecases.SortProfileLogsUseCase
+import com.example.palette.features.reviews.data.repository.ReviewsRepositoryImpl
+import com.example.palette.features.reviews.domain.repository.ReviewsRepository
+import com.example.palette.features.lists.data.repository.ListsRepositoryImpl
+import com.example.palette.features.lists.domain.repository.ListsRepository
 
 // inyeccion de dependencias hecha a mano: el contenedor sabe construir cada repositorio y cada
 // caso de uso, y las pantallas se los piden a el en vez de crearlos ellas.
@@ -37,6 +41,8 @@ interface AppContainer {
     val peopleRepository: PeopleRepository
     val messagesRepository: MessagesRepository
     val profileRepository: ProfileRepository
+    val reviewsRepository: ReviewsRepository
+    val listsRepository: ListsRepository
 
     // casos de uso: solo donde hay una regla que no es ni de pantalla ni de datos
     val searchMediaUseCase: SearchMediaUseCase
@@ -60,6 +66,8 @@ class DefaultAppContainer : AppContainer {
     override val peopleRepository: PeopleRepository by lazy { PeopleRepositoryImpl(almacen) }
     override val messagesRepository: MessagesRepository by lazy { MessagesRepositoryImpl(almacen) }
     override val profileRepository: ProfileRepository by lazy { ProfileRepositoryImpl(almacen) }
+    override val reviewsRepository: ReviewsRepository by lazy { ReviewsRepositoryImpl(almacen) }
+    override val listsRepository: ListsRepository by lazy { ListsRepositoryImpl(almacen) }
 
     override val searchMediaUseCase: SearchMediaUseCase by lazy { SearchMediaUseCase(catalogRepository) }
     override val getMediaDetailUseCase: GetMediaDetailUseCase by lazy { GetMediaDetailUseCase(catalogRepository) }

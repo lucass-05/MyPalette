@@ -1,6 +1,11 @@
 package com.example.palette.core.network
 
+import com.example.palette.core.model.Comment
 import com.example.palette.core.model.Group
+import com.example.palette.core.model.Like
+import com.example.palette.core.model.ListKind
+import com.example.palette.core.model.MediaList
+import com.example.palette.core.model.ProfileLayout
 import com.example.palette.core.model.LogEntry
 import com.example.palette.core.model.ME
 import com.example.palette.core.model.Media
@@ -29,6 +34,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 
 // supabase se usa por su api rest, que son peticiones http normales:
 //  - /auth/v1/...      cuentas: crear, iniciar sesion, renovar el token
@@ -60,6 +67,9 @@ internal class Remote(
     val followers: List<Pair<String, Long>>,
     val messages: List<Message>,
     val liked: Set<String>,
+    val likes: List<Like>,
+    val comments: List<Comment>,
+    val lists: List<MediaList>,
     val groups: List<Group>,
 )
 
@@ -84,6 +94,16 @@ internal class Supabase {
 
     // al escribir filas hay que mandar tambien los valores por defecto (pinned = false, review = ""...)
     private val filas = Json(json) { encodeDefaults = true }
+
+    // true cuando el servidor ya tiene lo de supabase/005 (comentarios, listas, perfil personalizable).
+    // mientras no lo tenga, las columnas nuevas no se mandan para que el resto siga funcionando
+    private var conVersion5 = true
+
+    /** la fila en json, sin [columnasNuevas] si el servidor todavia no las tiene. */
+    private fun <T> aJson(serializer: KSerializer<T>, valor: T, vararg columnasNuevas: String): String {
+        val objeto = filas.encodeToJsonElement(serializer, valor).jsonObject
+        return if (conVersion5) objeto.toString() else JsonObject(objeto.filterKeys { it !in columnasNuevas }).toString()
+    }
 
     val conSesion get() = sesion != null
     private val miId get() = sesion?.userId ?: throw ApiException("No hay sesión iniciada")
@@ -198,7 +218,12 @@ internal class Supabase {
         val pendientes = async { leerTabla("watchlist", WatchRow.serializer(), mapOf("order" to "created_at.desc")) }
         val seguidos = async { leerTabla("follows", FollowRow.serializer()) }
         val messages = async { leerTabla("messages", MessageRow.serializer(), mapOf("order" to "sent_at.asc")) }
-        val meGustas = async { leerTabla("likes", LikeRow.serializer(), mapOf("user_id" to "eq.$miId")) }
+        // todos los me gusta, no solo los mios: hacen falta para contarlos y para avisar de los que recibo
+        val meGustas = async { leerTabla("likes", LikeRow.serializer()) }
+        // comentarios y listas llegaron despues (supabase/005): si el servidor aun no los tiene, se sigue sin ellos
+        val comentarios = async { opcional { leerTabla("comments", CommentRow.serializer(), mapOf("order" to "created_at.asc")) } }
+        val listas = async { opcional { leerTabla("lists", ListRow.serializer(), mapOf("order" to "created_at.asc")) } }
+        conVersion5 = comentarios.await() != null
         val groups = async { leerTabla("groups", GroupRow.serializer()) }
         val members = async { leerTabla("group_members", MemberRow.serializer()) }
 
@@ -216,12 +241,24 @@ internal class Supabase {
             following = todosSeguidos.filter { it.followerId == miId }.map { it.followedId }.toSet(),
             followers = todosSeguidos.filter { it.followedId == miId }.map { it.followerId to it.createdAt },
             messages = messages.await().map { it.toMessage() },
-            liked = meGustas.await().map { it.logId }.toSet(),
+            liked = meGustas.await().filter { it.userId == miId }.map { it.logId }.toSet(),
+            likes = meGustas.await().map { Like(idLocal(it.userId), it.logId, it.createdAt ?: 0) },
+            comments = comentarios.await().orEmpty().map { Comment(it.id, it.logId, idLocal(it.userId), it.text, it.createdAt) },
+            lists = listas.await().orEmpty().map { it.toList() },
             groups = members.await().groupBy({ it.groupId }, { idLocal(it.userId) }).let { porGrupo ->
                 groups.await().map { Group(it.id, it.name, it.photoUrl, idLocal(it.ownerId), porGrupo[it.id].orEmpty(), it.createdAt) }
             },
         )
     }
+
+    // null si esa tabla no existe todavia en el servidor
+    private suspend fun <T> opcional(block: suspend () -> List<T>): List<T>? =
+        try {
+            block()
+        } catch (e: ApiException) {
+            println("Palette: ${e.message}")
+            null
+        }
 
     suspend fun bajarMensajes(): List<Message> =
         leerTabla("messages", MessageRow.serializer(), mapOf("order" to "sent_at.asc")).map { it.toMessage() }
@@ -229,8 +266,11 @@ internal class Supabase {
     // ---- escritura
 
     suspend fun guardarPerfil(user: User) {
-        val fila = ProfileRow(miId, user.username, user.name, user.bio, user.favorite, user.photoUrl, user.watchlistPublic, user.background)
-        guardarFila("profiles", filas.encodeToString(ProfileRow.serializer(), fila), "id")
+        val fila = ProfileRow(
+            miId, user.username, user.name, user.bio, user.favorite, user.photoUrl, user.watchlistPublic, user.background,
+            user.bannerUrl, user.layout,
+        )
+        guardarFila("profiles", aJson(ProfileRow.serializer(), fila, "banner_url", "layout"), "id")
     }
 
     suspend fun guardarLog(log: LogEntry) {
@@ -251,7 +291,7 @@ internal class Supabase {
     }
 
     suspend fun ponerMeGusta(logId: String, liked: Boolean) {
-        if (liked) guardarFila("likes", filas.encodeToString(LikeRow.serializer(), LikeRow(miId, logId)), "user_id,log_id")
+        if (liked) guardarFila("likes", aJson(LikeRow.serializer(), LikeRow(miId, logId, ahora()), "created_at"), "user_id,log_id")
         else borrar("likes", mapOf("user_id" to "eq.$miId", "log_id" to "eq.$logId"))
     }
 
@@ -268,6 +308,36 @@ internal class Supabase {
             mapOf("from_id" to "eq.$fromId", "to_id" to "eq.$miId", "read" to "is.false"),
             cuerpo = "{\"read\":true}", prefer = "return=minimal",
         )
+    }
+
+    // ---- comentarios
+
+    suspend fun comentar(comment: Comment) {
+        val fila = CommentRow(comment.id, comment.logId, miId, comment.text, comment.createdAt)
+        enviar(HttpMethod.Post, "rest/v1/comments", cuerpo = filas.encodeToString(CommentRow.serializer(), fila), prefer = "return=minimal")
+    }
+
+    suspend fun borrarComentario(id: String) = borrar("comments", mapOf("id" to "eq.$id"))
+
+    // ---- listas
+
+    suspend fun guardarLista(list: MediaList) {
+        val fila = ListRow(
+            list.id, miId, list.name, if (list.kind == ListKind.MEDIA) "media" else "reviews",
+            list.media, list.logIds, list.visible, list.createdAt,
+        )
+        guardarFila("lists", filas.encodeToString(ListRow.serializer(), fila), "id")
+    }
+
+    suspend fun borrarLista(id: String) = borrar("lists", mapOf("id" to "eq.$id"))
+
+    /** sube la foto de cabecera del perfil (jpeg) y devuelve su direccion publica. */
+    suspend fun subirBanner(jpeg: ByteArray): String {
+        enviar(
+            HttpMethod.Post, "storage/v1/object/avatars/$miId/banner.jpg",
+            content = ByteArrayContent(jpeg, ContentType.Image.JPEG), guardarFila = true,
+        )
+        return "$SUPABASE_URL/storage/v1/object/public/avatars/$miId/banner.jpg?v=" + ahora()
     }
 
     /** sube la foto de perfil (un jpeg ya recortado) y devuelve su direccion publica. */
@@ -298,6 +368,19 @@ internal class Supabase {
         return url
     }
 
+    suspend fun renombrarGrupo(groupId: String, name: String) {
+        enviar(HttpMethod.Patch, "rest/v1/groups", mapOf("id" to "eq.$groupId"), cuerpo = filas.encodeToString(NamePatch.serializer(), NamePatch(name)), prefer = "return=minimal")
+    }
+
+    suspend fun anadirAGrupo(groupId: String, ids: List<String>) {
+        val filasNuevas = ids.map { MemberRow(groupId, if (it == ME) miId else it) }
+        enviar(HttpMethod.Post, "rest/v1/group_members", cuerpo = filas.encodeToString(ListSerializer(MemberRow.serializer()), filasNuevas), prefer = "return=minimal")
+    }
+
+    /** saca a alguien del grupo. solo lo deja hacer a quien lo creo (o a uno mismo). */
+    suspend fun quitarDeGrupo(groupId: String, userId: String) =
+        borrar("group_members", mapOf("group_id" to "eq.$groupId", "user_id" to "eq.${if (userId == ME) miId else userId}"))
+
     suspend fun salirDeGrupo(groupId: String) = borrar("group_members", mapOf("group_id" to "eq.$groupId", "user_id" to "eq.$miId"))
 
     /** solo quien lo creo. con el grupo se borran sus mensajes. */
@@ -325,7 +408,12 @@ internal class Supabase {
 
     private fun idLocal(id: String) = if (id == sesion?.userId) ME else id
 
-    private fun ProfileRow.toUser() = User(idLocal(id), username, name, bio, favorite, photoUrl, watchlistPublic, background)
+    private fun ProfileRow.toUser() = User(idLocal(id), username, name, bio, favorite, photoUrl, watchlistPublic, background, bannerUrl, layout ?: ProfileLayout())
+
+    private fun ListRow.toList() = MediaList(
+        id, idLocal(userId), name, if (kind == "reviews") ListKind.REVIEWS else ListKind.MEDIA,
+        media, logIds, visible, createdAt,
+    )
 
     private fun LogRow.toLog() = LogEntry(id, idLocal(userId), media, stars, review, createdAt, pinned, hidden)
 
@@ -368,6 +456,8 @@ internal class Supabase {
         @SerialName("photo_url") val photoUrl: String? = null,
         @SerialName("watchlist_public") val watchlistPublic: Boolean = true,
         val background: Long? = null,
+        @SerialName("banner_url") val bannerUrl: String? = null,
+        val layout: ProfileLayout? = null,
     )
 
     @Serializable
@@ -427,7 +517,35 @@ internal class Supabase {
     private class PhotoPatch(@SerialName("photo_url") val photoUrl: String)
 
     @Serializable
-    private class LikeRow(@SerialName("user_id") val userId: String, @SerialName("log_id") val logId: String)
+    private class LikeRow(
+        @SerialName("user_id") val userId: String,
+        @SerialName("log_id") val logId: String,
+        @SerialName("created_at") val createdAt: Long? = null,
+    )
+
+    @Serializable
+    private class CommentRow(
+        val id: String,
+        @SerialName("log_id") val logId: String,
+        @SerialName("user_id") val userId: String,
+        val text: String,
+        @SerialName("created_at") val createdAt: Long = 0,
+    )
+
+    @Serializable
+    private class ListRow(
+        val id: String,
+        @SerialName("user_id") val userId: String,
+        val name: String,
+        val kind: String,
+        val media: List<Media> = emptyList(),
+        @SerialName("log_ids") val logIds: List<String> = emptyList(),
+        @SerialName("public") val visible: Boolean = true,
+        @SerialName("created_at") val createdAt: Long = 0,
+    )
+
+    @Serializable
+    private class NamePatch(val name: String)
 
     private companion object {
         const val SESSION_KEY = "palette.session"

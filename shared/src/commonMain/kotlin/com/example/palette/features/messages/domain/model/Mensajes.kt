@@ -4,6 +4,7 @@ import com.example.palette.core.model.Group
 import com.example.palette.core.model.LogEntry
 import com.example.palette.core.model.Media
 import com.example.palette.core.model.Message
+import com.example.palette.core.model.NoticeKind
 import com.example.palette.core.model.User
 
 // una conversacion de la lista: con una persona (user) o con un grupo (group)
@@ -18,8 +19,19 @@ data class Hilo(
     val at: Long,
 )
 
-// alguien ha empezado a seguirme
-data class Aviso(val id: String, val user: User, val at: Long, val leido: Boolean, val loSigo: Boolean)
+// algo que ha pasado y me afecta: un seguidor nuevo, un me gusta o un comentario en una reseña mia,
+// o un amigo que ha reseñado algo que yo tambien. log es la reseña de la que va (null en los seguidores)
+data class Aviso(
+    val id: String,
+    val kind: NoticeKind,
+    val user: User,
+    val at: Long,
+    val leido: Boolean,
+    val loSigo: Boolean,
+    val log: LogEntry? = null,
+    // el texto del comentario, en los avisos de comentarios
+    val comentario: String? = null,
+)
 
 // un chat abierto. autores lleva a los participantes por id, para poner nombre a cada mensaje
 data class Conversacion(

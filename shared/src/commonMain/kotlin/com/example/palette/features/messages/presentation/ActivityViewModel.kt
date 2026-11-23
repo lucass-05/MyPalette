@@ -26,6 +26,7 @@ sealed interface ActivityAction {
     data class OnHiloClicked(val hilo: Hilo) : ActivityAction
     data class OnUserClicked(val userId: String) : ActivityAction
     data class OnFollowClicked(val userId: String) : ActivityAction
+    data class OnResenaClicked(val logId: String) : ActivityAction
     data object OnNewGroupClicked : ActivityAction
     data object OnNewMessageClicked : ActivityAction
 }

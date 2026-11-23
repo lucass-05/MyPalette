@@ -29,6 +29,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.palette.core.model.ME
 import com.example.palette.core.model.Message
+import com.example.palette.core.model.NoticeKind
+import com.example.palette.core.ui.CoverByHeight
+import com.example.palette.core.ui.Stars
+import com.example.palette.features.messages.domain.model.Aviso
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import com.example.palette.core.model.User
 import com.example.palette.core.ui.Avatar
 import com.example.palette.core.ui.EmptyState
@@ -39,7 +46,6 @@ import com.example.palette.core.ui.Pigment
 import com.example.palette.core.ui.PillButton
 import com.example.palette.core.ui.ScreenTitle
 import com.example.palette.core.ui.Segments
-import com.example.palette.core.ui.UserRow
 import com.example.palette.core.ui.icon
 import com.example.palette.core.util.ahora
 import com.example.palette.core.util.haceCuanto
@@ -55,6 +61,7 @@ fun ActivityScreenRoot(
     onOpenChat: (String) -> Unit,
     onOpenGroup: (String) -> Unit,
     onOpenUser: (String) -> Unit,
+    onOpenReview: (String) -> Unit,
     onNewGroup: () -> Unit,
     onNewMessage: () -> Unit,
     modifier: Modifier = Modifier,
@@ -72,6 +79,7 @@ fun ActivityScreenRoot(
                     if (group != null) onOpenGroup(group.id) else action.hilo.user?.let { onOpenChat(it.id) }
                 }
                 is ActivityAction.OnUserClicked -> onOpenUser(action.userId)
+                is ActivityAction.OnResenaClicked -> onOpenReview(action.logId)
                 ActivityAction.OnNewGroupClicked -> onNewGroup()
                 ActivityAction.OnNewMessageClicked -> onNewMessage()
                 else -> viewModel.onAction(action)
@@ -81,7 +89,7 @@ fun ActivityScreenRoot(
     )
 }
 
-/** mensajes con amigos y grupos, y avisos (quien ha empezado a seguirte). */
+/** mensajes con amigos y grupos, y avisos: seguidores, me gusta, comentarios y reseñas de amigos. */
 @Composable
 fun ActivityScreen(state: ActivityState, onAction: (ActivityAction) -> Unit, modifier: Modifier = Modifier) {
     val pendientes = state.avisosPendientes
@@ -102,19 +110,67 @@ fun ActivityScreen(state: ActivityState, onAction: (ActivityAction) -> Unit, mod
                 items(state.hilos, key = { it.id }) { hilo -> ThreadRow(hilo) { onAction(ActivityAction.OnHiloClicked(hilo)) } }
             } else {
                 if (state.avisos.isEmpty()) item {
-                    EmptyState("Sin novedades", "Aquí verás quién empieza a seguirte.", Pigment.Cobalt, semilla = 31)
-                }
-                items(state.avisos, key = { it.id }) { aviso ->
-                    UserRow(aviso.user, onClick = { onAction(ActivityAction.OnUserClicked(aviso.user.id)) }) {
-                        FollowButton(aviso.loSigo, { onAction(ActivityAction.OnFollowClicked(aviso.user.id)) })
-                    }
-                    Text(
-                        "Ha empezado a seguirte, hace ${haceCuanto(aviso.at)}".replace("hace ahora", "ahora mismo"),
-                        color = Pigment.Graphite, fontSize = 13.sp,
-                        modifier = Modifier.padding(start = 79.dp, bottom = 8.dp),
+                    EmptyState(
+                        "Sin novedades",
+                        "Aquí verás quién empieza a seguirte, los me gusta y comentarios de tus reseñas y lo que reseñan tus amigos de lo que tú ya has reseñado.",
+                        Pigment.Cobalt, semilla = 31,
                     )
                 }
+                items(state.avisos, key = { it.id }) { aviso -> AvisoRow(aviso, onAction) }
             }
+        }
+    }
+}
+
+/**
+ * un aviso. tocarlo lleva a lo que tiene que ver: el perfil de quien te sigue
+ * o la reseña de la que va (la tuya que han comentado, la de tu amigo...).
+ */
+@Composable
+private fun AvisoRow(aviso: Aviso, onAction: (ActivityAction) -> Unit) {
+    val log = aviso.log
+    val titulo = log?.media?.title.orEmpty()
+    val accion = when (aviso.kind) {
+        NoticeKind.FOLLOW -> " ha empezado a seguirte"
+        NoticeKind.LIKE -> " ha dado me gusta a tu reseña de $titulo"
+        NoticeKind.COMMENT -> " ha comentado tu reseña de $titulo"
+        NoticeKind.SAME_MEDIA -> " también ha reseñado $titulo"
+    }
+    val alTocar = { if (log == null) onAction(ActivityAction.OnUserClicked(aviso.user.id)) else onAction(ActivityAction.OnResenaClicked(log.id)) }
+
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = alTocar).padding(horizontal = 20.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Avatar(aviso.user, 46.dp, Modifier.clickable { onAction(ActivityAction.OnUserClicked(aviso.user.id)) })
+        Spacer(Modifier.width(13.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                buildAnnotatedString {
+                    withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(aviso.user.name) }
+                    append(accion)
+                },
+                fontSize = 14.sp, lineHeight = 19.sp, maxLines = 3, overflow = TextOverflow.Ellipsis,
+            )
+            aviso.comentario?.let {
+                Text("“$it”", color = Pigment.Ink.copy(alpha = 0.8f), fontSize = 13.sp, lineHeight = 18.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp))
+            }
+            if (aviso.kind == NoticeKind.SAME_MEDIA && log != null) {
+                Stars(log.stars, size = 12.dp, modifier = Modifier.padding(top = 3.dp))
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
+                if (!aviso.leido) {
+                    Box(Modifier.size(7.dp).clip(CircleShape).background(Pigment.Accent))
+                    Spacer(Modifier.width(6.dp))
+                }
+                Text(haceCuanto(aviso.at).let { if (it == "ahora") "ahora mismo" else "hace $it" }, color = Pigment.Graphite, fontSize = 12.sp)
+            }
+        }
+        Spacer(Modifier.width(10.dp))
+        if (log == null) {
+            FollowButton(aviso.loSigo, { onAction(ActivityAction.OnFollowClicked(aviso.user.id)) })
+        } else {
+            CoverByHeight(log.media, 56.dp)
         }
     }
 }

@@ -3,6 +3,8 @@ package com.example.palette.features.catalog.data.remote
 import com.example.palette.core.model.Extras
 import com.example.palette.core.model.Media
 import com.example.palette.core.model.MediaType
+import com.example.palette.core.model.ModoDeVer
+import com.example.palette.core.model.Plataforma
 import com.example.palette.core.network.anioDe
 import com.example.palette.core.network.fechaCorta
 import com.example.palette.core.network.json
@@ -50,7 +52,9 @@ internal class Tmdb(private val key: String) {
 
     suspend fun extras(media: Media): Extras {
         val (kind, id) = split(media.id)
-        val d = json.decodeFromString(Item.serializer(), llamarFuncion("$kind/$id", mapOf("append_to_response" to "credits")))
+        // watch/providers dice donde se puede ver; viene en la misma peticion que el reparto
+        val d = json.decodeFromString(Item.serializer(), llamarFuncion("$kind/$id", mapOf("append_to_response" to "credits,watch/providers")))
+        val espana = d.providers?.results?.get("ES")
         val original = (d.originalTitle ?: d.originalName)?.takeIf { it != (d.title ?: d.name) }
         return Extras(
             listOfNotNull(
@@ -63,8 +67,24 @@ internal class Tmdb(private val key: String) {
                 d.networks.firstOrNull()?.let { "Cadena" to it.name },
                 (d.releaseDate ?: d.firstAirDate)?.takeIf { it.isNotBlank() }?.let { "Estreno" to fechaCorta(it) },
                 original?.let { "Título original" to it },
-            )
+            ),
+            plataformas = espana?.let { plataformas(it) }.orEmpty(),
+            enlacePlataformas = espana?.link,
         )
+    }
+
+    // cada servicio sale una vez, con la forma mas barata de verlo (suscripcion antes que alquiler o compra)
+    private fun plataformas(region: Region): List<Plataforma> {
+        val todas = listOf(
+            ModoDeVer.SUSCRIPCION to region.flatrate,
+            ModoDeVer.GRATIS to region.free,
+            ModoDeVer.ANUNCIOS to region.ads,
+            ModoDeVer.ALQUILER to region.rent,
+            ModoDeVer.COMPRA to region.buy,
+        ).flatMap { (modo, lista) ->
+            lista.sortedBy { it.priority }.map { Plataforma(it.name, it.logoPath?.let { logo -> "https://image.tmdb.org/t/p/w92$logo" }, modo) }
+        }
+        return todas.distinctBy { it.nombre }
     }
 
     suspend fun similar(media: Media): List<Media> {
@@ -127,6 +147,27 @@ internal class Tmdb(private val key: String) {
         val genres: List<Named> = emptyList(),
         @SerialName("created_by") val createdBy: List<Named> = emptyList(),
         val credits: Credits? = null,
+        @SerialName("watch/providers") val providers: Providers? = null,
+    )
+
+    @Serializable
+    private class Providers(val results: Map<String, Region> = emptyMap())
+
+    @Serializable
+    private class Region(
+        val link: String? = null,
+        val flatrate: List<Provider> = emptyList(),
+        val free: List<Provider> = emptyList(),
+        val ads: List<Provider> = emptyList(),
+        val rent: List<Provider> = emptyList(),
+        val buy: List<Provider> = emptyList(),
+    )
+
+    @Serializable
+    private class Provider(
+        @SerialName("provider_name") val name: String = "",
+        @SerialName("logo_path") val logoPath: String? = null,
+        @SerialName("display_priority") val priority: Int = 0,
     )
 
     @Serializable

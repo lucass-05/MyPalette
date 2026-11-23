@@ -22,6 +22,7 @@ sealed interface HomeAction {
     data class OnUserClicked(val userId: String) : HomeAction
     data class OnLikeClicked(val logId: String) : HomeAction
     data class OnSendClicked(val log: LogEntry) : HomeAction
+    data class OnResenaClicked(val logId: String) : HomeAction
     data class OnWatchlistClicked(val media: Media) : HomeAction
 }
 

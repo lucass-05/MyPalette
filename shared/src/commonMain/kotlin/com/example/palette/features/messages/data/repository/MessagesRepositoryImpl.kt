@@ -5,6 +5,7 @@ import com.example.palette.core.data.PaletteStore
 import com.example.palette.core.model.Group
 import com.example.palette.core.model.LogEntry
 import com.example.palette.core.model.Media
+import com.example.palette.core.model.NoticeKind
 import com.example.palette.features.messages.domain.model.Aviso
 import com.example.palette.features.messages.domain.model.Conversacion
 import com.example.palette.features.messages.domain.model.Hilo
@@ -23,7 +24,12 @@ class MessagesRepositoryImpl(private val almacen: PaletteStore) : MessagesReposi
 
     override fun observarAvisos(): Flow<List<Aviso>> = snapshotFlow {
         almacen.notices.mapNotNull { aviso ->
-            almacen.user(aviso.userId)?.let { Aviso(aviso.id, it, aviso.at, aviso.read, almacen.sigoA(it.id)) }
+            val user = almacen.user(aviso.userId) ?: return@mapNotNull null
+            val log = aviso.logId?.let { almacen.log(it) }
+            // si la reseña de la que hablaba ya no existe, el aviso tampoco se enseña
+            if (aviso.kind != NoticeKind.FOLLOW && log == null) return@mapNotNull null
+            val comentario = if (aviso.kind == NoticeKind.COMMENT) almacen.estado.comments.firstOrNull { "c_${it.id}" == aviso.id }?.text else null
+            Aviso(aviso.id, aviso.kind, user, aviso.at, aviso.read, almacen.sigoA(user.id), log, comentario)
         }
     }
 
@@ -60,6 +66,12 @@ class MessagesRepositoryImpl(private val almacen: PaletteStore) : MessagesReposi
     override suspend fun crearGrupo(name: String, idsMiembros: Set<String>, foto: ByteArray?): String? = almacen.crearGrupo(name, idsMiembros, foto)
 
     override suspend fun ponerFotoDeGrupo(groupId: String, foto: ByteArray): String? = almacen.ponerFotoDeGrupo(groupId, foto)
+
+    override fun renombrarGrupo(groupId: String, name: String) = almacen.renombrarGrupo(groupId, name)
+
+    override fun anadirAGrupo(groupId: String, ids: Set<String>) = almacen.anadirAGrupo(groupId, ids)
+
+    override fun quitarDeGrupo(groupId: String, userId: String) = almacen.quitarDeGrupo(groupId, userId)
 
     override fun salirDeGrupo(groupId: String) = almacen.salirDeGrupo(groupId)
 }

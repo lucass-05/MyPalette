@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.palette.core.model.LogEntry
 import com.example.palette.core.model.Media
+import com.example.palette.features.lists.domain.model.ListaVista
+import com.example.palette.features.lists.domain.repository.ListsRepository
 import com.example.palette.features.people.domain.repository.PeopleRepository
 import com.example.palette.features.profile.domain.model.Perfil
 import com.example.palette.features.profile.domain.repository.ProfileRepository
@@ -22,7 +24,13 @@ data class ProfileState(
     // 0: paleta, 1: pendientes
     val seccion: Int = 0,
     val recientesPrimero: Boolean = false,
-)
+    // las listas que se ven en este perfil (en el mio, todas)
+    val listas: List<ListaVista> = emptyList(),
+    // la lista que se esta viendo en lugar de la paleta; null: la paleta
+    val listaAbierta: String? = null,
+) {
+    val lista: ListaVista? get() = listas.firstOrNull { it.lista.id == listaAbierta }
+}
 
 sealed interface ProfileAction {
     data object OnBackClicked : ProfileAction
@@ -34,12 +42,18 @@ sealed interface ProfileAction {
     data class OnOrdenChanged(val recientesPrimero: Boolean) : ProfileAction
     data class OnLogClicked(val log: LogEntry) : ProfileAction
     data class OnMediaClicked(val media: Media) : ProfileAction
+    data class OnResenaClicked(val logId: String) : ProfileAction
+    data class OnListaClicked(val listId: String) : ProfileAction
+    data object OnNuevaListaClicked : ProfileAction
+    data class OnEditarListaClicked(val listId: String) : ProfileAction
+    data object OnPersonalizarClicked : ProfileAction
 }
 
 class ProfileViewModel(
     private val userId: String,
     private val profileRepository: ProfileRepository,
     private val peopleRepository: PeopleRepository,
+    private val listsRepository: ListsRepository,
     private val sortProfileLogsUseCase: SortProfileLogsUseCase,
 ) : ViewModel() {
 
@@ -52,14 +66,21 @@ class ProfileViewModel(
                 _state.update { it.copy(perfil = perfil, logs = ordenar(perfil, it.recientesPrimero)) }
             }
         }
+        viewModelScope.launch {
+            listsRepository.observarListas(userId).collect { listas ->
+                // si la lista abierta deja de existir se vuelve a la paleta
+                _state.update { s -> s.copy(listas = listas, listaAbierta = s.listaAbierta?.takeIf { id -> listas.any { it.lista.id == id } }) }
+            }
+        }
     }
 
     fun onAction(action: ProfileAction) {
         when (action) {
             is ProfileAction.OnSeccionChanged -> _state.update { it.copy(seccion = action.seccion) }
             is ProfileAction.OnOrdenChanged -> _state.update {
-                it.copy(recientesPrimero = action.recientesPrimero, logs = ordenar(it.perfil, action.recientesPrimero))
+                it.copy(recientesPrimero = action.recientesPrimero, logs = ordenar(it.perfil, action.recientesPrimero), listaAbierta = null)
             }
+            is ProfileAction.OnListaClicked -> _state.update { it.copy(listaAbierta = action.listId) }
             ProfileAction.OnFollowClicked -> peopleRepository.alternarSeguir(userId)
             else -> {}
         }

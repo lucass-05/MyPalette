@@ -68,6 +68,10 @@ import com.example.palette.features.messages.ui.SendSheetRoot
 import com.example.palette.features.people.ui.PeopleScreenRoot
 import com.example.palette.features.profile.ui.ProfileScreenRoot
 import com.example.palette.features.profile.ui.SettingsScreenRoot
+import com.example.palette.features.profile.ui.CustomizeScreenRoot
+import com.example.palette.features.lists.ui.ListScreenRoot
+import com.example.palette.features.lists.ui.NewListSheetRoot
+import com.example.palette.features.reviews.ui.ReviewDetailScreenRoot
 
 // la navegacion usa la libreria navigation de compose:
 //  - cada pantalla tiene una ruta (Routes.kt)
@@ -166,6 +170,8 @@ private fun Shell(sinLeer: Int) {
     }
 
     fun abrirPerfil(userId: String) = navController.abrir(ProfileRoute(userId))
+    fun abrirResena(logId: String) = navController.abrir(ReviewRoute(logId))
+    fun abrirLista(listId: String) = navController.abrir(ListRoute(listId))
     fun abrirChat(userId: String) = navController.abrir(ChatRoute(userId))
 
     Box(Modifier.fillMaxSize()) {
@@ -195,6 +201,7 @@ private fun Shell(sinLeer: Int) {
                     onOpenStory = { userId, cola -> navController.abrir(StoryRoute(userId, cola.joinToString(","))) },
                     onOpenMedia = ::abrirFicha,
                     onOpenUser = ::abrirPerfil,
+                    onOpenReview = ::abrirResena,
                     onSend = { hojas.enviando = it },
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -211,6 +218,7 @@ private fun Shell(sinLeer: Int) {
                         onOpenChat = ::abrirChat,
                         onOpenGroup = { navController.abrir(GroupChatRoute(it)) },
                         onOpenUser = ::abrirPerfil,
+                        onOpenReview = ::abrirResena,
                         onNewGroup = { hojas.creandoGrupo = true },
                         onNewMessage = { hojas.enviando = Outgoing.Nothing },
                         modifier = it,
@@ -224,8 +232,12 @@ private fun Shell(sinLeer: Int) {
                     onOpenSettings = { navController.abrir(SettingsRoute) },
                     onOpenChat = ::abrirChat,
                     onOpenMedia = ::abrirFicha,
+                    onOpenReview = ::abrirResena,
                     onLogMenu = { hojas.menuDeLog = it },
                     onRegistrar = { irA(Screen.LOG) },
+                    onOpenList = ::abrirLista,
+                    onNewList = { hojas.creandoLista = true },
+                    onCustomize = { navController.abrir(CustomizeRoute) },
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -241,6 +253,7 @@ private fun Shell(sinLeer: Int) {
                         onBack = ::volver,
                         onOpenMedia = ::abrirFicha,
                         onOpenUser = ::abrirPerfil,
+                        onOpenReview = ::abrirResena,
                         onReview = { media -> hojas.enResena = media },
                         onSend = { envio -> hojas.enviando = envio },
                         modifier = it,
@@ -254,8 +267,12 @@ private fun Shell(sinLeer: Int) {
                     onOpenSettings = { navController.abrir(SettingsRoute) },
                     onOpenChat = ::abrirChat,
                     onOpenMedia = ::abrirFicha,
+                    onOpenReview = ::abrirResena,
                     onLogMenu = { hojas.menuDeLog = it },
                     onRegistrar = { irA(Screen.LOG) },
+                    onOpenList = ::abrirLista,
+                    onNewList = { hojas.creandoLista = true },
+                    onCustomize = { navController.abrir(CustomizeRoute) },
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -293,10 +310,34 @@ private fun Shell(sinLeer: Int) {
             composable<SettingsRoute> {
                 Centered(640.dp) { SettingsScreenRoot(onBack = ::volver, modifier = it) }
             }
+            composable<ReviewRoute> { entry ->
+                Centered(760.dp) {
+                    ReviewDetailScreenRoot(
+                        logId = entry.toRoute<ReviewRoute>().logId,
+                        onBack = ::volver,
+                        onOpenUser = ::abrirPerfil,
+                        onOpenMedia = ::abrirFicha,
+                        onEdit = { media -> hojas.enResena = media },
+                        onSend = { log -> hojas.enviando = Outgoing.Review(log) },
+                        modifier = it,
+                    )
+                }
+            }
+            composable<ListRoute> { entry ->
+                val ruta = entry.toRoute<ListRoute>()
+                Centered(820.dp) {
+                    ListScreenRoot(ruta.listId, ruta.abrirSelector, onBack = ::volver, onOpenMedia = ::abrirFicha, onOpenReview = ::abrirResena, modifier = it)
+                }
+            }
+            composable<CustomizeRoute> {
+                Centered(760.dp) { CustomizeScreenRoot(onClose = ::volver, modifier = it) }
+            }
         }
 
         // el chat y las historias van a pantalla completa, sin barra
-        val pantallaCompleta = destino?.let { it.hasRoute<ChatRoute>() || it.hasRoute<GroupChatRoute>() || it.hasRoute<StoryRoute>() } == true
+        val pantallaCompleta = destino?.let {
+            it.hasRoute<ChatRoute>() || it.hasRoute<GroupChatRoute>() || it.hasRoute<StoryRoute>() || it.hasRoute<ReviewRoute>()
+        } == true
         if (!pantallaCompleta) {
             GlassBar(
                 fondo = fondo,
@@ -328,7 +369,13 @@ private fun Shell(sinLeer: Int) {
                 onReview = { media -> hojas.enResena = media },
                 onSend = { envio -> hojas.enviando = envio },
                 onOpenMedia = ::abrirFicha,
+                onOpenReview = ::abrirResena,
             )
+        }
+    }
+    if (hojas.creandoLista) {
+        ConViewModelsPropios {
+            NewListSheetRoot(onClose = { hojas.creandoLista = false }, onCreated = { listId -> navController.abrir(ListRoute(listId, abrirSelector = true)) })
         }
     }
     if (hojas.creandoGrupo) {

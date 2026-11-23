@@ -272,4 +272,78 @@ object Icons {
         "M9 19h6",
     )
 
+    val Comment: ImageVector get() = icon(
+        "message-circle",
+        "M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719",
+    )
+
+    val Brush: ImageVector get() = icon(
+        "brush",
+        "m11 10 3 3",
+        "M6.5 21A3.5 3.5 0 1 0 3 17.5a2.62 2.62 0 0 1-.708 1.792A1 1 0 0 0 3 21z",
+        "M9.969 17.031 21.378 5.624a1 1 0 0 0-3.002-3.002L6.967 14.031",
+    )
+
+    val ArrowUp: ImageVector get() = icon(
+        "arrow-up",
+        "m5 12 7-7 7 7",
+        "M12 19V5",
+    )
+
+    val ArrowDown: ImageVector get() = icon(
+        "arrow-down",
+        "M12 5v14",
+        "m19 12-7 7-7-7",
+    )
+
+    val Image: ImageVector get() = icon(
+        "image",
+        "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z",
+        "M7 9a2 2 0 1 0 4 0a2 2 0 1 0 -4 0z",
+        "m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21",
+    )
+
+    val Type: ImageVector get() = icon(
+        "type",
+        "M12 4v16",
+        "M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2",
+        "M9 20h6",
+    )
+
+    val Calendar: ImageVector get() = icon(
+        "calendar",
+        "M8 2v4",
+        "M16 2v4",
+        "M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z",
+        "M3 10h18",
+    )
+
+    val ListBullets: ImageVector get() = icon(
+        "list",
+        "M3 5h.01",
+        "M3 12h.01",
+        "M3 19h.01",
+        "M8 5h13",
+        "M8 12h13",
+        "M8 19h13",
+    )
+
+    val Square: ImageVector get() = icon(
+        "square",
+        "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z",
+    )
+
+    val Droplet: ImageVector get() = icon(
+        "droplet",
+        "M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z",
+    )
+
+    val Tv2: ImageVector get() = icon(
+        "monitor-play",
+        "M10 7.75a.75.75 0 0 1 1.142-.638l3.664 2.249a.75.75 0 0 1 0 1.278l-3.664 2.25a.75.75 0 0 1-1.142-.64z",
+        "M12 17v4",
+        "M8 21h8",
+        "M4 3h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z",
+    )
+
 }

@@ -3,16 +3,23 @@ package com.example.palette.core.data
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.example.palette.core.model.Comment
 import com.example.palette.core.model.Group
+import com.example.palette.core.model.Like
+import com.example.palette.core.model.ListKind
 import com.example.palette.core.model.LogEntry
 import com.example.palette.core.model.ME
 import com.example.palette.core.model.Media
+import com.example.palette.core.model.MediaList
 import com.example.palette.core.model.Message
 import com.example.palette.core.model.Notice
 import com.example.palette.core.model.NoticeKind
+import com.example.palette.core.model.ProfileLayout
 import com.example.palette.core.model.Snapshot
 import com.example.palette.core.model.ThemeColors
 import com.example.palette.core.model.User
+import com.example.palette.core.model.ligero
+import com.example.palette.core.network.Remote
 import com.example.palette.core.network.Supabase
 import com.example.palette.core.network.json
 import com.example.palette.core.network.supabase
@@ -190,7 +197,8 @@ class PaletteStore {
             cola.withLock {
                 val recibido = servidor.bajarTodo()
                 actualizar { s ->
-                    val conocidos = s.notices.associateBy { it.id }
+                    // la primera vez con esta version no se avisa de golpe de todo lo antiguo
+                    val desde = if (s.avisosDesde == 0L) ahora() else s.avisosDesde
                     s.copy(
                         me = recibido.me ?: s.me,
                         people = recibido.people,
@@ -201,12 +209,12 @@ class PaletteStore {
                         following = recibido.following,
                         messages = recibido.messages,
                         liked = recibido.liked,
+                        likes = recibido.likes,
+                        comments = recibido.comments,
+                        lists = recibido.lists,
                         groups = recibido.groups,
-                        // un aviso por seguidor; se conserva si ya lo habia leido
-                        notices = recibido.followers.map { (userId, at) ->
-                            val id = "f_$userId"
-                            Notice(id, NoticeKind.FOLLOW, userId, at = at, read = conocidos[id]?.read ?: false)
-                        },
+                        notices = avisos(recibido, s.notices, desde),
+                        avisosDesde = desde,
                     )
                 }
             }
@@ -219,6 +227,30 @@ class PaletteStore {
             sinConexion = true
             println("Palette: no se pudo sincronizar (${e.message})")
         }
+    }
+
+    /**
+     * los avisos de la pestaña actividad. no se guardan en el servidor: salen de los datos que ya se bajan
+     * (quien me sigue, los me gusta y comentarios de mis reseñas, lo que reseñan mis amigos).
+     * cada aviso tiene un id fijo, asi el que ya estaba leido sigue leido al volver a calcularlos.
+     */
+    private fun avisos(recibido: Remote, anteriores: List<Notice>, desde: Long): List<Notice> {
+        val leidos = anteriores.associate { it.id to it.read }
+        fun aviso(id: String, kind: NoticeKind, userId: String, logId: String?, at: Long) =
+            Notice(id, kind, userId, logId, at, read = leidos[id] ?: (kind != NoticeKind.FOLLOW && at < desde))
+
+        val misLogs = recibido.logs.map { it.id }.toSet()
+        val misContenidos = recibido.logs.map { it.media.id }.toSet()
+        val seguidores = recibido.followers.map { (userId, at) -> aviso("f_$userId", NoticeKind.FOLLOW, userId, null, at) }
+        // los me gusta antiguos no tienen fecha (0): de esos no se avisa
+        val meGustas = recibido.likes.filter { it.logId in misLogs && it.userId != ME && it.createdAt > 0 }
+            .map { aviso("l_${it.userId}_${it.logId}", NoticeKind.LIKE, it.userId, it.logId, it.createdAt) }
+        val comentarios = recibido.comments.filter { it.logId in misLogs && it.userId != ME }
+            .map { aviso("c_${it.id}", NoticeKind.COMMENT, it.userId, it.logId, it.createdAt) }
+        val coincidencias = recibido.peopleLogs
+            .filter { it.userId in recibido.following && !it.hidden && it.media.id in misContenidos }
+            .map { aviso("s_${it.id}", NoticeKind.SAME_MEDIA, it.userId, it.id, it.createdAt) }
+        return (seguidores + meGustas + comentarios + coincidencias).sortedByDescending { it.at }.take(MAX_AVISOS)
     }
 
     /** solo los mensajes: lo usa el chat abierto para refrescar mas a menudo. */
@@ -345,8 +377,84 @@ class PaletteStore {
 
     fun alternarMeGusta(logId: String) {
         val like = logId !in estado.liked
-        actualizar { s -> s.copy(liked = if (like) s.liked + logId else s.liked - logId) }
+        actualizar { s ->
+            s.copy(
+                liked = if (like) s.liked + logId else s.liked - logId,
+                likes = if (like) s.likes + Like(ME, logId, ahora()) else s.likes.filterNot { it.userId == ME && it.logId == logId },
+            )
+        }
         subir { ponerMeGusta(logId, like) }
+    }
+
+    // ---- reseñas y comentarios
+
+    /** un log mio o de otra persona, por su id. */
+    fun log(logId: String): LogEntry? =
+        estado.logs.firstOrNull { it.id == logId } ?: estado.peopleLogs.firstOrNull { it.id == logId }
+
+    fun meGustasDe(logId: String): Int = estado.likes.count { it.logId == logId }
+
+    fun comentariosDe(logId: String): List<Comment> = estado.comments.filter { it.logId == logId }.sortedBy { it.createdAt }
+
+    fun comentar(logId: String, text: String) {
+        val limpio = text.trim().take(1000)
+        if (limpio.isEmpty()) return
+        val comment = Comment(nuevoId("c"), logId, ME, limpio, ahora())
+        actualizar { s -> s.copy(comments = s.comments + comment) }
+        subir { comentar(comment) }
+    }
+
+    fun borrarComentario(id: String) {
+        actualizar { s -> s.copy(comments = s.comments.filter { it.id != id }) }
+        subir { borrarComentario(id) }
+    }
+
+    // ---- listas
+
+    fun lista(id: String): MediaList? = estado.lists.firstOrNull { it.id == id }
+
+    /** las listas de esa persona. de los demas solo se ven las que tienen visibles. */
+    fun listasDe(userId: String): List<MediaList> =
+        estado.lists.filter { it.userId == userId && (userId == ME || it.visible) }.sortedBy { it.createdAt }
+
+    fun crearLista(name: String, kind: ListKind): MediaList {
+        val list = MediaList(nuevoId("ls"), ME, name.trim().take(60), kind, createdAt = ahora())
+        actualizar { s -> s.copy(lists = s.lists + list) }
+        subir { guardarLista(list) }
+        return list
+    }
+
+    /** guarda los cambios de una lista mia (nombre, contenidos, si se ve en el perfil). */
+    fun guardarLista(list: MediaList) {
+        val limpia = list.copy(name = list.name.trim().take(60).ifEmpty { "Sin nombre" }, media = list.media.map { it.ligero() })
+        actualizar { s -> s.copy(lists = s.lists.map { if (it.id == limpia.id) limpia else it }) }
+        subir { guardarLista(limpia) }
+    }
+
+    fun borrarLista(id: String) {
+        actualizar { s -> s.copy(lists = s.lists.filter { it.id != id }) }
+        subir { borrarLista(id) }
+    }
+
+    // ---- perfil personalizado
+
+    /** guarda los bloques del perfil y el color de fondo. */
+    fun guardarDiseno(layout: ProfileLayout, background: Long?) {
+        val limpio = layout.copy(widgets = layout.widgets.map { w -> w.copy(items = w.items.map { it.copy(media = it.media.ligero()) }) })
+        actualizar { it.copy(me = it.me.copy(layout = limpio, background = background)) }
+        val profile = estado.me
+        subir { guardarPerfil(profile) }
+    }
+
+    /** sube la foto de cabecera (jpeg ya recortado) y la deja puesta. con null se quita. */
+    suspend fun ponerBanner(jpeg: ByteArray?): String? = intentar {
+        cola.withLock {
+            val url = jpeg?.let { servidor.subirBanner(it) }
+            val profile = estado.me.copy(bannerUrl = url)
+            servidor.guardarPerfil(profile)
+            actualizar { it.copy(me = profile) }
+        }
+        null
     }
 
     // ---- mensajes
@@ -431,6 +539,27 @@ class PaletteStore {
         null
     }
 
+    fun renombrarGrupo(groupId: String, name: String) {
+        val limpio = name.trim().take(60)
+        if (limpio.isEmpty()) return
+        actualizar { s -> s.copy(groups = s.groups.map { if (it.id == groupId) it.copy(name = limpio) else it }) }
+        subir { renombrarGrupo(groupId, limpio) }
+    }
+
+    fun anadirAGrupo(groupId: String, ids: Set<String>) {
+        val group = group(groupId) ?: return
+        val nuevos = ids.filter { it !in group.members }
+        if (nuevos.isEmpty()) return
+        actualizar { s -> s.copy(groups = s.groups.map { if (it.id == groupId) it.copy(members = it.members + nuevos) else it }) }
+        subir { anadirAGrupo(groupId, nuevos) }
+    }
+
+    /** saca a alguien del grupo. solo puede hacerlo quien lo creo. */
+    fun quitarDeGrupo(groupId: String, userId: String) {
+        actualizar { s -> s.copy(groups = s.groups.map { if (it.id == groupId) it.copy(members = it.members - userId) else it }) }
+        subir { quitarDeGrupo(groupId, userId) }
+    }
+
     /** salir de un grupo o, si lo cree yo, borrarlo para todos. */
     fun salirDeGrupo(groupId: String) {
         val mio = group(groupId)?.ownerId == ME
@@ -453,5 +582,6 @@ class PaletteStore {
     companion object {
         private const val KEY = "palette.v1"
         private const val STORY_WINDOW = 4 * DAY
+        private const val MAX_AVISOS = 150
     }
 }

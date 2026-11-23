@@ -1,5 +1,6 @@
 package com.example.palette.features.profile.domain.repository
 
+import com.example.palette.core.model.ProfileLayout
 import com.example.palette.core.model.ThemeColors
 import com.example.palette.core.model.User
 import com.example.palette.features.profile.domain.model.Perfil
@@ -20,6 +21,12 @@ interface ProfileRepository {
     suspend fun ponerFoto(jpeg: ByteArray?): String?
 
     fun ponerPendientesPublicos(publicos: Boolean)
+
+    /** guarda los bloques del perfil y su color de fondo (null: sin color propio). */
+    fun guardarDiseno(layout: ProfileLayout, background: Long?)
+
+    /** sube la foto de cabecera ya recortada (jpeg). con null se quita. devuelve el motivo si falla. */
+    suspend fun ponerBanner(jpeg: ByteArray?): String?
 
     // los colores de la app son de este dispositivo, no de la cuenta
     fun tema(): ThemeColors

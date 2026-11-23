@@ -69,6 +69,7 @@ fun HomeScreenRoot(
     onOpenStory: (userId: String, cola: List<String>) -> Unit,
     onOpenMedia: (Media) -> Unit,
     onOpenUser: (String) -> Unit,
+    onOpenReview: (String) -> Unit,
     onSend: (Outgoing) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -86,6 +87,7 @@ fun HomeScreenRoot(
                 is HomeAction.OnMediaClicked -> onOpenMedia(action.media)
                 is HomeAction.OnUserClicked -> onOpenUser(action.userId)
                 is HomeAction.OnSendClicked -> onSend(Outgoing.Review(action.log))
+                is HomeAction.OnResenaClicked -> onOpenReview(action.logId)
                 // me gusta y pendientes cambian datos: van al viewmodel
                 else -> viewModel.onAction(action)
             }
@@ -194,17 +196,24 @@ private fun FeedPost(publicacion: Publicacion, onAction: (HomeAction) -> Unit) {
                 Stars(log.stars, size = 16.dp)
                 if (log.review.isNotBlank()) {
                     Spacer(Modifier.height(9.dp))
-                    Text(log.review, fontSize = 14.sp, lineHeight = 20.sp, maxLines = 5, overflow = TextOverflow.Ellipsis)
+                    // el texto de la reseña abre la reseña entera, con sus comentarios
+                    Text(
+                        log.review, fontSize = 14.sp, lineHeight = 20.sp, maxLines = 5, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.clickable { onAction(HomeAction.OnResenaClicked(log.id)) },
+                    )
                 }
             }
         }
-        Row(Modifier.padding(top = 4.dp).fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        Row(Modifier.padding(top = 4.dp).fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
             IconAction(
                 if (publicacion.meGusta) Icons.HeartFilled else Icons.Heart,
                 if (publicacion.meGusta) "Quitar me gusta" else "Me gusta",
                 { onAction(HomeAction.OnLikeClicked(log.id)) },
                 tint = if (publicacion.meGusta) Pigment.Cadmium else Pigment.Ink,
             )
+            if (publicacion.meGustas > 0) Text("${publicacion.meGustas}", fontSize = 13.sp, color = Pigment.Graphite, modifier = Modifier.padding(end = 6.dp))
+            IconAction(Icons.Comment, "Comentarios", { onAction(HomeAction.OnResenaClicked(log.id)) })
+            if (publicacion.comentarios > 0) Text("${publicacion.comentarios}", fontSize = 13.sp, color = Pigment.Graphite, modifier = Modifier.padding(end = 6.dp))
             IconAction(Icons.Send, "Enviar a un amigo", { onAction(HomeAction.OnSendClicked(log)) })
             IconAction(
                 if (publicacion.enPendientes) Icons.BookmarkFilled else Icons.Bookmark,

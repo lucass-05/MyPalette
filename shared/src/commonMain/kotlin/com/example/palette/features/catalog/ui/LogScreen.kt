@@ -109,15 +109,16 @@ fun LogScreen(state: LogState, onAction: (LogAction) -> Unit, modifier: Modifier
                     )
                 }
                 else -> items(encontrados, key = { it.id }) { media ->
-                    ResultRow(media) { onAction(LogAction.OnResultadoClicked(media)) }
+                    ResultRow(media, onClick = { onAction(LogAction.OnResultadoClicked(media)) })
                 }
             }
         }
     }
 }
 
+// la usa tambien el buscador de las listas y del perfil (MediaPickerSheet), con algo a la derecha
 @Composable
-private fun ResultRow(media: Media, onClick: () -> Unit) {
+internal fun ResultRow(media: Media, onClick: () -> Unit, trailing: (@Composable () -> Unit)? = null) {
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         // todas las miniaturas ocupan el mismo ancho para que los titulos queden alineados
         Row(Modifier.width(50.dp), horizontalArrangement = Arrangement.Center) { CoverByHeight(media, 62.dp) }
@@ -130,11 +131,16 @@ private fun ResultRow(media: Media, onClick: () -> Unit) {
                 Text(media.subtitulo(), color = Pigment.Graphite, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
-        media.score?.let {
+        if (trailing != null) {
             Spacer(Modifier.width(10.dp))
-            Icon(Icons.StarFilled, contentDescription = null, tint = Pigment.Star, modifier = Modifier.size(12.dp))
-            Spacer(Modifier.width(4.dp))
-            Text(notaTexto(it), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            trailing()
+        } else {
+            media.score?.let {
+                Spacer(Modifier.width(10.dp))
+                Icon(Icons.StarFilled, contentDescription = null, tint = Pigment.Star, modifier = Modifier.size(12.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(notaTexto(it), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            }
         }
     }
 }

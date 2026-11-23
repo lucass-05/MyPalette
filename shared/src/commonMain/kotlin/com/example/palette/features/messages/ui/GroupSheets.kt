@@ -1,6 +1,10 @@
 package com.example.palette.features.messages.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.text.font.FontWeight
+import com.example.palette.core.ui.IconAction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -105,7 +109,7 @@ fun NewGroupSheet(state: NewGroupState, onAction: (NewGroupAction) -> Unit, onEl
 @Composable
 fun GroupInfoSheetRoot(groupId: String, onClose: () -> Unit, onOpenUser: (String) -> Unit) {
     val container = LocalAppContainer.current
-    val viewModel = viewModel { GroupInfoViewModel(groupId, container.messagesRepository) }
+    val viewModel = viewModel { GroupInfoViewModel(groupId, container.messagesRepository, container.peopleRepository) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val elegirFoto = recordarSelectorDeFotos { viewModel.onAction(GroupInfoAction.OnFotoElegida(it)) }
 
@@ -128,31 +132,76 @@ fun GroupInfoSheetRoot(groupId: String, onClose: () -> Unit, onOpenUser: (String
     )
 }
 
-/** quien esta en el grupo, cambiarle la foto y salir (o borrarlo si es mio). */
+/**
+ * quien esta en el grupo y todo lo que se puede cambiar: nombre, foto y miembros.
+ * cualquiera del grupo puede cambiar el nombre y la foto y meter gente; quien lo creo puede ademas sacar a alguien.
+ */
 @Composable
 fun GroupInfoSheet(state: GroupInfoState, onAction: (GroupInfoAction) -> Unit, onElegirFoto: () -> Unit) {
     val group = state.group ?: return
 
     Sheet({ onAction(GroupInfoAction.OnDismiss) }) {
         Row(Modifier.padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically) {
-            GroupAvatar(group, 64.dp)
+            // tocar la foto la cambia
+            Box(Modifier.clickable(enabled = !state.ocupado, onClick = onElegirFoto)) { GroupAvatar(group, 64.dp) }
             Spacer(Modifier.width(14.dp))
-            Column {
+            Column(Modifier.weight(1f)) {
                 Text(group.name, style = titular(22.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text("${group.members.size} personas", color = Pigment.Graphite, fontSize = 13.sp)
             }
+            IconAction(Icons.Pencil, "Cambiar el nombre", { onAction(GroupInfoAction.OnRenombrarClicked) })
         }
-        // la foto solo la puede cambiar quien creo el grupo: es quien tiene permiso en el servidor
-        if (state.mio) {
-            PillButton(if (state.ocupado) "Subiendo…" else "Cambiar foto del grupo", onElegirFoto, filled = false, enabled = !state.ocupado, modifier = Modifier.padding(horizontal = 22.dp, vertical = 12.dp))
-        } else {
-            Spacer(Modifier.height(12.dp))
+        val renombrando = state.renombrando
+        if (renombrando != null) {
+            Row(Modifier.padding(horizontal = 22.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                PlainField(renombrando, { onAction(GroupInfoAction.OnNombreChanged(it)) }, "Nombre del grupo", Modifier.weight(1f))
+                PillButton("Guardar", { onAction(GroupInfoAction.OnNombreGuardado) }, color = Pigment.Accent, enabled = renombrando.isNotBlank())
+            }
+        }
+        Row(Modifier.padding(horizontal = 22.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            PillButton(if (state.ocupado) "Subiendo…" else "Cambiar foto", onElegirFoto, filled = false, enabled = !state.ocupado, icon = Icons.Image)
+            PillButton("Añadir personas", { onAction(GroupInfoAction.OnAnadirClicked) }, filled = false, icon = Icons.UserPlus)
         }
         state.problema?.let { Text(it, color = Pigment.Cadmium, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 22.dp, vertical = 4.dp)) }
+
+        if (state.anadiendo) {
+            Text("¿A quién añades?", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, modifier = Modifier.padding(horizontal = 22.dp, vertical = 6.dp))
+            if (state.amigosFuera.isEmpty()) {
+                Text("Todos los que sigues ya están en el grupo.", color = Pigment.Graphite, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 22.dp, vertical = 6.dp))
+            }
+            Column(Modifier.heightIn(max = 260.dp).verticalScroll(rememberScrollState())) {
+                state.amigosFuera.forEach { amigo ->
+                    val dentro = amigo.id in state.elegidos
+                    UserRow(amigo, onClick = { onAction(GroupInfoAction.OnAmigoToggled(amigo.id)) }) {
+                        Box(
+                            Modifier.size(26.dp).clip(CircleShape).background(if (dentro) Pigment.Accent else Pigment.Mist),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (dentro) Icon(Icons.Check, contentDescription = "Elegido", tint = Pigment.Accent.legible(), modifier = Modifier.size(15.dp))
+                        }
+                    }
+                }
+            }
+            Row(Modifier.padding(horizontal = 22.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                PillButton("Cancelar", { onAction(GroupInfoAction.OnAnadirCancelado) }, filled = false)
+                PillButton(
+                    if (state.elegidos.size > 1) "Añadir a ${state.elegidos.size}" else "Añadir",
+                    { onAction(GroupInfoAction.OnAnadirConfirmado) },
+                    color = Pigment.Accent, enabled = state.elegidos.isNotEmpty(),
+                )
+            }
+            HorizontalDivider(color = Pigment.Line, modifier = Modifier.padding(vertical = 6.dp))
+        }
+
         Column(Modifier.heightIn(max = 300.dp).verticalScroll(rememberScrollState())) {
             state.miembros.forEach { miembro ->
                 UserRow(miembro, onClick = { onAction(GroupInfoAction.OnMemberClicked(miembro.id)) }) {
-                    if (miembro.id == group.ownerId) Text("Creó el grupo", color = Pigment.Graphite, fontSize = 12.sp)
+                    when {
+                        miembro.id == group.ownerId -> Text("Creó el grupo", color = Pigment.Graphite, fontSize = 12.sp)
+                        // quien lo creo puede sacar a los demas
+                        state.mio && miembro.id != ME -> IconAction(Icons.Close, "Sacar del grupo", { onAction(GroupInfoAction.OnQuitarMiembroClicked(miembro.id)) }, tint = Pigment.Graphite)
+                        else -> {}
+                    }
                 }
             }
         }
