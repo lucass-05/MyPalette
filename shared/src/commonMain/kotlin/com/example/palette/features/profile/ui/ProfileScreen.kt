@@ -65,6 +65,7 @@ import com.example.palette.core.ui.Pigment
 import com.example.palette.core.ui.PillButton
 import com.example.palette.core.ui.Stars
 import com.example.palette.core.ui.legible
+import com.example.palette.core.ui.proporcion
 import com.example.palette.core.ui.titular
 import com.example.palette.di.LocalAppContainer
 import com.example.palette.features.profile.presentation.ProfileAction
