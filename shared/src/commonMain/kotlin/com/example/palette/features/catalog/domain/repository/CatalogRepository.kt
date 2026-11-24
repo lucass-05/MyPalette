@@ -22,6 +22,9 @@ interface CatalogRepository {
 
     suspend fun tendencias(): List<Media>
 
+    /** series en emision, empezando por las mas parecidas a [mias]. */
+    suspend fun enEmision(mias: List<Media>): List<Media>
+
     // al navegar a una ficha solo se pasa el id del contenido. estas dos funciones permiten
     // recuperar el contenido entero a partir de ese id sin volver a pedirlo a la red
     fun recordar(media: Media)

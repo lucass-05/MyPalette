@@ -68,7 +68,7 @@ fun DiscoverScreen(state: DiscoverState, onAction: (DiscoverAction) -> Unit, mod
                 EmptyState(
                     title = if (state.hayFavoritos) "No he encontrado nada parecido" else "Todavía no sé qué te gusta",
                     cuerpo = if (state.hayFavoritos) "Prueba a registrar algo más: cuantos más favoritos, mejores recomendaciones."
-                    else "Puntúa algo con 4 estrellas o más y aquí saldrán cosas en la misma línea.",
+                    else "Puntúa algo con más de 3 estrellas y aquí saldrán cosas en la misma línea.",
                     color = Pigment.Violet,
                     semilla = 21,
                 ) {

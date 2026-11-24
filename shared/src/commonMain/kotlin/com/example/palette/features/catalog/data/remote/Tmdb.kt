@@ -9,6 +9,11 @@ import com.example.palette.core.network.anioDe
 import com.example.palette.core.network.fechaCorta
 import com.example.palette.core.network.json
 import com.example.palette.core.network.pedirTexto
+import com.example.palette.core.util.DAY
+import com.example.palette.core.util.fechaIso
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -98,6 +103,48 @@ internal class Tmdb(private val key: String) {
         return pagina.results.mapNotNull { it.toMedia("movie") }
     }
 
+    /**
+     * series que estan sacando capitulos estas semanas, ordenadas por lo que se parecen a las mias.
+     *
+     * de mis series se sacan los generos que mas se repiten y, si casi todas son del mismo idioma
+     * original (por ejemplo japones en el anime), tambien ese idioma. con eso se pregunta a discover
+     * por lo que emite ahora; si sale poco se va soltando el filtro, primero el idioma y luego los generos.
+     */
+    suspend fun enEmision(mias: List<Media>, hoy: Long): List<Media> = coroutineScope {
+        val fichas = mias.filter { it.id.startsWith("tmdb:tv:") }.take(MAX_SERIES_MIAS)
+            .map { media -> async { runCatching { json.decodeFromString(Item.serializer(), llamarFuncion("tv/${split(media.id).second}")) }.getOrNull() } }
+            .awaitAll().filterNotNull()
+        val pesoDeGenero = fichas.flatMap { ficha -> ficha.genres.map { it.id } }.groupingBy { it }.eachCount()
+        val generos = pesoDeGenero.entries.sortedByDescending { it.value }.take(3).map { it.key }
+        // el idioma solo cuenta si es el de al menos la mitad de mis series
+        val idioma = fichas.mapNotNull { it.idioma }.groupingBy { it }.eachCount().maxByOrNull { it.value }
+            ?.takeIf { fichas.size >= 2 && it.value * 2 >= fichas.size }?.key
+
+        val enAntena = mapOf(
+            "air_date.gte" to fechaIso(hoy - 7 * DAY),
+            "air_date.lte" to fechaIso(hoy + 7 * DAY),
+            "sort_by" to "popularity.desc",
+            "vote_count.gte" to "5",
+        )
+        suspend fun descubrir(filtro: Map<String, String>): List<Item> =
+            runCatching { json.decodeFromString(Page.serializer(), llamarFuncion("discover/tv", enAntena + filtro)).results }.getOrDefault(emptyList())
+
+        // con "|" tmdb busca series que tengan cualquiera de esos generos
+        val conGeneros = if (generos.isEmpty()) emptyMap() else mapOf("with_genres" to generos.joinToString("|"))
+        val candidatos = mutableListOf<Item>()
+        if (idioma != null && generos.isNotEmpty()) candidatos += descubrir(conGeneros + ("with_original_language" to idioma))
+        if (candidatos.size < SUFICIENTES && generos.isNotEmpty()) candidatos += descubrir(conGeneros)
+        if (candidatos.size < SUFICIENTES) candidatos += descubrir(emptyMap())
+
+        // primero lo que mas generos comparte con lo mio (y mi idioma); a igualdad, lo mas popular
+        candidatos.distinctBy { it.id }
+            .withIndex()
+            .sortedByDescending { (posicion, item) ->
+                item.genreIds.sumOf { pesoDeGenero[it] ?: 0 } + (if (idioma != null && item.idioma == idioma) fichas.size else 0) - posicion * 0.01
+            }
+            .mapNotNull { it.value.toMedia("tv") }
+    }
+
     private fun split(id: String): Pair<String, String> {
         val partes = id.split(":")
         return partes[1] to partes[2]
@@ -138,6 +185,9 @@ internal class Tmdb(private val key: String) {
         @SerialName("first_air_date") val firstAirDate: String? = null,
         @SerialName("vote_average") val voteAverage: Double? = null,
         @SerialName("vote_count") val voteCount: Int? = null,
+        // en las listas los generos vienen solo como numeros; en la ficha, como Named con id y nombre
+        @SerialName("genre_ids") val genreIds: List<Int> = emptyList(),
+        @SerialName("original_language") val idioma: String? = null,
         val runtime: Int? = null,
         @SerialName("number_of_seasons") val seasons: Int? = null,
         @SerialName("number_of_episodes") val episodes: Int? = null,
@@ -171,7 +221,7 @@ internal class Tmdb(private val key: String) {
     )
 
     @Serializable
-    private class Named(val name: String = "")
+    private class Named(val name: String = "", val id: Int = 0)
 
     @Serializable
     private class Credits(val crew: List<Crew> = emptyList(), val cast: List<Named> = emptyList())
@@ -179,3 +229,7 @@ internal class Tmdb(private val key: String) {
     @Serializable
     private class Crew(val name: String = "", val job: String = "")
 }
+
+// cuantas series mias se miran para saber que me gusta, y cuantas en emision se buscan como minimo
+private const val MAX_SERIES_MIAS = 8
+private const val SUFICIENTES = 12

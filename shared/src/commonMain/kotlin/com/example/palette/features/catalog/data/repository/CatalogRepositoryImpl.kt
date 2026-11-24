@@ -4,6 +4,7 @@ import com.example.palette.ApiKeys
 import com.example.palette.core.model.Extras
 import com.example.palette.core.model.Media
 import com.example.palette.core.model.MediaType
+import com.example.palette.core.util.ahora
 import com.example.palette.features.catalog.data.remote.Igdb
 import com.example.palette.features.catalog.data.remote.Itunes
 import com.example.palette.features.catalog.data.remote.OpenLibrary
@@ -114,6 +115,8 @@ class CatalogRepositoryImpl : CatalogRepository {
     }
 
     override suspend fun tendencias(): List<Media> = seguro { if (tmdb.ready) tmdb.tendencias() else emptyList() }
+
+    override suspend fun enEmision(mias: List<Media>): List<Media> = seguro { if (tmdb.ready) tmdb.enEmision(mias, ahora()) else emptyList() }
 
     // cada fuente ya viene ordenada por relevancia: se van cogiendo de una en una para que ninguna tape a las demas
     private fun intercalar(listas: List<List<Media>>): List<Media> {

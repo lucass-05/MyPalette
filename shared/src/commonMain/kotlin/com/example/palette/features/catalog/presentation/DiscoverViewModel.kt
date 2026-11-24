@@ -33,7 +33,7 @@ class DiscoverViewModel(
     private val _state = MutableStateFlow(DiscoverState())
     val state: StateFlow<DiscoverState> = _state.asStateFlow()
 
-    // lo ultimo que se pidio a la red y para que favoritos era, para no repetir peticiones
+    // lo ultimo que se pidio a la red y con que reseñas, para no repetir peticiones
     private var calculadas: List<FilaRecomendada> = emptyList()
     private var clave: String? = null
 
@@ -42,9 +42,8 @@ class DiscoverViewModel(
             // collectLatest: si la biblioteca cambia mientras se estaban calculando recomendaciones,
             // se cancela ese calculo y se empieza con los datos nuevos
             libraryRepository.observar().collectLatest { biblioteca ->
-                val favoritos = getRecommendationsUseCase.favoritos(biblioteca.logs)
-                val nuevaClave = favoritos.joinToString("|") { it.media.id }
-                // solo se vuelve a preguntar a las bases de datos si han cambiado mis favoritos
+                val nuevaClave = getRecommendationsUseCase.clave(biblioteca.logs)
+                // solo se vuelve a preguntar a las bases de datos si han cambiado mis ultimas reseñas o mis series
                 if (nuevaClave != clave) {
                     _state.update { it.copy(cargando = true) }
                     calculadas = getRecommendationsUseCase(biblioteca.logs)
@@ -55,7 +54,7 @@ class DiscoverViewModel(
                     it.copy(
                         filas = getRecommendationsUseCase.sinLoQueYaTengo(calculadas, biblioteca.idsQueTengo),
                         cargando = false,
-                        hayFavoritos = favoritos.isNotEmpty(),
+                        hayFavoritos = getRecommendationsUseCase.ultimasBuenas(biblioteca.logs).isNotEmpty(),
                     )
                 }
             }

@@ -20,6 +20,18 @@ private val meses = listOf("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago
  * que deja el dia bisiesto al final y simplifica las cuentas.
  */
 fun fechaTexto(at: Long): String {
+    val (year, mes, dia) = fechaCivil(at)
+    return "$dia ${meses[mes - 1]} $year"
+}
+
+/** "2026-11-24": la forma en que las apis piden una fecha. */
+fun fechaIso(at: Long): String {
+    val (year, mes, dia) = fechaCivil(at)
+    return "$year-${mes.toString().padStart(2, '0')}-${dia.toString().padStart(2, '0')}"
+}
+
+// año, mes (1-12) y dia
+private fun fechaCivil(at: Long): Triple<Long, Int, Int> {
     val z = at.floorDiv(DAY) + 719468
     val era = z.floorDiv(146097L)
     val doe = z - era * 146097
@@ -29,7 +41,7 @@ fun fechaTexto(at: Long): String {
     val dia = doy - (153 * mp + 2) / 5 + 1
     val mes = if (mp < 10) mp + 3 else mp - 9
     val year = yoe + era * 400 + if (mes <= 2) 1 else 0
-    return "$dia ${meses[(mes - 1).toInt()]} $year"
+    return Triple(year, mes.toInt(), dia.toInt())
 }
 
 fun haceCuanto(at: Long, from: Long = ahora()): String {
