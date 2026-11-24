@@ -22,7 +22,7 @@ jobs:
 
       # escritorio (jvm) comprueba todo el codigo comun; web (wasm) sus partes propias
       - name: compilar
-        run: bash ./gradlew :shared:compileKotlinJvm :shared:compileKotlinWasmJs --continue
+        run: bash ./gradlew :shared:compileKotlinJvm :shared:compileKotlinWasmJs :webApp:jsBrowserDistribution --continue
 
       # pruebas de la logica y capturas de las pantallas
       - name: pruebas y capturas

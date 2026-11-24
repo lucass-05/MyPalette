@@ -39,12 +39,21 @@ jobs:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         run: echo "TMDB_API_KEY=$TMDB_API_KEY" > local.properties
 
+      # dos versiones de la web: la de webassembly (rapida, para navegadores recientes) y la de
+      # javascript (para iphones con ios anterior a 18.2, que no tienen wasm gc). index.html elige
       - name: compilar
-        run: bash ./gradlew :webApp:wasmJsBrowserDistribution
+        run: bash ./gradlew :webApp:wasmJsBrowserDistribution :webApp:jsBrowserDistribution
+
+      - name: juntar
+        run: |
+          mkdir sitio
+          cp -r webApp/build/dist/wasmJs/productionExecutable/. sitio/
+          mkdir sitio/js
+          cp -r webApp/build/dist/js/productionExecutable/. sitio/js/
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: webApp/build/dist/wasmJs/productionExecutable
+          path: sitio
 
       - id: despliegue
         uses: actions/deploy-pages@v4

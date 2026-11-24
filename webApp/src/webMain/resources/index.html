@@ -23,6 +23,29 @@
                               repeatCount="indefinite"/>
         </circle>
     </svg>
-    <script type="application/javascript" src="webApp.js"></script>
+    <p id="aviso" style="display: none; font-family: sans-serif; max-width: 320px; margin: 16px auto; color: #555"></p>
+    <script>
+        // la version normal es webassembly con gc (safari 18.2 o mas nuevo). este modulo minimo solo
+        // es valido si el navegador lo soporta; si no, se pasa a la copia en javascript de la carpeta js/
+        const moduloDePrueba = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 8, 2, 95, 1, 120, 0, 96, 0, 0, 3, 3, 2, 1, 1,
+            10, 14, 2, 6, 0, 6, 64, 25, 11, 11, 5, 0, 208, 112, 26, 11]);
+        const hayWasm = typeof WebAssembly === "object" && typeof WebAssembly.validate === "function";
+        const hayWasmGc = hayWasm && WebAssembly.validate(moduloDePrueba);
+        const enCopiaJs = /\/js\/(index\.html)?$/.test(location.pathname);
+
+        if (!hayWasm) {
+            // sin webassembly no va ninguna de las dos (pasa con el modo de aislamiento del iphone)
+            document.querySelector("svg").style.display = "none";
+            const aviso = document.getElementById("aviso");
+            aviso.textContent = "Tu navegador tiene desactivado WebAssembly y Palette lo necesita. Si usas el modo de aislamiento del iPhone, desactívalo para esta web.";
+            aviso.style.display = "block";
+        } else if (!hayWasmGc && !enCopiaJs) {
+            location.replace("js/" + location.search + location.hash);
+        } else {
+            const script = document.createElement("script");
+            script.src = "webApp.js";
+            document.body.appendChild(script);
+        }
+    </script>
 </body>
 </html>
