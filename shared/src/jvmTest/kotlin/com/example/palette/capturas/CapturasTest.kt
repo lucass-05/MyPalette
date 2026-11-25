@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -44,6 +45,8 @@ import com.example.palette.features.catalog.presentation.LogState
 import com.example.palette.features.catalog.ui.DetailScreen
 import com.example.palette.features.catalog.ui.DiscoverScreen
 import com.example.palette.features.catalog.ui.LogScreen
+import com.example.palette.features.compartir.ui.TarjetaPerfil
+import com.example.palette.features.compartir.ui.TarjetaResena
 import com.example.palette.features.home.domain.model.Feed
 import com.example.palette.features.home.domain.model.Historia
 import com.example.palette.features.home.domain.model.Publicacion
@@ -117,6 +120,10 @@ class CapturasTest {
         capturar("descubrir_demo", ancho = 820.dp) { DiscoverScreen(DiscoverState(filas, cargando = false, hayFavoritos = true, anuncios = anuncios), {}) }
         capturar("ficha_demo", ancho = 820.dp) { DetailScreen(d.ficha.copy(media = d.contenidos[3]), {}) }
         Monetizacion.forzarDemostracion = false
+
+        // las tarjetas para compartir, al tamaño al que se pintan (360 x 640)
+        capturar("tarjeta_resena", ancho = null, conBarra = false) { Box(Modifier.size(360.dp, 640.dp)) { TarjetaResena(d.misLogs.first { it.review.isNotBlank() }, d.yo) } }
+        capturar("tarjeta_perfil", ancho = null, conBarra = false) { Box(Modifier.size(360.dp, 640.dp)) { TarjetaPerfil(d.yo, d.misLogs, d.misLogs) } }
         capturar("resena", ancho = 760.dp) { ReviewDetailScreen(ReviewDetailState(d.resena, cargada = true), {}) }
         capturar("actividad", ancho = 760.dp) { ActivityScreen(ActivityState(seccion = 1, avisos = d.avisos), {}) }
         capturar("lista", ancho = 820.dp) { ListScreen(ListState(vista = d.listas.first()), {}) }
