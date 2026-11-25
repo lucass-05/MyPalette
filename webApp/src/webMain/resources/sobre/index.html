@@ -115,6 +115,54 @@
         footer { padding: 40px 0 60px; color: var(--gris); font-size: 14px; }
         footer .ancho { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; }
 
+
+        /* arte dibujado (arte.js): llena su caja */
+        [data-arte] { overflow: hidden; }
+        [data-arte] svg { display: block; width: 100%; height: 100%; }
+        .perfil .banner { background: #ddd; }
+        .perfil .avatar { background: none; padding: 0; overflow: hidden; }
+        .contadores { font-size: 12px; color: var(--gris); margin: 4px 0 2px; }
+        .contadores b { color: var(--tinta); }
+        .pieza .forma { padding: 0; }
+        .pieza .forma.recuadro { aspect-ratio: 2/3; border-radius: 8px; }
+        .pieza .forma.cuadro { aspect-ratio: 1; border-radius: 8px; }
+        .mini { background: #fff; border-radius: 28px; overflow: hidden; box-shadow: 0 18px 50px rgba(23,23,26,.10); color: var(--tinta); }
+        .mini.oscuro { background: #14132b; color: #fff; }
+        .mini.oscuro .contadores, .mini.oscuro .user { color: rgba(255,255,255,.7); }
+        .mini.oscuro .contadores b { color: #fff; }
+        .mini .ban { height: 96px; position: relative; }
+        .mini .ban::after { content: ""; position: absolute; inset: 0; background: linear-gradient(transparent 45%, var(--fondo-mini, #fff)); }
+        .mini .av { width: 64px; height: 64px; margin: -38px auto 0; position: relative; border: 3px solid var(--fondo-mini, #fff); }
+        .mini .cuerpo { padding: 8px 18px 20px; text-align: center; }
+        .mini .nom { font-family: "Young Serif", serif; font-size: 20px; }
+        .mini .user { font-size: 12px; color: var(--gris); }
+        .mini .texto { font-size: 13px; margin: 8px 0 14px; }
+        .mini .muro { text-align: left; }
+        /* descubrir en el movil de marcas */
+        .desc { padding: 22px 14px 14px; color: var(--tinta); }
+        .desc h4 { font-family: "Young Serif", serif; font-weight: 400; font-size: 24px; margin: 0 4px 12px; }
+        .diapo { height: 168px; border-radius: 18px; background: linear-gradient(120deg, #2d5bf0, #8b4bdb 55%, #e8418f); color: #fff; padding: 14px; display: flex; flex-direction: column; justify-content: flex-end; position: relative; }
+        .diapo .sello { position: absolute; top: 12px; left: 12px; font-size: 10px; font-weight: 700; background: rgba(0,0,0,.45); padding: 4px 9px; border-radius: 99px; }
+        .diapo .t { font-family: "Young Serif", serif; font-size: 21px; line-height: 1.1; }
+        .diapo .x { font-size: 11px; opacity: .88; margin: 4px 0 10px; }
+        .diapo .b { align-self: flex-start; background: #fff; color: var(--tinta); font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 99px; }
+        .puntos { display: flex; justify-content: center; gap: 5px; margin: 9px 0 14px; }
+        .puntos i { width: 6px; height: 6px; border-radius: 99px; background: #e2e2e6; }
+        .puntos i.on { width: 18px; background: var(--tinta); }
+        .fila-t { font-family: "Young Serif", serif; font-size: 15px; margin: 4px 4px 8px; display: flex; align-items: center; gap: 6px; }
+        .fila-t .dot { width: 8px; height: 8px; border-radius: 99px; background: var(--azul); }
+        .fila-p { font-size: 9px; font-weight: 700; background: rgba(0,0,0,.6); color: #fff; padding: 3px 8px; border-radius: 99px; margin: 0 4px 6px; display: inline-block; }
+        .fila { display: flex; gap: 8px; overflow: hidden; margin: 0 4px 14px; }
+        .fila .c { flex: 0 0 74px; }
+        .fila .c > div:first-child { height: 111px; border-radius: 6px; }
+        .fila .c span { display: block; font-size: 10px; font-weight: 600; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .fila .tuyo > div:first-child { background: linear-gradient(140deg, #2d5bf0, #8b4bdb); color: #fff; display: grid; place-items: center; text-align: center; font-size: 10px; font-weight: 700; padding: 6px; }
+        .marcas-grid { display: grid; grid-template-columns: 340px 1fr; gap: 48px; align-items: start; margin-top: 40px; }
+        .marcas .movil { width: 320px; height: 640px; border-color: #000; }
+        .lista-formatos { display: flex; flex-direction: column; gap: 14px; }
+        .lista-formatos .formato h3 { margin-top: 0; }
+        @media (max-width: 860px) { .marcas-grid { grid-template-columns: 1fr; } }
+
         @media (max-width: 860px) {
             .heroe, .rejilla, .perfiles, .formatos, .porque { grid-template-columns: 1fr; }
             .heroe { margin-top: 36px; }
@@ -164,20 +212,21 @@
             </div>
             <div>
                 <div class="movil perfil">
-                    <div class="banner"></div>
-                    <div class="avatar mancha">L</div>
+                    <div class="banner" data-arte="banner:lucia"></div>
+                    <div class="avatar mancha" data-arte="retrato:lucia"></div>
                     <div class="cuerpo">
                         <div class="nom">Lucía Ortega</div>
                         <div class="user">@lucia.pinta</div>
-                        <div class="bio">Anime los domingos, JRPGs en invierno y discos enteros sin saltar canciones.</div>
+                        <div class="contadores"><b>48</b> amigos · <b>212</b> publicaciones</div>
+                        <div class="bio">Series los domingos, juegos en invierno y discos enteros sin saltar canciones.</div>
                         <div class="chips"><span class="chip on">Paleta</span><span class="chip">Favoritos</span><span class="chip">Diario</span><span class="chip">Pendientes</span><span class="chip">+</span></div>
                         <div class="muro">
-                            <div class="pieza"><div class="forma mancha" style="background:var(--azul)">Frieren</div><div class="tit">Frieren</div><div class="estrellas">★★★★★</div></div>
-                            <div class="pieza"><div class="forma mancha b" style="background:var(--verde)">Persona 5</div><div class="tit">Persona 5 Royal</div><div class="estrellas">★★★★★</div></div>
-                            <div class="pieza"><div class="forma mancha c" style="background:var(--amarillo)">Blonde</div><div class="tit">Blonde</div><div class="estrellas">★★★★½</div></div>
-                            <div class="pieza"><div class="forma mancha b" style="background:var(--rojo)">Perfect Days</div><div class="tit">Perfect Days</div><div class="estrellas">★★★★★</div></div>
-                            <div class="pieza"><div class="forma mancha" style="background:var(--rosa)">El nombre del viento</div><div class="tit">El nombre del viento</div><div class="estrellas">★★★★</div></div>
-                            <div class="pieza"><div class="forma mancha c" style="background:var(--violeta)">Nights</div><div class="tit">Nights</div><div class="estrellas">★★★★★</div></div>
+                            <div class="pieza"><div class="forma mancha " data-arte="portada:marea"></div><div class="tit">Marea alta</div><div class="estrellas">★★★★★</div></div>
+                            <div class="pieza"><div class="forma mancha b " data-arte="portada:raices"></div><div class="tit">Raíces</div><div class="estrellas">★★★★★</div></div>
+                            <div class="pieza"><div class="forma mancha c " data-arte="portada:agosto"></div><div class="tit">Luz de agosto</div><div class="estrellas">★★★★½</div></div>
+                            <div class="pieza"><div class="forma mancha b " data-arte="portada:verano"></div><div class="tit">El último verano</div><div class="estrellas">★★★★★</div></div>
+                            <div class="pieza"><div class="forma mancha " data-arte="portada:jardin"></div><div class="tit">El jardín de cristal</div><div class="estrellas">★★★★</div></div>
+                            <div class="pieza"><div class="forma mancha c " data-arte="portada:neon"></div><div class="tit">Neón</div><div class="estrellas">★★★★★</div></div>
                         </div>
                     </div>
                 </div>
@@ -208,31 +257,37 @@
         <h2>Cada perfil es una paleta distinta.</h2>
         <p class="intro">Elige colores, forma de las portadas y qué bloques enseñar. Así podrían verse tres perfiles muy diferentes.</p>
         <div class="perfiles">
-            <div class="ejemplo" style="background:#fff3d6">
-                <div class="cab"><div class="av mancha" style="background:var(--rojo)">D</div><div><div class="nom">Dani Ferrer</div><div class="user">@dani.cine · cine de autor</div></div></div>
-                <p class="texto">“Si dura más de tres horas, mejor.”</p>
-                <div class="muro">
-                    <div class="pieza"><div class="forma recuadro" style="background:var(--rojo);aspect-ratio:2/3">Aftersun</div></div>
-                    <div class="pieza"><div class="forma recuadro" style="background:#c2410c;aspect-ratio:2/3">Past Lives</div></div>
-                    <div class="pieza"><div class="forma recuadro" style="background:#7c2d12;aspect-ratio:2/3">Drive My Car</div></div>
+            <div class="mini" style="--fondo-mini:#fff3d6;background:#fff3d6">
+                <div class="ban" data-arte="banner:dani"></div>
+                <div class="av mancha" data-arte="retrato:dani"></div>
+                <div class="cuerpo">
+                    <div class="nom">Dani Ferrer</div>
+                    <div class="user">@dani.cine</div>
+                    <div class="contadores"><b>31</b> amigos · <b>148</b> publicaciones</div>
+                    <p class="texto">“Si dura más de tres horas, mejor.” Fondo crema y portadas en recuadro.</p>
+                    <div class="muro"><div class="pieza"><div class="forma recuadro " data-arte="portada:verano"></div><div class="tit">El último verano</div><div class="estrellas">★★★★★</div></div><div class="pieza"><div class="forma recuadro " data-arte="portada:dormida"></div><div class="tit">La ciudad dormida</div><div class="estrellas">★★★★½</div></div><div class="pieza"><div class="forma recuadro " data-arte="portada:norte"></div><div class="tit">Norte</div><div class="estrellas">★★★★</div></div></div>
                 </div>
             </div>
-            <div class="ejemplo oscuro" style="background:#1d1b3a">
-                <div class="cab"><div class="av mancha b" style="background:var(--violeta)">M</div><div><div class="nom">Marta Lee</div><div class="user">@marta.lee · anime y juegos</div></div></div>
-                <p class="texto">Diario de esta semana: 4 capítulos, 2 jefes finales.</p>
-                <div class="muro">
-                    <div class="pieza"><div class="forma mancha" style="background:var(--azul)">Frieren</div></div>
-                    <div class="pieza"><div class="forma mancha c" style="background:var(--violeta)">Dandadan</div></div>
-                    <div class="pieza"><div class="forma mancha b" style="background:var(--verde)">Elden Ring</div></div>
+            <div class="mini oscuro" style="--fondo-mini:#14132b;background:#14132b">
+                <div class="ban" data-arte="banner:marta"></div>
+                <div class="av mancha" data-arte="retrato:marta"></div>
+                <div class="cuerpo">
+                    <div class="nom">Marta Lee</div>
+                    <div class="user">@marta.lee</div>
+                    <div class="contadores"><b>67</b> amigos · <b>305</b> publicaciones</div>
+                    <p class="texto">Diario de esta semana: cuatro capítulos y dos jefes finales.</p>
+                    <div class="muro"><div class="pieza"><div class="forma mancha " data-arte="portada:orbita"></div><div class="tit">Órbita</div><div class="estrellas">★★★★★</div></div><div class="pieza"><div class="forma mancha b " data-arte="portada:valle"></div><div class="tit">Valle eterno</div><div class="estrellas">★★★★★</div></div><div class="pieza"><div class="forma mancha c " data-arte="portada:senal"></div><div class="tit">Señal</div><div class="estrellas">★★★★</div></div></div>
                 </div>
             </div>
-            <div class="ejemplo" style="background:#ffe4ef">
-                <div class="cab"><div class="av mancha c" style="background:var(--rosa)">A</div><div><div class="nom">Alba Ruiz</div><div class="user">@alba.lee · fantasía</div></div></div>
-                <p class="texto">Lista: “Para leer en verano” · 12 libros</p>
-                <div class="muro">
-                    <div class="pieza"><div class="forma mancha b" style="background:var(--rosa)">Babel</div></div>
-                    <div class="pieza"><div class="forma mancha" style="background:#be185d">Circe</div></div>
-                    <div class="pieza"><div class="forma mancha c" style="background:var(--amarillo)">Piranesi</div></div>
+            <div class="mini" style="--fondo-mini:#ffe4ef;background:#ffe4ef">
+                <div class="ban" data-arte="banner:alba"></div>
+                <div class="av mancha" data-arte="retrato:alba"></div>
+                <div class="cuerpo">
+                    <div class="nom">Alba Ruiz</div>
+                    <div class="user">@alba.lee</div>
+                    <div class="contadores"><b>22</b> amigos · <b>96</b> publicaciones</div>
+                    <p class="texto">Lista: “Para leer en verano”, 12 libros.</p>
+                    <div class="muro"><div class="pieza"><div class="forma mancha b " data-arte="portada:jardin"></div><div class="tit">El jardín de cristal</div><div class="estrellas">★★★★★</div></div><div class="pieza"><div class="forma mancha " data-arte="portada:horas"></div><div class="tit">Las horas azules</div><div class="estrellas">★★★★½</div></div><div class="pieza"><div class="forma mancha c " data-arte="portada:raices"></div><div class="tit">Raíces</div><div class="estrellas">★★★★</div></div></div>
                 </div>
             </div>
         </div>
@@ -245,21 +300,33 @@
         <h2>Llega a quien ya sabe lo que le gusta.</h2>
         <p class="intro">En Palette cada persona puntúa lo que ve, juega, lee y escucha. Eso permite enseñar un estreno a quien de verdad le puede interesar, sin anuncios que molesten.</p>
 
-        <div class="formatos">
-            <div class="formato">
-                <div class="maqueta"><div class="cartel"><span class="sello">Patrocinado</span><span class="serif" style="font-size:18px">Tu estreno</span><span style="font-size:11px;opacity:.85">En cines el 12 de diciembre</span></div></div>
-                <h3>Cartel destacado</h3>
-                <p>Lo primero que se ve en Descubrir: imagen grande, título y botón al tráiler o a la entrada.</p>
+        <div class="marcas-grid">
+            <div class="movil">
+                <div class="desc">
+                    <h4>Descubrir</h4>
+                    <div class="diapo"><span class="sello">Patrocinado · Vuestra marca</span><span class="t">Vuestro posible anuncio</span><span class="x">Lo primero que ve cada persona al abrir Descubrir.</span><span class="b">Ver tráiler</span></div>
+                    <div class="puntos"><i class="on"></i><i></i><i></i><i></i><i></i><i></i></div>
+                    <div class="fila-t"><span class="dot"></span>Porque te gustó Marea alta</div>
+                    <div class="fila">
+                        <div class="c"><div data-arte="portada:horas"></div><span>Las horas azules</span></div>
+                        <div class="c"><div data-arte="portada:faro"></div><span>Faro</span></div>
+                        <div class="c"><div data-arte="portada:norte"></div><span>Norte</span></div>
+                        <div class="c"><div data-arte="portada:olmos"></div><span>Los Olmos</span></div>
+                    </div>
+                    <span class="fila-p">Patrocinado · Vuestra marca</span>
+                    <div class="fila-t">Novedades de este mes</div>
+                    <div class="fila">
+                        <div class="c"><div data-arte="portada:dormida"></div><span>La ciudad dormida</span></div>
+                        <div class="c tuyo"><div>Vuestro producto aquí</div><span>Vuestro anuncio</span></div>
+                        <div class="c"><div data-arte="portada:orbita"></div><span>Órbita</span></div>
+                        <div class="c"><div data-arte="portada:ciudad"></div><span>Turno de noche</span></div>
+                    </div>
+                </div>
             </div>
-            <div class="formato">
-                <div class="maqueta"><span class="sello">Patrocinado</span><div class="fila"><div style="background:var(--azul)"></div><div style="background:var(--violeta)"></div><div style="background:var(--rojo)"></div><div style="background:var(--amarillo)"></div></div></div>
-                <h3>Fila patrocinada</h3>
-                <p>Una fila de tu catálogo entre las recomendaciones personales. Cada portada abre su ficha con dónde verla.</p>
-            </div>
-            <div class="formato">
-                <div class="maqueta" style="display:flex;flex-wrap:wrap;align-content:center;justify-content:center"><span class="boton-mini">Ver en tu plataforma</span><span class="boton-mini">Escuchar</span><span class="boton-mini">Comprar</span></div>
-                <h3>Enlaces en la ficha</h3>
-                <p>Botones directos a tu plataforma o tienda desde la ficha de cada contenido, en el momento en que alguien decide qué ver.</p>
+            <div class="lista-formatos">
+                <div class="formato"><h3>Estreno destacado</h3><p>La primera diapositiva del carrusel de estrenos, lo primero que se ve en Descubrir: imagen grande, título, texto y botón al tráiler o a la entrada. Pasa sola cada pocos segundos junto a los estrenos del mes.</p></div>
+                <div class="formato"><h3>Fila patrocinada</h3><p>Vuestro catálogo entre las recomendaciones personales, justo después de la primera. Cada portada abre su ficha con dónde verla.</p></div>
+                <div class="formato"><h3>Enlaces en la ficha</h3><p>Botones directos a vuestra plataforma o tienda desde la ficha de cada contenido, en el momento en que alguien decide qué ver.</p></div>
             </div>
         </div>
 
@@ -287,5 +354,6 @@
     </div>
 </footer>
 
+<script src="arte.js" charset="utf-8"></script>
 </body>
 </html>
