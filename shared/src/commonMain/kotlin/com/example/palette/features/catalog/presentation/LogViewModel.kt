@@ -78,7 +78,7 @@ class LogViewModel(
             // lo que mas se busca dice que contenidos interesan (y a que marcas les interesa anunciarse)
             metricas.registrar(
                 Evento.BUSCAR,
-                mapOf("consulta" to actual.consulta.trim().lowercase().take(60), "tipos" to actual.tipos.joinToString(",") { it.name }, "resultados" to resultados.size.toString()),
+                mapOf("consulta" to actual.consulta.trim().lowercase().take(60), "tipos" to actual.tipos.joinToString(",") { it.name }, "resultados" to (resultados?.size ?: 0).toString()),
             )
         }
     }
