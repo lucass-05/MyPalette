@@ -43,4 +43,5 @@ object Evento {
     const val CREAR_LISTA = "crear_lista"
     const val PERSONALIZAR = "personalizar_perfil"
     const val TUTORIAL = "tutorial"
+    const val COMPARTIR = "compartir_imagen"
 }

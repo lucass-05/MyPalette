@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -34,7 +35,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -65,10 +68,13 @@ import com.example.palette.core.ui.PaintBlob
 import com.example.palette.core.ui.Pigment
 import com.example.palette.core.ui.PillButton
 import com.example.palette.core.ui.Stars
+import com.example.palette.core.ui.compartirImagenDisponible
 import com.example.palette.core.ui.legible
 import com.example.palette.core.ui.proporcion
 import com.example.palette.core.ui.titular
 import com.example.palette.di.LocalAppContainer
+import com.example.palette.features.compartir.ui.CompartirSheet
+import com.example.palette.features.compartir.ui.TarjetaPerfil
 import com.example.palette.features.profile.presentation.ProfileAction
 import com.example.palette.features.profile.presentation.ProfileState
 import com.example.palette.features.profile.presentation.ProfileViewModel
@@ -94,6 +100,7 @@ fun ProfileScreenRoot(
         ProfileViewModel(userId, container.profileRepository, container.peopleRepository, container.listsRepository, container.sortProfileLogsUseCase)
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    var compartiendo by remember { mutableStateOf(false) }
 
     ProfileScreen(
         state = state,
@@ -108,11 +115,20 @@ fun ProfileScreenRoot(
                 is ProfileAction.OnMediaClicked -> onOpenMedia(action.media)
                 ProfileAction.OnNuevaListaClicked -> onNewList()
                 is ProfileAction.OnEditarListaClicked -> onOpenList(action.listId)
+                ProfileAction.OnCompartirClicked -> compartiendo = true
                 else -> viewModel.onAction(action)
             }
         },
         modifier = modifier,
     )
+    val perfil = state.perfil
+    if (compartiendo && perfil != null) {
+        // en la imagen solo sale lo que ve todo el mundo: nada de lo oculto
+        val visibles = perfil.logs.filter { !it.hidden }
+        CompartirSheet("perfil", "palette-${perfil.user.username}", onClose = { compartiendo = false }) {
+            TarjetaPerfil(perfil.user, visibles, state.favoritos.filter { !it.hidden })
+        }
+    }
 }
 
 /**
@@ -185,7 +201,11 @@ fun ProfileScreen(state: ProfileState, onAction: (ProfileAction) -> Unit, modifi
                 if (!propio) BotonFlotante(Icons.Back, "Volver") { onAction(ProfileAction.OnBackClicked) }
                 Spacer(Modifier.weight(1f))
                 // un solo boton para todo lo de mi perfil: personalizarlo y, desde ahi, los ajustes de la cuenta
-                if (propio) BotonFlotante(Icons.Brush, "Personalizar perfil y ajustes") { onAction(ProfileAction.OnPersonalizarClicked) }
+                if (compartirImagenDisponible) BotonFlotante(Icons.Share, "Compartir como imagen") { onAction(ProfileAction.OnCompartirClicked) }
+                if (propio) {
+                    Spacer(Modifier.width(8.dp))
+                    BotonFlotante(Icons.Brush, "Personalizar perfil y ajustes") { onAction(ProfileAction.OnPersonalizarClicked) }
+                }
             }
         }
     }

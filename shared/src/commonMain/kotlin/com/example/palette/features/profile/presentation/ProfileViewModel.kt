@@ -56,6 +56,7 @@ sealed interface ProfileAction {
     data class OnResenaClicked(val logId: String) : ProfileAction
     data object OnNuevaListaClicked : ProfileAction
     data class OnEditarListaClicked(val listId: String) : ProfileAction
+    data object OnCompartirClicked : ProfileAction
 }
 
 class ProfileViewModel(

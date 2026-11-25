@@ -22,7 +22,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * guarda los eventos en memoria y los sube a la tabla events de supabase en grupos: cada 30 segundos
+ * guarda los eventos en memoria y los sube a la tabla events de supabase en grupos: cada 15 segundos
  * o cuando se juntan 20. si la subida falla se pierden, que para estadisticas no importa.
  */
 internal class MetricasSupabase(private val servidor: Supabase) : Metricas {
@@ -53,6 +53,9 @@ internal class MetricasSupabase(private val servidor: Supabase) : Metricas {
             },
         )
         ambito.launch {
+            // la apertura se sube enseguida: si alguien entra y se va en unos segundos tambien cuenta
+            delay(3_000)
+            vaciar()
             while (true) {
                 delay(CADA)
                 vaciar()
@@ -87,7 +90,7 @@ internal class MetricasSupabase(private val servidor: Supabase) : Metricas {
     private companion object {
         const val CLAVE_DISPOSITIVO = "palette.dispositivo"
         const val CLAVE_ACTIVADAS = "palette.metricas"
-        const val CADA = 30_000L
+        const val CADA = 15_000L
         const val LOTE = 20
     }
 }

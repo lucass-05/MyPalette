@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Palette · Tu diario de pelis, series, juegos, música y libros</title>
+    <!-- esta pagina es html normal (la app es un lienzo que google no puede leer): es la que sale en los buscadores -->
+    <meta name="description" content="Palette es una app gratuita para registrar y puntuar películas, series, videojuegos, discos, canciones y libros. Reseñas, listas, recomendaciones, dónde ver cada serie y un perfil que pintas a tu manera.">
+    <link rel="canonical" href="https://lucass-05.github.io/MyPalette/sobre/">
+    <link rel="icon" type="image/png" href="../favicon.png">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Palette">
+    <meta property="og:locale" content="es_ES">
+    <meta property="og:url" content="https://lucass-05.github.io/MyPalette/sobre/">
+    <meta property="og:title" content="Palette · Tu diario de pelis, series, juegos, música y libros">
+    <meta property="og:description" content="Registra lo que ves, juegas, lees y escuchas, descubre cosas nuevas y monta tu perfil como una paleta de colores.">
+    <meta property="og:image" content="https://lucass-05.github.io/MyPalette/compartir.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <style>
+        @font-face { font-family: "Young Serif"; src: url("youngserif.ttf") format("truetype"); font-display: swap; }
+        :root {
+            --tinta: #17171a; --gris: #6b6b72; --linea: #e7e7ea; --niebla: #f6f5f2; --papel: #ffffff;
+            --azul: #2d5bf0; --rojo: #f2473a; --verde: #12a679; --amarillo: #ffb81f; --violeta: #8b4bdb; --rosa: #e8418f;
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; color: var(--tinta); background: var(--papel); line-height: 1.5; }
+        h1, h2, h3, .serif { font-family: "Young Serif", Georgia, serif; font-weight: 400; letter-spacing: -0.01em; }
+        a { color: inherit; }
+        .ancho { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+        .boton { display: inline-block; padding: 14px 26px; border-radius: 999px; background: var(--tinta); color: #fff; text-decoration: none; font-weight: 600; }
+        .boton.claro { background: transparent; color: var(--tinta); border: 1.5px solid var(--linea); }
+        .boton.azul { background: var(--azul); }
+        .etiqueta { display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--azul); }
+        section { padding: 84px 0; }
+
+        /* manchas de pintura: la forma de la marca */
+        .mancha { border-radius: 58% 42% 55% 45% / 47% 58% 42% 53%; }
+        .mancha.b { border-radius: 42% 58% 38% 62% / 55% 40% 60% 45%; }
+        .mancha.c { border-radius: 63% 37% 47% 53% / 40% 55% 45% 60%; }
+
+        /* portada */
+        header.portada { position: relative; overflow: hidden; padding: 28px 0 90px; }
+        header .fondo { position: absolute; opacity: .95; z-index: -1; }
+        nav { display: flex; align-items: center; gap: 10px; }
+        nav img { width: 34px; height: 34px; }
+        nav .nombre { font-family: "Young Serif", Georgia, serif; font-size: 24px; }
+        nav .espacio { flex: 1; }
+        nav a.mini { font-size: 14px; font-weight: 600; text-decoration: none; margin-left: 18px; }
+        .heroe { display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center; margin-top: 64px; }
+        .heroe h1 { font-size: clamp(42px, 6vw, 72px); line-height: 1.02; margin: 0 0 18px; }
+        .heroe p.sub { font-size: 19px; color: var(--gris); max-width: 520px; margin: 0 0 28px; }
+        .heroe .acciones { display: flex; gap: 12px; flex-wrap: wrap; }
+        .heroe .nota { font-size: 13px; color: var(--gris); margin-top: 14px; }
+
+        /* un movil hecho con css, con un perfil dentro */
+        .movil { width: 300px; height: 610px; margin: 0 auto; border-radius: 44px; background: #fff; border: 10px solid var(--tinta); box-shadow: 0 30px 80px rgba(23,23,26,.18); overflow: hidden; position: relative; }
+        .perfil .banner { height: 150px; background: linear-gradient(135deg, #ff9a8b, #8b4bdb 60%, #2d5bf0); position: relative; }
+        .perfil .banner::after { content: ""; position: absolute; inset: 0; background: linear-gradient(transparent 40%, rgba(255,255,255,1)); }
+        .perfil .avatar { width: 76px; height: 76px; margin: -44px 0 0 18px; position: relative; background: var(--amarillo); display: grid; place-items: center; font-family: "Young Serif", serif; font-size: 34px; color: #fff; border: 4px solid #fff; }
+        .perfil .cuerpo { padding: 8px 18px; }
+        .perfil .nom { font-family: "Young Serif", serif; font-size: 22px; }
+        .perfil .user { color: var(--gris); font-size: 13px; }
+        .perfil .bio { font-size: 13px; margin: 6px 0 10px; }
+        .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+        .chip { font-size: 11px; font-weight: 600; padding: 5px 10px; border-radius: 99px; background: var(--niebla); }
+        .chip.on { background: var(--tinta); color: #fff; }
+        .muro { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 8px; }
+        .pieza .forma { aspect-ratio: 1; display: grid; place-items: center; color: rgba(255,255,255,.95); font-size: 10px; font-weight: 700; text-align: center; padding: 8px; line-height: 1.15; }
+        .pieza .tit { font-size: 10px; margin-top: 4px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .estrellas { color: var(--amarillo); font-size: 10px; letter-spacing: 1px; }
+
+        /* funciones */
+        .funciones { background: var(--niebla); }
+        .rejilla { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 40px; }
+        .tarjeta { background: #fff; border-radius: 24px; padding: 26px; }
+        .tarjeta .punto { width: 44px; height: 44px; margin-bottom: 14px; }
+        .tarjeta h3 { font-size: 21px; margin: 0 0 6px; }
+        .tarjeta p { margin: 0; color: var(--gris); font-size: 15px; }
+        h2 { font-size: clamp(32px, 4.4vw, 48px); line-height: 1.08; margin: 10px 0 12px; }
+        p.intro { font-size: 18px; color: var(--gris); max-width: 640px; margin: 0; }
+
+        /* perfiles de ejemplo */
+        .perfiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 40px; }
+        .ejemplo { border-radius: 28px; padding: 24px; color: var(--tinta); }
+        .ejemplo .cab { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
+        .ejemplo .av { width: 52px; height: 52px; display: grid; place-items: center; font-family: "Young Serif", serif; font-size: 24px; color: #fff; }
+        .ejemplo .nom { font-family: "Young Serif", serif; font-size: 20px; line-height: 1.1; }
+        .ejemplo .user { font-size: 12px; opacity: .7; }
+        .ejemplo .texto { font-size: 13px; margin: 0 0 14px; }
+        .ejemplo.oscuro { color: #fff; }
+        .ejemplo .recuadro { border-radius: 12px; }
+
+        /* marcas */
+        .marcas { background: var(--tinta); color: #fff; }
+        .marcas p.intro { color: rgba(255,255,255,.72); }
+        .marcas .etiqueta { color: var(--amarillo); }
+        .formatos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 40px; }
+        .formato { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 24px; padding: 24px; }
+        .formato h3 { font-size: 22px; margin: 14px 0 6px; }
+        .formato p { color: rgba(255,255,255,.72); font-size: 15px; margin: 0; }
+        .maqueta { height: 140px; border-radius: 16px; position: relative; overflow: hidden; background: rgba(255,255,255,.08); }
+        .maqueta .cartel { position: absolute; inset: 12px; border-radius: 12px; background: linear-gradient(120deg, #f2473a, #8b4bdb); padding: 12px; display: flex; flex-direction: column; justify-content: flex-end; }
+        .maqueta .sello { position: absolute; top: 10px; left: 10px; font-size: 9px; font-weight: 700; background: rgba(0,0,0,.45); padding: 3px 8px; border-radius: 99px; }
+        .maqueta .fila { position: absolute; left: 12px; right: 12px; bottom: 14px; display: flex; gap: 8px; }
+        .maqueta .fila div { flex: 1; aspect-ratio: 2/3; border-radius: 6px; }
+        .maqueta .boton-mini { display: inline-block; margin: 4px 6px; padding: 8px 12px; border-radius: 99px; border: 1px solid rgba(255,255,255,.35); font-size: 11px; font-weight: 600; }
+        .porque { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 40px; margin-top: 44px; }
+        .porque div { border-top: 1px solid rgba(255,255,255,.16); padding-top: 14px; }
+        .porque b { display: block; font-size: 17px; margin-bottom: 4px; }
+        .porque span { color: rgba(255,255,255,.72); font-size: 15px; }
+        .marcas .acciones { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 40px; }
+        .marcas .boton { background: #fff; color: var(--tinta); }
+        .marcas .boton.claro { background: transparent; color: #fff; border-color: rgba(255,255,255,.35); }
+
+        footer { padding: 40px 0 60px; color: var(--gris); font-size: 14px; }
+        footer .ancho { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; }
+
+        @media (max-width: 860px) {
+            .heroe, .rejilla, .perfiles, .formatos, .porque { grid-template-columns: 1fr; }
+            .heroe { margin-top: 36px; }
+            section { padding: 60px 0; }
+            nav a.mini { display: none; }
+        }
+    </style>
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Palette",
+        "url": "https://lucass-05.github.io/MyPalette/",
+        "applicationCategory": "EntertainmentApplication",
+        "operatingSystem": "Web, Android, iOS, Windows, macOS",
+        "inLanguage": "es",
+        "description": "Registra y puntúa películas, series, videojuegos, discos, canciones y libros. Reseñas, listas, recomendaciones y un perfil personalizable.",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" }
+    }
+    </script>
+</head>
+<body>
+
+<header class="portada" id="inicio">
+    <div class="fondo mancha" style="width:520px;height:520px;background:#ffe3a3;right:-160px;top:-140px"></div>
+    <div class="fondo mancha b" style="width:260px;height:260px;background:#d9e3ff;right:360px;top:420px"></div>
+    <div class="ancho">
+        <nav>
+            <img src="logo.png" alt="">
+            <span class="nombre">Palette</span>
+            <span class="espacio"></span>
+            <a class="mini" href="#funciones">Qué es</a>
+            <a class="mini" href="#perfiles">Perfiles</a>
+            <a class="mini" href="#marcas">Para marcas</a>
+            <a class="boton" style="margin-left:18px;padding:10px 18px" href="../?utm_source=sobre&amp;utm_medium=web">Abrir Palette</a>
+        </nav>
+
+        <div class="heroe">
+            <div>
+                <h1>Todo lo que ves, juegas, lees y escuchas, en tu paleta.</h1>
+                <p class="sub">Registra y puntúa pelis, series, videojuegos, discos, canciones y libros. Escribe reseñas, descubre qué ver después y monta un perfil que hable de ti.</p>
+                <div class="acciones">
+                    <a class="boton azul" href="../?utm_source=sobre&amp;utm_medium=web&amp;utm_campaign=heroe">Empieza gratis</a>
+                    <a class="boton claro" href="#funciones">Ver qué hace</a>
+                </div>
+                <p class="nota">Gratis · funciona en el navegador, Android, iPhone y ordenador</p>
+            </div>
+            <div>
+                <div class="movil perfil">
+                    <div class="banner"></div>
+                    <div class="avatar mancha">L</div>
+                    <div class="cuerpo">
+                        <div class="nom">Lucía Ortega</div>
+                        <div class="user">@lucia.pinta</div>
+                        <div class="bio">Anime los domingos, JRPGs en invierno y discos enteros sin saltar canciones.</div>
+                        <div class="chips"><span class="chip on">Paleta</span><span class="chip">Favoritos</span><span class="chip">Diario</span><span class="chip">Pendientes</span><span class="chip">+</span></div>
+                        <div class="muro">
+                            <div class="pieza"><div class="forma mancha" style="background:var(--azul)">Frieren</div><div class="tit">Frieren</div><div class="estrellas">★★★★★</div></div>
+                            <div class="pieza"><div class="forma mancha b" style="background:var(--verde)">Persona 5</div><div class="tit">Persona 5 Royal</div><div class="estrellas">★★★★★</div></div>
+                            <div class="pieza"><div class="forma mancha c" style="background:var(--amarillo)">Blonde</div><div class="tit">Blonde</div><div class="estrellas">★★★★½</div></div>
+                            <div class="pieza"><div class="forma mancha b" style="background:var(--rojo)">Perfect Days</div><div class="tit">Perfect Days</div><div class="estrellas">★★★★★</div></div>
+                            <div class="pieza"><div class="forma mancha" style="background:var(--rosa)">El nombre del viento</div><div class="tit">El nombre del viento</div><div class="estrellas">★★★★</div></div>
+                            <div class="pieza"><div class="forma mancha c" style="background:var(--violeta)">Nights</div><div class="tit">Nights</div><div class="estrellas">★★★★★</div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<section class="funciones" id="funciones">
+    <div class="ancho">
+        <span class="etiqueta">Qué puedes hacer</span>
+        <h2>Una sola app para todo lo que te gusta.</h2>
+        <p class="intro">Hasta ahora necesitabas una app para pelis, otra para juegos y otra para libros. En Palette va todo junto, y tu perfil lo cuenta de un vistazo.</p>
+        <div class="rejilla">
+            <div class="tarjeta"><div class="punto mancha" style="background:var(--rojo)"></div><h3>Registra y puntúa</h3><p>Pelis, series, juegos, discos, canciones y libros, con datos de TMDB, IGDB, iTunes y Open Library. Estrellas, reseña y listo.</p></div>
+            <div class="tarjeta"><div class="punto mancha b" style="background:var(--azul)"></div><h3>Descubre qué ver</h3><p>Recomendaciones a partir de tus últimas reseñas, lo más visto de la semana y series en emisión parecidas a las tuyas.</p></div>
+            <div class="tarjeta"><div class="punto mancha c" style="background:var(--verde)"></div><h3>Dónde verlo</h3><p>Cada peli y serie te dice en qué plataformas está ahora mismo: suscripción, alquiler o gratis.</p></div>
+            <div class="tarjeta"><div class="punto mancha" style="background:var(--amarillo)"></div><h3>Con tus amigos</h3><p>Sus reseñas en tu inicio, historias de lo último que han visto, me gusta, comentarios, mensajes y grupos.</p></div>
+            <div class="tarjeta"><div class="punto mancha b" style="background:var(--violeta)"></div><h3>Un perfil a tu manera</h3><p>Bloques de favoritos, diario, listas y texto; portada, colores y manchas de pintura o recuadros. Tú decides qué se ve.</p></div>
+            <div class="tarjeta"><div class="punto mancha c" style="background:var(--rosa)"></div><h3>Compártelo</h3><p>Convierte una reseña o tu perfil en una imagen lista para tus historias de Instagram, TikTok o WhatsApp.</p></div>
+        </div>
+    </div>
+</section>
+
+<section id="perfiles">
+    <div class="ancho">
+        <span class="etiqueta">Perfiles</span>
+        <h2>Cada perfil es una paleta distinta.</h2>
+        <p class="intro">Elige colores, forma de las portadas y qué bloques enseñar. Así podrían verse tres perfiles muy diferentes.</p>
+        <div class="perfiles">
+            <div class="ejemplo" style="background:#fff3d6">
+                <div class="cab"><div class="av mancha" style="background:var(--rojo)">D</div><div><div class="nom">Dani Ferrer</div><div class="user">@dani.cine · cine de autor</div></div></div>
+                <p class="texto">“Si dura más de tres horas, mejor.”</p>
+                <div class="muro">
+                    <div class="pieza"><div class="forma recuadro" style="background:var(--rojo);aspect-ratio:2/3">Aftersun</div></div>
+                    <div class="pieza"><div class="forma recuadro" style="background:#c2410c;aspect-ratio:2/3">Past Lives</div></div>
+                    <div class="pieza"><div class="forma recuadro" style="background:#7c2d12;aspect-ratio:2/3">Drive My Car</div></div>
+                </div>
+            </div>
+            <div class="ejemplo oscuro" style="background:#1d1b3a">
+                <div class="cab"><div class="av mancha b" style="background:var(--violeta)">M</div><div><div class="nom">Marta Lee</div><div class="user">@marta.lee · anime y juegos</div></div></div>
+                <p class="texto">Diario de esta semana: 4 capítulos, 2 jefes finales.</p>
+                <div class="muro">
+                    <div class="pieza"><div class="forma mancha" style="background:var(--azul)">Frieren</div></div>
+                    <div class="pieza"><div class="forma mancha c" style="background:var(--violeta)">Dandadan</div></div>
+                    <div class="pieza"><div class="forma mancha b" style="background:var(--verde)">Elden Ring</div></div>
+                </div>
+            </div>
+            <div class="ejemplo" style="background:#ffe4ef">
+                <div class="cab"><div class="av mancha c" style="background:var(--rosa)">A</div><div><div class="nom">Alba Ruiz</div><div class="user">@alba.lee · fantasía</div></div></div>
+                <p class="texto">Lista: “Para leer en verano” · 12 libros</p>
+                <div class="muro">
+                    <div class="pieza"><div class="forma mancha b" style="background:var(--rosa)">Babel</div></div>
+                    <div class="pieza"><div class="forma mancha" style="background:#be185d">Circe</div></div>
+                    <div class="pieza"><div class="forma mancha c" style="background:var(--amarillo)">Piranesi</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="marcas" id="marcas">
+    <div class="ancho">
+        <span class="etiqueta">Para marcas, productoras y plataformas</span>
+        <h2>Llega a quien ya sabe lo que le gusta.</h2>
+        <p class="intro">En Palette cada persona puntúa lo que ve, juega, lee y escucha. Eso permite enseñar un estreno a quien de verdad le puede interesar, sin anuncios que molesten.</p>
+
+        <div class="formatos">
+            <div class="formato">
+                <div class="maqueta"><div class="cartel"><span class="sello">Patrocinado</span><span class="serif" style="font-size:18px">Tu estreno</span><span style="font-size:11px;opacity:.85">En cines el 12 de diciembre</span></div></div>
+                <h3>Cartel destacado</h3>
+                <p>Lo primero que se ve en Descubrir: imagen grande, título y botón al tráiler o a la entrada.</p>
+            </div>
+            <div class="formato">
+                <div class="maqueta"><span class="sello">Patrocinado</span><div class="fila"><div style="background:var(--azul)"></div><div style="background:var(--violeta)"></div><div style="background:var(--rojo)"></div><div style="background:var(--amarillo)"></div></div></div>
+                <h3>Fila patrocinada</h3>
+                <p>Una fila de tu catálogo entre las recomendaciones personales. Cada portada abre su ficha con dónde verla.</p>
+            </div>
+            <div class="formato">
+                <div class="maqueta" style="display:flex;flex-wrap:wrap;align-content:center;justify-content:center"><span class="boton-mini">Ver en tu plataforma</span><span class="boton-mini">Escuchar</span><span class="boton-mini">Comprar</span></div>
+                <h3>Enlaces en la ficha</h3>
+                <p>Botones directos a tu plataforma o tienda desde la ficha de cada contenido, en el momento en que alguien decide qué ver.</p>
+            </div>
+        </div>
+
+        <div class="porque">
+            <div><b>Gustos declarados, no adivinados</b><span>Notas de 0,5 a 5 estrellas y reseñas en seis tipos de contenido.</span></div>
+            <div><b>Siempre marcado y sin interrumpir</b><span>Nada de ventanas emergentes ni vídeos que saltan solos: el anuncio es parte de Descubrir.</span></div>
+            <div><b>Resultados medibles</b><span>Impresiones, personas alcanzadas, clics y porcentaje de clics de cada campaña.</span></div>
+            <div><b>En todas las pantallas</b><span>Web, Android, iPhone y ordenador, con el mismo formato.</span></div>
+        </div>
+
+        <div class="acciones">
+            <a class="boton" href="../?demo&amp;utm_source=sobre&amp;utm_campaign=demo_marcas">Ver la demostración</a>
+            <a class="boton claro" href="mailto:lucasuar@ucm.es?subject=Anunciarse%20en%20Palette">Hablemos</a>
+        </div>
+    </div>
+</section>
+
+<footer>
+    <div class="ancho">
+        <img src="logo.png" alt="" width="24" height="24">
+        <span class="serif" style="font-size:18px;color:var(--tinta)">Palette</span>
+        <span>Datos de TMDB, IGDB, iTunes, Open Library y JustWatch.</span>
+        <span style="flex:1"></span>
+        <a href="../?utm_source=sobre&amp;utm_medium=web&amp;utm_campaign=pie">Abrir la app</a>
+    </div>
+</footer>
+
+</body>
+</html>

@@ -30,6 +30,9 @@ fun fechaIso(at: Long): String {
     return "$year-${mes.toString().padStart(2, '0')}-${dia.toString().padStart(2, '0')}"
 }
 
+/** el año de una fecha (2026). */
+fun anioDe(at: Long): Int = fechaCivil(at).first.toInt()
+
 // año, mes (1-12) y dia
 private fun fechaCivil(at: Long): Triple<Long, Int, Int> {
     val z = at.floorDiv(DAY) + 719468

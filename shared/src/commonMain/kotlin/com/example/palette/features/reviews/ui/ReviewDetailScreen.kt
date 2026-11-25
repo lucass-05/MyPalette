@@ -18,6 +18,9 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.SpanStyle
@@ -41,12 +44,15 @@ import com.example.palette.core.ui.Pigment
 import com.example.palette.core.ui.PillButton
 import com.example.palette.core.ui.PlainField
 import com.example.palette.core.ui.Stars
+import com.example.palette.core.ui.compartirImagenDisponible
 import com.example.palette.core.ui.subtitulo
 import com.example.palette.core.ui.titular
 import com.example.palette.core.ui.verbo
 import com.example.palette.core.util.fechaTexto
 import com.example.palette.core.util.haceCuanto
 import com.example.palette.di.LocalAppContainer
+import com.example.palette.features.compartir.ui.CompartirSheet
+import com.example.palette.features.compartir.ui.TarjetaResena
 import com.example.palette.features.reviews.domain.model.Comentario
 import com.example.palette.features.reviews.domain.model.Resena
 import com.example.palette.features.reviews.presentation.ReviewDetailAction
@@ -67,6 +73,8 @@ fun ReviewDetailScreenRoot(
     val container = LocalAppContainer.current
     val viewModel = viewModel { ReviewDetailViewModel(logId, container.reviewsRepository) }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // la hoja de compartir como imagen es solo de esta pantalla: vive aqui
+    var compartiendo by remember { mutableStateOf(false) }
 
     ReviewDetailScreen(
         state = state,
@@ -78,11 +86,18 @@ fun ReviewDetailScreenRoot(
                 is ReviewDetailAction.OnEditarClicked -> onEdit(action.media)
                 is ReviewDetailAction.OnSendClicked -> onSend(action.log)
                 is ReviewDetailAction.OnMenuClicked -> onLogMenu(action.log)
+                ReviewDetailAction.OnCompartirClicked -> compartiendo = true
                 else -> viewModel.onAction(action)
             }
         },
         modifier = modifier,
     )
+    val resena = state.resena
+    if (compartiendo && resena != null) {
+        CompartirSheet("resena", "palette-${resena.log.media.title.take(30)}", onClose = { compartiendo = false }) {
+            TarjetaResena(resena.log, resena.autor)
+        }
+    }
 }
 
 /** una reseña entera: la nota, el texto, los me gusta y los comentarios de la gente. */
@@ -92,6 +107,7 @@ fun ReviewDetailScreen(state: ReviewDetailState, onAction: (ReviewDetailAction) 
 
     Column(modifier.navigationBarsPadding().imePadding()) {
         BackBar("Reseña", { onAction(ReviewDetailAction.OnBackClicked) }) {
+            if (resena != null && compartirImagenDisponible) IconAction(Icons.Share, "Compartir como imagen", { onAction(ReviewDetailAction.OnCompartirClicked) })
             if (resena != null) IconAction(Icons.Send, "Enviar a un amigo", { onAction(ReviewDetailAction.OnSendClicked(resena.log)) })
             // en una reseña mia, el menu de siempre: fijar, ocultar, editar, borrar...
             if (resena?.propia == true) IconAction(Icons.More, "Más opciones", { onAction(ReviewDetailAction.OnMenuClicked(resena.log)) })
