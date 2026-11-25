@@ -37,6 +37,7 @@ import com.example.palette.core.ui.Pigment
 import com.example.palette.core.util.DAY
 import com.example.palette.features.anuncios.data.repository.AnunciosRepositoryImpl
 import com.example.palette.features.anuncios.domain.usecases.ElegirAnunciosUseCase
+import com.example.palette.features.catalog.domain.model.Estreno
 import com.example.palette.features.catalog.domain.model.FilaRecomendada
 import com.example.palette.features.catalog.domain.model.TipoDeFila
 import com.example.palette.features.catalog.presentation.DetailState
@@ -117,7 +118,7 @@ class CapturasTest {
             FilaRecomendada("Lo más visto esta semana", null, d.contenidos.reversed(), TipoDeFila.TENDENCIAS),
         )
         val anuncios = ElegirAnunciosUseCase(AnunciosRepositoryImpl())(d.contenidos)
-        capturar("descubrir_demo", ancho = 820.dp) { DiscoverScreen(DiscoverState(filas, cargando = false, hayFavoritos = true, anuncios = anuncios), {}) }
+        capturar("descubrir_demo", ancho = 820.dp) { DiscoverScreen(DiscoverState(filas, cargando = false, hayFavoritos = true, anuncios = anuncios, estrenos = d.contenidos.take(5).map { Estreno(it.copy(overview = "Una sinopsis corta del estreno para ver cómo queda en dos líneas."), "https://www.youtube.com") }), {}) }
         capturar("ficha_demo", ancho = 820.dp) { DetailScreen(d.ficha.copy(media = d.contenidos[3]), {}) }
         Monetizacion.forzarDemostracion = false
 

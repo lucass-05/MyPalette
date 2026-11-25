@@ -27,7 +27,6 @@ import com.example.palette.core.ui.ScreenTitle
 import com.example.palette.core.ui.SectionTitle
 import com.example.palette.core.ui.icon
 import com.example.palette.di.LocalAppContainer
-import com.example.palette.features.anuncios.ui.CartelPatrocinado
 import com.example.palette.features.anuncios.ui.FilaPatrocinada
 import com.example.palette.features.catalog.domain.model.FilaRecomendada
 import com.example.palette.features.catalog.presentation.DiscoverAction
@@ -42,7 +41,9 @@ import com.example.palette.navigation.BarSpace
 fun DiscoverScreenRoot(onOpenMedia: (Media) -> Unit, onRegistrar: () -> Unit, modifier: Modifier = Modifier) {
     val container = LocalAppContainer.current
     val viewModel = viewModel {
-        DiscoverViewModel(container.getRecommendationsUseCase, container.libraryRepository, container.elegirAnunciosUseCase, container.metricas)
+        DiscoverViewModel(
+            container.getRecommendationsUseCase, container.libraryRepository, container.elegirAnunciosUseCase, container.getEstrenosUseCase, container.metricas,
+        )
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val abrirEnlace = LocalUriHandler.current
@@ -54,6 +55,7 @@ fun DiscoverScreenRoot(onOpenMedia: (Media) -> Unit, onRegistrar: () -> Unit, mo
                 is DiscoverAction.OnMediaClicked -> onOpenMedia(action.media)
                 DiscoverAction.OnRegistrarClicked -> onRegistrar()
                 is DiscoverAction.OnAnuncioClicked -> abrirEnlace.openUri(action.anuncio.enlace)
+                is DiscoverAction.OnTrailerClicked -> action.estreno.trailer?.let { abrirEnlace.openUri(it) }
                 else -> {}
             }
             viewModel.onAction(action)
@@ -66,6 +68,13 @@ fun DiscoverScreenRoot(onOpenMedia: (Media) -> Unit, onRegistrar: () -> Unit, mo
 fun DiscoverScreen(state: DiscoverState, onAction: (DiscoverAction) -> Unit, modifier: Modifier = Modifier) {
     LazyColumn(modifier, contentPadding = PaddingValues(bottom = BarSpace)) {
         item { ScreenTitle("Descubrir") }
+        // arriba, los estrenos del mes (y, si se contrata, una diapositiva patrocinada al principio)
+        if (state.estrenos.isNotEmpty() || state.anuncios.cartel != null) {
+            item(key = "estrenos") {
+                Spacer(Modifier.height(6.dp))
+                CarruselDeEstrenos(state.estrenos, state.anuncios.cartel, onAction)
+            }
+        }
         when {
             state.cargando && state.filas.isEmpty() -> item {
                 Box(Modifier.fillMaxWidth().padding(top = 80.dp), contentAlignment = Alignment.Center) {
@@ -84,13 +93,6 @@ fun DiscoverScreen(state: DiscoverState, onAction: (DiscoverAction) -> Unit, mod
                 }
             }
             else -> {
-                // hueco 1 de publicidad: el cartel, arriba del todo
-                state.anuncios.cartel?.let { cartel ->
-                    item(key = "cartel") {
-                        Spacer(Modifier.height(8.dp))
-                        CartelPatrocinado(cartel, { onAction(DiscoverAction.OnAnuncioVisto(it)) }, { onAction(DiscoverAction.OnAnuncioClicked(it)) })
-                    }
-                }
                 state.filas.forEachIndexed { indice, fila ->
                     item { DiscoverRow(fila, indice, onAction) }
                     // hueco 2 de publicidad: una fila patrocinada despues de la primera recomendacion

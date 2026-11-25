@@ -8,8 +8,10 @@ import com.example.palette.core.model.Media
 import com.example.palette.features.anuncios.domain.model.Anuncio
 import com.example.palette.features.anuncios.domain.model.AnunciosDeDescubrir
 import com.example.palette.features.anuncios.domain.usecases.ElegirAnunciosUseCase
+import com.example.palette.features.catalog.domain.model.Estreno
 import com.example.palette.features.catalog.domain.model.FilaRecomendada
 import com.example.palette.features.catalog.domain.model.TipoDeFila
+import com.example.palette.features.catalog.domain.usecases.GetEstrenosUseCase
 import com.example.palette.features.catalog.domain.usecases.GetRecommendationsUseCase
 import com.example.palette.features.library.domain.repository.LibraryRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +28,8 @@ data class DiscoverState(
     val hayFavoritos: Boolean = false,
     // los huecos de publicidad (vacios mientras los anuncios esten apagados)
     val anuncios: AnunciosDeDescubrir = AnunciosDeDescubrir(),
+    // el carrusel de arriba: lo mas visto de lo estrenado este mes
+    val estrenos: List<Estreno> = emptyList(),
 )
 
 sealed interface DiscoverAction {
@@ -34,12 +38,14 @@ sealed interface DiscoverAction {
     data object OnRegistrarClicked : DiscoverAction
     data class OnAnuncioVisto(val anuncio: Anuncio) : DiscoverAction
     data class OnAnuncioClicked(val anuncio: Anuncio) : DiscoverAction
+    data class OnTrailerClicked(val estreno: Estreno) : DiscoverAction
 }
 
 class DiscoverViewModel(
     private val getRecommendationsUseCase: GetRecommendationsUseCase,
     private val libraryRepository: LibraryRepository,
     private val elegirAnunciosUseCase: ElegirAnunciosUseCase,
+    private val getEstrenosUseCase: GetEstrenosUseCase,
     private val metricas: Metricas,
 ) : ViewModel() {
 
@@ -51,6 +57,11 @@ class DiscoverViewModel(
     private var clave: String? = null
 
     init {
+        // los estrenos son iguales para todos: se piden una vez, a la vez que las recomendaciones
+        viewModelScope.launch {
+            val estrenos = getEstrenosUseCase()
+            _state.update { it.copy(estrenos = estrenos) }
+        }
         viewModelScope.launch {
             // collectLatest: si la biblioteca cambia mientras se estaban calculando recomendaciones,
             // se cancela ese calculo y se empieza con los datos nuevos
@@ -84,6 +95,7 @@ class DiscoverViewModel(
             )
             is DiscoverAction.OnAnuncioVisto -> metricas.registrar(Evento.ANUNCIO_VISTO, datosDe(action.anuncio))
             is DiscoverAction.OnAnuncioClicked -> metricas.registrar(Evento.ANUNCIO_CLIC, datosDe(action.anuncio))
+            is DiscoverAction.OnTrailerClicked -> metricas.registrar(Evento.TRAILER, mapOf("tipo" to action.estreno.media.type.name))
             DiscoverAction.OnRegistrarClicked -> {}
         }
     }

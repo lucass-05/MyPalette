@@ -262,6 +262,11 @@ object Icons {
         "M9.969 17.031 21.378 5.624a1 1 0 0 0-3.002-3.002L6.967 14.031",
     )
 
+    val Play: ImageVector get() = icon(
+        "play",
+        "M6 3 20 12 6 21Z",
+    )
+
     val ExternalLink: ImageVector get() = icon(
         "external-link",
         "M15 3h6v6",

@@ -11,6 +11,7 @@ import com.example.palette.core.network.json
 import com.example.palette.core.network.pedirTexto
 import com.example.palette.core.util.DAY
 import com.example.palette.core.util.fechaIso
+import com.example.palette.features.catalog.domain.model.Estreno
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -145,6 +146,48 @@ internal class Tmdb(private val key: String) {
             .mapNotNull { it.value.toMedia("tv") }
     }
 
+    /**
+     * los estrenos del ultimo mes que mas se estan viendo: pelis estrenadas en españa y series nuevas,
+     * mezcladas por popularidad. solo los que tienen imagen ancha y sinopsis, que es lo que enseña el carrusel.
+     */
+    suspend fun estrenos(hoy: Long, cuantos: Int = 5): List<Estreno> = coroutineScope {
+        val desde = fechaIso(hoy - 35 * DAY)
+        val hasta = fechaIso(hoy)
+        suspend fun lista(ruta: String, filtro: Map<String, String>) =
+            runCatching { json.decodeFromString(Page.serializer(), llamarFuncion(ruta, filtro + ("sort_by" to "popularity.desc"))).results }.getOrDefault(emptyList())
+        val pelis = async {
+            lista("discover/movie", mapOf("primary_release_date.gte" to desde, "primary_release_date.lte" to hasta, "region" to "ES", "with_release_type" to "2|3"))
+                .map { it to "movie" }
+        }
+        val series = async { lista("discover/tv", mapOf("first_air_date.gte" to desde, "first_air_date.lte" to hasta)).map { it to "tv" } }
+        val elegidos = (pelis.await().take(8) + series.await().take(4))
+            .filter { (item, _) -> item.backdropPath != null && !item.overview.isNullOrBlank() }
+            .sortedByDescending { (item, _) -> item.popularidad ?: 0.0 }
+            .take(cuantos)
+        // el trailer de cada uno, a la vez: en español si lo hay, si no en ingles
+        elegidos.map { (item, clase) ->
+            async {
+                val media = item.toMedia(clase) ?: return@async null
+                Estreno(media.copy(backdropUrl = item.backdropPath?.let { "https://image.tmdb.org/t/p/w1280$it" }), trailer(clase, item.id))
+            }
+        }.awaitAll().filterNotNull()
+    }
+
+    private suspend fun trailer(clase: String, id: Long): String? = runCatching {
+        val videos = json.decodeFromString(Videos.serializer(), llamarFuncion("$clase/$id/videos", mapOf("include_video_language" to "es,en"))).results
+            .filter { it.site == "YouTube" && it.key.isNotBlank() }
+        val mejor = videos.firstOrNull { it.type == "Trailer" && it.idioma == "es" }
+            ?: videos.firstOrNull { it.type == "Trailer" }
+            ?: videos.firstOrNull { it.type == "Teaser" }
+        mejor?.let { "https://www.youtube.com/watch?v=${it.key}" }
+    }.getOrNull()
+
+    @Serializable
+    private class Videos(val results: List<Video> = emptyList())
+
+    @Serializable
+    private class Video(val key: String = "", val site: String = "", val type: String = "", @SerialName("iso_639_1") val idioma: String? = null)
+
     private fun split(id: String): Pair<String, String> {
         val partes = id.split(":")
         return partes[1] to partes[2]
@@ -185,6 +228,7 @@ internal class Tmdb(private val key: String) {
         @SerialName("first_air_date") val firstAirDate: String? = null,
         @SerialName("vote_average") val voteAverage: Double? = null,
         @SerialName("vote_count") val voteCount: Int? = null,
+        @SerialName("popularity") val popularidad: Double? = null,
         // en las listas los generos vienen solo como numeros; en la ficha, como Named con id y nombre
         @SerialName("genre_ids") val genreIds: List<Int> = emptyList(),
         @SerialName("original_language") val idioma: String? = null,

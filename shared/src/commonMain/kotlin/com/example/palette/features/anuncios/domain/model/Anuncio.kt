@@ -4,7 +4,7 @@ import com.example.palette.core.model.Media
 
 /** donde sale un anuncio dentro de descubrir. */
 enum class Hueco {
-    /** el cartel grande de arriba del todo (billboard): un estreno, con imagen y boton. */
+    /** una diapositiva del carrusel de estrenos de arriba (billboard), la primera, marcada como patrocinada. */
     CARTEL,
 
     /** una fila de portadas como las de las recomendaciones, pero de una marca. */

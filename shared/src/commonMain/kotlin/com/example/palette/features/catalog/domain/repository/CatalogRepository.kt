@@ -3,6 +3,7 @@ package com.example.palette.features.catalog.domain.repository
 import com.example.palette.core.model.Extras
 import com.example.palette.core.model.Media
 import com.example.palette.core.model.MediaType
+import com.example.palette.features.catalog.domain.model.Estreno
 
 // la interfaz vive en domain y la implementa data (CatalogRepositoryImpl).
 // asi el resto de la app pide "busca esto" sin saber si detras hay tmdb, igdb u otra cosa:
@@ -21,6 +22,9 @@ interface CatalogRepository {
     suspend fun similar(media: Media): List<Media>
 
     suspend fun tendencias(): List<Media>
+
+    /** los estrenos del mes que estan en tendencia, con su trailer. */
+    suspend fun estrenos(): List<Estreno>
 
     /** series en emision, empezando por las mas parecidas a [mias]. */
     suspend fun enEmision(mias: List<Media>): List<Media>

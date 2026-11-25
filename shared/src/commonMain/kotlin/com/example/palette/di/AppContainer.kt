@@ -13,6 +13,7 @@ import com.example.palette.features.auth.data.repository.AuthRepositoryImpl
 import com.example.palette.features.auth.domain.repository.AuthRepository
 import com.example.palette.features.catalog.data.repository.CatalogRepositoryImpl
 import com.example.palette.features.catalog.domain.repository.CatalogRepository
+import com.example.palette.features.catalog.domain.usecases.GetEstrenosUseCase
 import com.example.palette.features.catalog.domain.usecases.GetMediaDetailUseCase
 import com.example.palette.features.catalog.domain.usecases.GetRecommendationsUseCase
 import com.example.palette.features.catalog.domain.usecases.SearchMediaUseCase
@@ -60,6 +61,7 @@ interface AppContainer {
     val searchMediaUseCase: SearchMediaUseCase
     val getMediaDetailUseCase: GetMediaDetailUseCase
     val getRecommendationsUseCase: GetRecommendationsUseCase
+    val getEstrenosUseCase: GetEstrenosUseCase
     val searchPeopleUseCase: SearchPeopleUseCase
     val sortProfileLogsUseCase: SortProfileLogsUseCase
     val prepararEjemplosUseCase: PrepararEjemplosUseCase
@@ -91,6 +93,7 @@ class DefaultAppContainer : AppContainer {
     override val searchMediaUseCase: SearchMediaUseCase by lazy { SearchMediaUseCase(catalogRepository) }
     override val getMediaDetailUseCase: GetMediaDetailUseCase by lazy { GetMediaDetailUseCase(catalogRepository) }
     override val getRecommendationsUseCase: GetRecommendationsUseCase by lazy { GetRecommendationsUseCase(catalogRepository) }
+    override val getEstrenosUseCase: GetEstrenosUseCase by lazy { GetEstrenosUseCase(catalogRepository) }
     override val searchPeopleUseCase: SearchPeopleUseCase by lazy { SearchPeopleUseCase() }
     override val sortProfileLogsUseCase: SortProfileLogsUseCase by lazy { SortProfileLogsUseCase() }
     override val prepararEjemplosUseCase: PrepararEjemplosUseCase by lazy { PrepararEjemplosUseCase(sortProfileLogsUseCase) }

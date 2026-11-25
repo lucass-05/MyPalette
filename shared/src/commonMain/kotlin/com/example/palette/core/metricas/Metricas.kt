@@ -44,4 +44,5 @@ object Evento {
     const val PERSONALIZAR = "personalizar_perfil"
     const val TUTORIAL = "tutorial"
     const val COMPARTIR = "compartir_imagen"
+    const val TRAILER = "ver_trailer"
 }

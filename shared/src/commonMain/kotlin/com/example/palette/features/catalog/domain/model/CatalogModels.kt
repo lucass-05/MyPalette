@@ -11,3 +11,6 @@ data class FilaRecomendada(val titulo: String, val origen: Media?, val contenido
 
 /** de donde sale una fila de descubrir. sirve para las metricas: que clase de fila funciona mejor. */
 enum class TipoDeFila { PORQUE, TENDENCIAS, EMISION }
+
+/** un estreno del mes para el carrusel de arriba de descubrir: el contenido y, si lo hay, su trailer. */
+data class Estreno(val media: Media, val trailer: String? = null)

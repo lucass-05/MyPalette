@@ -11,8 +11,8 @@ import com.example.palette.features.anuncios.domain.repository.AnunciosRepositor
  * que anuncios salen en descubrir.
  * - con los anuncios apagados, ninguno.
  * - si hay contratados, el primero de cada hueco.
- * - en modo demostracion y sin contratados, unos de ejemplo hechos con contenidos que ya se ven en
- *   descubrir, para que se vea exactamente como quedaria.
+ * - en modo demostracion y sin contratados, una fila de ejemplo hecha con contenidos que ya se ven en
+ *   descubrir. el cartel no tiene ejemplo: el carrusel de estrenos ya enseña como se veria.
  */
 class ElegirAnunciosUseCase(private val anunciosRepository: AnunciosRepository) {
 
@@ -22,24 +22,7 @@ class ElegirAnunciosUseCase(private val anunciosRepository: AnunciosRepository) 
         val cartel = contratados.firstOrNull { it.hueco == Hueco.CARTEL }
         val fila = contratados.firstOrNull { it.hueco == Hueco.FILA }
         if (!Monetizacion.demostracion) return AnunciosDeDescubrir(cartel, fila)
-        return AnunciosDeDescubrir(cartel ?: cartelDeEjemplo(populares), fila ?: filaDeEjemplo(populares))
-    }
-
-    // el estreno del ejemplo es lo mas popular que tenga imagen ancha
-    private fun cartelDeEjemplo(populares: List<Media>): Anuncio? {
-        val estreno = populares.firstOrNull { it.backdropUrl != null } ?: populares.firstOrNull() ?: return null
-        return Anuncio(
-            id = "ejemplo-cartel",
-            hueco = Hueco.CARTEL,
-            anunciante = "Tu productora",
-            titulo = estreno.title,
-            texto = "Así se vería el estreno de una productora en lo alto de Descubrir.",
-            boton = "Ver tráiler",
-            enlace = estreno.link ?: "https://www.themoviedb.org",
-            imagenUrl = estreno.backdropUrl ?: estreno.imageUrl,
-            contenidos = listOf(estreno),
-            ejemplo = true,
-        )
+        return AnunciosDeDescubrir(cartel, fila ?: filaDeEjemplo(populares))
     }
 
     private fun filaDeEjemplo(populares: List<Media>): Anuncio? {

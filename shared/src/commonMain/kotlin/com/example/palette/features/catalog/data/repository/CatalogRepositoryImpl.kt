@@ -9,6 +9,7 @@ import com.example.palette.features.catalog.data.remote.Igdb
 import com.example.palette.features.catalog.data.remote.Itunes
 import com.example.palette.features.catalog.data.remote.OpenLibrary
 import com.example.palette.features.catalog.data.remote.Tmdb
+import com.example.palette.features.catalog.domain.model.Estreno
 import com.example.palette.features.catalog.domain.repository.CatalogRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
@@ -115,6 +116,8 @@ class CatalogRepositoryImpl : CatalogRepository {
     }
 
     override suspend fun tendencias(): List<Media> = seguro { if (tmdb.ready) tmdb.tendencias() else emptyList() }
+
+    override suspend fun estrenos(): List<Estreno> = seguroO(emptyList()) { if (tmdb.ready) tmdb.estrenos(ahora()) else emptyList() }
 
     override suspend fun enEmision(mias: List<Media>): List<Media> = seguro { if (tmdb.ready) tmdb.enEmision(mias, ahora()) else emptyList() }
 
