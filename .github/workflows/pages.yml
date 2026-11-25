@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.despliegue.outputs.page_url }}
+      url: ${{ steps.despliegue.outputs.page_url || steps.intento.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -55,5 +55,17 @@ jobs:
         with:
           path: sitio
 
+      # a veces github tarda unos segundos en ver el paquete recien subido y el despliegue falla
+      # con "no artifacts named github-pages": se espera un poco y, si aun asi falla, se reintenta
+      - run: sleep 15
+
+      - id: intento
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - if: steps.intento.outcome == 'failure'
+        run: sleep 45
+
       - id: despliegue
+        if: steps.intento.outcome == 'failure'
         uses: actions/deploy-pages@v4
