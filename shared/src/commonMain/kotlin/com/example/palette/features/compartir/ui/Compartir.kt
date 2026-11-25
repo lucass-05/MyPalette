@@ -204,7 +204,7 @@ fun TarjetaPerfil(user: User, logs: List<LogEntry>, favoritos: List<LogEntry>) {
                 )
             }
             Text(resumen, color = ink, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
-            Cuadricula(favoritos.take(6).map { it.pieza() }, blob = user.layout.favoritesBlob, ink = ink, onClick = {}, modifier = Modifier.padding(horizontal = 18.dp))
+            Cuadricula(favoritos.take(6).map { it.pieza() }, blob = user.layout.favoritesBlob, ink = ink, onClick = {}, modifier = Modifier.padding(horizontal = 34.dp))
             Spacer(Modifier.weight(1f))
             Text("Mi paleta en Palette · $DIRECCION", color = suave, fontSize = 11.sp)
         }
