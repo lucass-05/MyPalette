@@ -1,0 +1,28 @@
+name: probar-js
+on:
+  push:
+    branches: [prueba-js]
+jobs:
+  probar:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          cat > p.js <<'JS'
+          const puppeteer = require('puppeteer');
+          (async () => {
+            const b = await puppeteer.launch({args: ['--no-sandbox']});
+            for (const url of ['https://lucass-05.github.io/MyPalette/', 'https://lucass-05.github.io/MyPalette/js/']) {
+              const p = await b.newPage();
+              await p.setViewport({width: 390, height: 844});
+              p.on('pageerror', e => console.log('ERROR', e.message.slice(0, 200)));
+              await p.goto(url + '?v=' + Date.now(), {waitUntil: 'networkidle0', timeout: 90000});
+              await new Promise(r => setTimeout(r, 15000));
+              const info = await p.evaluate(() => ({url: location.href, shadow: !!document.body.shadowRoot, diag: getComputedStyle(document.getElementById('diagnostico')).display}));
+              console.log('INFO', JSON.stringify(info));
+              await p.close();
+            }
+            await b.close();
+          })();
+          JS
+          npm i puppeteer@23 >/dev/null 2>&1
+          node p.js
