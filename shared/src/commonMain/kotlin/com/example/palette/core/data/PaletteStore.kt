@@ -3,6 +3,9 @@ package com.example.palette.core.data
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.example.palette.core.metricas.Evento
+import com.example.palette.core.metricas.Metricas
+import com.example.palette.core.metricas.SinMetricas
 import com.example.palette.core.model.Cita
 import com.example.palette.core.model.Comment
 import com.example.palette.core.model.Group
@@ -57,7 +60,8 @@ enum class Stage { SIGNED_OUT, LOADING, NEEDS_PROFILE, READY }
  * las pantallas no la usan directamente: cada feature tiene su repositorio (carpeta data) que
  * lee de aqui y entrega los datos ya preparados para lo que esa feature necesita.
  */
-class PaletteStore {
+// metricas: aqui pasa todo lo que hace el usuario, asi que es el sitio mas comodo para apuntarlo
+class PaletteStore(private val metricas: Metricas = SinMetricas) {
 
     private val servidor = supabase
     private val ambito = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -124,6 +128,7 @@ class PaletteStore {
     suspend fun iniciarSesion(email: String, password: String): String? = intentar {
         servidor.iniciarSesion(email.trim(), password)
         conSesion = true
+        metricas.registrar(Evento.INICIAR_SESION)
         sincronizar()
         null
     }
@@ -131,6 +136,7 @@ class PaletteStore {
     suspend fun crearCuenta(email: String, password: String): String? = intentar {
         if (servidor.crearCuenta(email.trim(), password)) {
             conSesion = true
+            metricas.registrar(Evento.CREAR_CUENTA)
             sincronizar()
             null
         } else {
@@ -261,6 +267,7 @@ class PaletteStore {
     fun alternarSeguir(id: String) {
         val follow = id !in estado.following
         actualizar { it.copy(following = if (follow) it.following + id else it.following - id) }
+        if (follow) metricas.registrar(Evento.SEGUIR)
         subir { ponerSeguido(id, follow) }
     }
 
@@ -278,6 +285,10 @@ class PaletteStore {
         val entrada = existente?.copy(stars = stars, review = review.trim(), media = media)
             ?: LogEntry(nuevoId("l"), ME, media, stars, review.trim(), ahora())
         val estabaPendiente = enPendientes(media.id)
+        metricas.registrar(
+            Evento.REGISTRAR,
+            mapOf("tipo" to media.type.name, "estrellas" to stars.toString(), "con_resena" to review.isNotBlank().toString(), "nuevo" to (existente == null).toString(), "era_pendiente" to estabaPendiente.toString()),
+        )
         actualizar { s ->
             s.copy(
                 logs = listOf(entrada) + s.logs.filter { it.id != entrada.id },
@@ -312,6 +323,7 @@ class PaletteStore {
 
     fun alternarPendiente(media: Media) {
         val save = !enPendientes(media.id)
+        if (save) metricas.registrar(Evento.PENDIENTE, mapOf("tipo" to media.type.name))
         actualizar { s ->
             if (save) s.copy(watchlist = listOf(media) + s.watchlist)
             else s.copy(watchlist = s.watchlist.filter { it.id != media.id })
@@ -349,14 +361,17 @@ class PaletteStore {
         get() = amigos.filter { historiaDe(it.id).isNotEmpty() }
             .sortedWith(compareByDescending<User> { tieneHistoriaSinVer(it.id) }.thenByDescending { historiaDe(it.id).last().createdAt })
 
-    fun marcarHistoriaVista(userId: String, hasta: Long) = actualizar { s ->
-        if ((s.seenStories[userId] ?: 0) >= hasta) s else s.copy(seenStories = s.seenStories + (userId to hasta))
+    fun marcarHistoriaVista(userId: String, hasta: Long) {
+        if ((estado.seenStories[userId] ?: 0) >= hasta) return
+        metricas.registrar(Evento.VER_HISTORIA)
+        actualizar { s -> s.copy(seenStories = s.seenStories + (userId to hasta)) }
     }
 
     fun meGusta(logId: String) = logId in estado.liked
 
     fun alternarMeGusta(logId: String) {
         val like = logId !in estado.liked
+        if (like) metricas.registrar(Evento.ME_GUSTA)
         actualizar { s ->
             s.copy(
                 liked = if (like) s.liked + logId else s.liked - logId,
@@ -380,6 +395,7 @@ class PaletteStore {
         val limpio = text.trim().take(1000)
         if (limpio.isEmpty()) return
         val comment = Comment(nuevoId("c"), logId, ME, limpio, ahora())
+        metricas.registrar(Evento.COMENTAR)
         actualizar { s -> s.copy(comments = s.comments + comment) }
         subir { comentar(comment) }
     }
@@ -399,6 +415,7 @@ class PaletteStore {
 
     fun crearLista(name: String, kind: ListKind): MediaList {
         val list = MediaList(nuevoId("ls"), ME, name.trim().take(60), kind, createdAt = ahora())
+        metricas.registrar(Evento.CREAR_LISTA, mapOf("tipo" to kind.name))
         actualizar { s -> s.copy(lists = s.lists + list) }
         subir { guardarLista(list) }
         return list
@@ -421,6 +438,15 @@ class PaletteStore {
     /** guarda como se ve el perfil: bloques, paginas, color de fondo y si los pendientes son publicos. */
     fun guardarDiseno(layout: ProfileLayout, background: Long?, pendientesPublicos: Boolean) {
         val limpio = layout.copy(widgets = layout.widgets.map { w -> w.copy(items = w.items.map { it.copy(media = it.media.ligero()) }) })
+        // que bloques se usan y como: sirve para saber que vale la pena meter en una version de pago
+        metricas.registrar(
+            Evento.PERSONALIZAR,
+            mapOf(
+                "bloques" to layout.bloques.joinToString(",") { it.kind.name },
+                "manchas" to layout.bloques.count { it.blob }.toString(),
+                "fondo_propio" to (background != null).toString(),
+            ),
+        )
         actualizar { it.copy(me = it.me.copy(layout = limpio, background = background, watchlistPublic = pendientesPublicos)) }
         val profile = estado.me
         subir { guardarPerfil(profile) }
@@ -463,9 +489,19 @@ class PaletteStore {
     fun mensajesCon(userId: String): List<Message> =
         estado.messages.filter { it.groupId == null && (it.fromId == userId || it.toId == userId) }.sortedBy { it.sentAt }
 
+    // para las metricas: que clase de mensaje es, sin nada de lo que dice
+    private fun tipoDeMensaje(m: Message) = when {
+        m.story -> "respuesta_historia"
+        m.replyTo != null -> "respuesta"
+        m.log != null -> "resena"
+        m.media != null -> "contenido"
+        else -> "texto"
+    }
+
     fun enviar(toId: String, text: String = "", media: Media? = null, log: LogEntry? = null, replyTo: Cita? = null, story: Boolean = false) {
         if (text.isBlank() && media == null && log == null) return
         val message = Message(nuevoId("m"), ME, toId, text.trim(), media, log, ahora(), read = false, replyTo = replyTo, story = story)
+        metricas.registrar(Evento.MENSAJE, mapOf("tipo" to tipoDeMensaje(message), "grupo" to "false"))
         actualizar { s -> s.copy(messages = s.messages + message) }
         subir { enviarMensaje(message) }
     }
@@ -496,6 +532,7 @@ class PaletteStore {
     fun enviarAGrupo(groupId: String, text: String = "", media: Media? = null, log: LogEntry? = null, replyTo: Cita? = null) {
         if (text.isBlank() && media == null && log == null) return
         val message = Message(nuevoId("m"), ME, "", text.trim(), media, log, ahora(), groupId = groupId, replyTo = replyTo)
+        metricas.registrar(Evento.MENSAJE, mapOf("tipo" to tipoDeMensaje(message), "grupo" to "true"))
         actualizar { s -> s.copy(messages = s.messages + message, seenGroups = s.seenGroups + (groupId to message.sentAt)) }
         subir { enviarMensaje(message) }
     }

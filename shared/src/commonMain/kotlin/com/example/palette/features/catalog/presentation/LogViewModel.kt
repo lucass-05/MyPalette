@@ -2,6 +2,9 @@ package com.example.palette.features.catalog.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.palette.core.metricas.Evento
+import com.example.palette.core.metricas.Metricas
+import com.example.palette.core.metricas.SinMetricas
 import com.example.palette.core.model.Media
 import com.example.palette.core.model.MediaType
 import com.example.palette.features.catalog.domain.usecases.SearchMediaUseCase
@@ -33,6 +36,7 @@ sealed interface LogAction {
 class LogViewModel(
     private val searchMediaUseCase: SearchMediaUseCase,
     noDisponibles: Set<MediaType>,
+    private val metricas: Metricas = SinMetricas,
 ) : ViewModel() {
 
     // estado privado modificable y estado publico de solo lectura
@@ -71,6 +75,11 @@ class LogViewModel(
             delay(ESPERA)
             val resultados = searchMediaUseCase(actual.consulta, actual.tipos)
             _state.update { it.copy(resultados = resultados, buscando = false) }
+            // lo que mas se busca dice que contenidos interesan (y a que marcas les interesa anunciarse)
+            metricas.registrar(
+                Evento.BUSCAR,
+                mapOf("consulta" to actual.consulta.trim().lowercase().take(60), "tipos" to actual.tipos.joinToString(",") { it.name }, "resultados" to resultados.size.toString()),
+            )
         }
     }
 

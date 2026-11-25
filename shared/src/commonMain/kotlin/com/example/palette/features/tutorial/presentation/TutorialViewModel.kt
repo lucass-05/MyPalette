@@ -1,6 +1,8 @@
 package com.example.palette.features.tutorial.presentation
 
 import androidx.lifecycle.ViewModel
+import com.example.palette.core.metricas.Evento
+import com.example.palette.core.metricas.Metricas
 import com.example.palette.core.util.ahora
 import com.example.palette.features.tutorial.domain.model.Ejemplos
 import com.example.palette.features.tutorial.domain.repository.TutorialRepository
@@ -13,7 +15,8 @@ import kotlinx.coroutines.flow.asStateFlow
 data class TutorialState(val ejemplos: Ejemplos)
 
 sealed interface TutorialAction {
-    data object OnSaltarClicked : TutorialAction
+    // paso: en cual se salto. sirve para saber si el tutorial se hace largo
+    data class OnSaltarClicked(val paso: Int = -1) : TutorialAction
     data object OnEmpezarClicked : TutorialAction
     data object OnPersonalizarClicked : TutorialAction
 }
@@ -21,6 +24,7 @@ sealed interface TutorialAction {
 class TutorialViewModel(
     private val tutorialRepository: TutorialRepository,
     prepararEjemplos: PrepararEjemplosUseCase,
+    private val metricas: Metricas,
 ) : ViewModel() {
 
     // los ejemplos se preparan una vez al abrirlo: mientras se ve el tutorial no hace falta que cambien
@@ -32,7 +36,10 @@ class TutorialViewModel(
     // las tres formas de salir cuentan como visto. la de personalizar ademas abre el pincel (lo decide la navegacion)
     fun onAction(action: TutorialAction) {
         when (action) {
-            TutorialAction.OnSaltarClicked, TutorialAction.OnEmpezarClicked, TutorialAction.OnPersonalizarClicked -> tutorialRepository.marcarVisto()
+            is TutorialAction.OnSaltarClicked -> metricas.registrar(Evento.TUTORIAL, mapOf("accion" to "saltar", "paso" to action.paso.toString()))
+            TutorialAction.OnEmpezarClicked -> metricas.registrar(Evento.TUTORIAL, mapOf("accion" to "terminar"))
+            TutorialAction.OnPersonalizarClicked -> metricas.registrar(Evento.TUTORIAL, mapOf("accion" to "personalizar"))
         }
+        tutorialRepository.marcarVisto()
     }
 }

@@ -1,5 +1,6 @@
 package com.example.palette.core.network
 
+import com.example.palette.core.metricas.FilaDeEvento
 import com.example.palette.core.model.Cita
 import com.example.palette.core.model.Comment
 import com.example.palette.core.model.Group
@@ -110,6 +111,15 @@ internal class Supabase {
     }
 
     val conSesion get() = sesion != null
+
+    /** sube un grupo de eventos de las metricas. sin sesion tambien se puede (como anonimo). */
+    suspend fun subirEventos(lote: List<FilaDeEvento>) {
+        enviar(
+            HttpMethod.Post, "rest/v1/events",
+            cuerpo = filas.encodeToString(ListSerializer(FilaDeEvento.serializer()), lote),
+            prefer = "return=minimal", authorized = conSesion,
+        )
+    }
     private val miId get() = sesion?.userId ?: throw ApiException("No hay sesión iniciada")
 
     // ---- cuentas

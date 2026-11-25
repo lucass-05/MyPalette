@@ -3,7 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Palette</title>
+    <title>Palette · Tu diario de pelis, series, juegos, música y libros</title>
+    <!-- lo que sale en google y al compartir el enlace (whatsapp, tiktok, instagram, x...) -->
+    <meta name="description" content="Registra y puntúa lo que ves, juegas, lees y escuchas. Reseñas, listas, recomendaciones según tus gustos, dónde ver cada serie y un perfil que pintas a tu manera.">
+    <link rel="canonical" href="https://lucass-05.github.io/MyPalette/">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Palette">
+    <meta property="og:locale" content="es_ES">
+    <meta property="og:url" content="https://lucass-05.github.io/MyPalette/">
+    <meta property="og:title" content="Palette · Tu diario de pelis, series, juegos, música y libros">
+    <meta property="og:description" content="Registra lo que ves, juegas, lees y escuchas, descubre cosas nuevas y monta tu perfil como una paleta de colores.">
+    <meta property="og:image" content="https://lucass-05.github.io/MyPalette/compartir.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Palette">
+    <meta name="twitter:description" content="Tu diario de pelis, series, juegos, música y libros.">
+    <meta name="twitter:image" content="https://lucass-05.github.io/MyPalette/compartir.png">
+    <!-- datos estructurados: le dicen a google que esto es una aplicacion web y de que va -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Palette",
+        "url": "https://lucass-05.github.io/MyPalette/",
+        "applicationCategory": "EntertainmentApplication",
+        "operatingSystem": "Web, Android, iOS, Windows, macOS",
+        "inLanguage": "es",
+        "description": "Registra y puntúa películas, series, videojuegos, discos, canciones y libros. Reseñas, listas, recomendaciones y un perfil personalizable.",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" }
+    }
+    </script>
     <meta name="theme-color" content="#ffffff">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -23,6 +53,13 @@
                               repeatCount="indefinite"/>
         </circle>
     </svg>
+    <!-- sin javascript no se ve la app: al menos que quede claro que es (y que google lo lea) -->
+    <noscript>
+        <h1>Palette</h1>
+        <p>Tu diario de pelis, series, videojuegos, música y libros: registra y puntúa lo que ves, escribe reseñas,
+            crea listas, descubre recomendaciones según tus gustos y mira en qué plataforma está cada serie.</p>
+        <p>Para usar Palette hace falta activar JavaScript.</p>
+    </noscript>
     <p id="aviso" style="display: none; font-family: sans-serif; max-width: 320px; margin: 16px auto; color: #555"></p>
     <script>
         // la version normal es webassembly con gc (safari 18.2 o mas nuevo). este modulo minimo solo

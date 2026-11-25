@@ -43,6 +43,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.example.palette.core.data.Stage
+import com.example.palette.core.metricas.Evento
 import com.example.palette.core.model.ME
 import com.example.palette.core.model.Media
 import com.example.palette.core.ui.ConViewModelsPropios
@@ -58,6 +59,8 @@ import com.example.palette.features.home.ui.HomeScreenRoot
 import com.example.palette.features.home.ui.StoryScreenRoot
 import com.example.palette.features.library.ui.LogMenuSheetRoot
 import com.example.palette.features.library.ui.ReviewSheetRoot
+import com.example.palette.features.lists.ui.ListScreenRoot
+import com.example.palette.features.lists.ui.NewListSheetRoot
 import com.example.palette.features.messages.domain.model.Outgoing
 import com.example.palette.features.messages.ui.ActivityScreenRoot
 import com.example.palette.features.messages.ui.ChatScreenRoot
@@ -66,11 +69,9 @@ import com.example.palette.features.messages.ui.GroupInfoSheetRoot
 import com.example.palette.features.messages.ui.NewGroupSheetRoot
 import com.example.palette.features.messages.ui.SendSheetRoot
 import com.example.palette.features.people.ui.PeopleScreenRoot
+import com.example.palette.features.profile.ui.CustomizeScreenRoot
 import com.example.palette.features.profile.ui.ProfileScreenRoot
 import com.example.palette.features.profile.ui.SettingsScreenRoot
-import com.example.palette.features.profile.ui.CustomizeScreenRoot
-import com.example.palette.features.lists.ui.ListScreenRoot
-import com.example.palette.features.lists.ui.NewListSheetRoot
 import com.example.palette.features.reviews.ui.ReviewDetailScreenRoot
 import com.example.palette.features.tutorial.ui.TutorialScreenRoot
 
@@ -131,6 +132,13 @@ private fun NavDestination.pestana(): Screen? = when {
 private fun Shell(sinLeer: Int, tutorial: Boolean) {
     val container = LocalAppContainer.current
     val navController = rememberNavController()
+    // metricas: cada pantalla que se abre (sin datos de dentro, solo su nombre)
+    LaunchedEffect(navController) {
+        navController.currentBackStackEntryFlow.collect { entrada ->
+            val pantalla = entrada.destination.route.orEmpty().substringAfterLast('.').substringBefore('/').substringBefore('?')
+            container.metricas.registrar(Evento.VER_PANTALLA, mapOf("pantalla" to pantalla))
+        }
+    }
     val hojas = remember { Hojas() }
     val ancha = LocalWide.current
     val fondo = rememberGraphicsLayer()

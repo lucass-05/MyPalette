@@ -2,8 +2,14 @@ package com.example.palette.features.catalog.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.palette.core.metricas.Evento
+import com.example.palette.core.metricas.Metricas
 import com.example.palette.core.model.Media
+import com.example.palette.features.anuncios.domain.model.Anuncio
+import com.example.palette.features.anuncios.domain.model.AnunciosDeDescubrir
+import com.example.palette.features.anuncios.domain.usecases.ElegirAnunciosUseCase
 import com.example.palette.features.catalog.domain.model.FilaRecomendada
+import com.example.palette.features.catalog.domain.model.TipoDeFila
 import com.example.palette.features.catalog.domain.usecases.GetRecommendationsUseCase
 import com.example.palette.features.library.domain.repository.LibraryRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,16 +24,23 @@ data class DiscoverState(
     val cargando: Boolean = true,
     // false si todavia no he puntuado nada con buena nota
     val hayFavoritos: Boolean = false,
+    // los huecos de publicidad (vacios mientras los anuncios esten apagados)
+    val anuncios: AnunciosDeDescubrir = AnunciosDeDescubrir(),
 )
 
 sealed interface DiscoverAction {
-    data class OnMediaClicked(val media: Media) : DiscoverAction
+    // fila y posicion son para las metricas: en que fila y en que puesto se toco
+    data class OnMediaClicked(val media: Media, val fila: String = "", val posicion: Int = -1) : DiscoverAction
     data object OnRegistrarClicked : DiscoverAction
+    data class OnAnuncioVisto(val anuncio: Anuncio) : DiscoverAction
+    data class OnAnuncioClicked(val anuncio: Anuncio) : DiscoverAction
 }
 
 class DiscoverViewModel(
     private val getRecommendationsUseCase: GetRecommendationsUseCase,
     private val libraryRepository: LibraryRepository,
+    private val elegirAnunciosUseCase: ElegirAnunciosUseCase,
+    private val metricas: Metricas,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(DiscoverState())
@@ -55,12 +68,25 @@ class DiscoverViewModel(
                         filas = getRecommendationsUseCase.sinLoQueYaTengo(calculadas, biblioteca.idsQueTengo),
                         cargando = false,
                         hayFavoritos = getRecommendationsUseCase.ultimasBuenas(biblioteca.logs).isNotEmpty(),
+                        anuncios = elegirAnunciosUseCase(calculadas.firstOrNull { f -> f.tipo == TipoDeFila.TENDENCIAS }?.contenidos.orEmpty()),
                     )
                 }
             }
         }
     }
 
-    // las dos acciones son navegacion: las resuelve DiscoverScreenRoot
-    fun onAction(action: DiscoverAction) {}
+    // abrir fichas y enlaces lo resuelve DiscoverScreenRoot; aqui solo se apunta en las metricas
+    fun onAction(action: DiscoverAction) {
+        when (action) {
+            is DiscoverAction.OnMediaClicked -> metricas.registrar(
+                Evento.CLIC_RECOMENDACION,
+                mapOf("fila" to action.fila, "posicion" to action.posicion.toString(), "tipo" to action.media.type.name),
+            )
+            is DiscoverAction.OnAnuncioVisto -> metricas.registrar(Evento.ANUNCIO_VISTO, datosDe(action.anuncio))
+            is DiscoverAction.OnAnuncioClicked -> metricas.registrar(Evento.ANUNCIO_CLIC, datosDe(action.anuncio))
+            DiscoverAction.OnRegistrarClicked -> {}
+        }
+    }
+
+    private fun datosDe(anuncio: Anuncio) = mapOf("anuncio" to anuncio.id, "hueco" to anuncio.hueco.name, "ejemplo" to anuncio.ejemplo.toString())
 }

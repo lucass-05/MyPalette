@@ -3,6 +3,7 @@ package com.example.palette.features.catalog.domain.usecases
 import com.example.palette.core.model.LogEntry
 import com.example.palette.core.model.MediaType
 import com.example.palette.features.catalog.domain.model.FilaRecomendada
+import com.example.palette.features.catalog.domain.model.TipoDeFila
 import com.example.palette.features.catalog.domain.repository.CatalogRepository
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -39,8 +40,8 @@ class GetRecommendationsUseCase(private val catalogRepository: CatalogRepository
         val emision = async { catalogRepository.enEmision(series) }
 
         porque.awaitAll() +
-            FilaRecomendada("Lo más visto esta semana", null, tendencias.await()) +
-            FilaRecomendada(if (series.isEmpty()) "Series en emisión" else "En emisión y recomendado para ti", null, emision.await())
+            FilaRecomendada("Lo más visto esta semana", null, tendencias.await(), TipoDeFila.TENDENCIAS) +
+            FilaRecomendada(if (series.isEmpty()) "Series en emisión" else "En emisión y recomendado para ti", null, emision.await(), TipoDeFila.EMISION)
     }
 
     // regla de negocio: nunca se recomienda algo que ya esta en mi perfil o en pendientes.

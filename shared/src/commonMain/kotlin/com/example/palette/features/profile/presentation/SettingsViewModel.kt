@@ -2,6 +2,7 @@ package com.example.palette.features.profile.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.palette.core.metricas.Metricas
 import com.example.palette.core.model.ThemeColors
 import com.example.palette.core.model.User
 import com.example.palette.core.ui.prepararAvatar
@@ -31,6 +32,8 @@ data class SettingsState(
     val problema: String? = null,
     // true cuando el perfil se ha guardado bien: la pantalla se cierra
     val guardado: Boolean = false,
+    // si se mandan las estadisticas de uso anonimas
+    val metricas: Boolean = true,
 ) {
     val valido: Boolean get() = name.isNotBlank() && username.length >= 2
 }
@@ -46,6 +49,7 @@ sealed interface SettingsAction {
     data class OnThemeChanged(val theme: ThemeColors) : SettingsAction
     data object OnGuardarClicked : SettingsAction
     data object OnVerTutorialClicked : SettingsAction
+    data class OnMetricasChanged(val activadas: Boolean) : SettingsAction
     data object OnCerrarSesionClicked : SettingsAction
     data object OnBorrarCuentaClicked : SettingsAction
     data object OnBorrarCuentaCancelado : SettingsAction
@@ -56,12 +60,13 @@ class SettingsViewModel(
     private val profileRepository: ProfileRepository,
     private val authRepository: AuthRepository,
     private val tutorialRepository: TutorialRepository,
+    private val metricas: Metricas,
 ) : ViewModel() {
 
     // el formulario arranca con lo que hay guardado
     private val _state = MutableStateFlow(
         profileRepository.yo().let {
-            SettingsState(it, it.name, it.username, it.bio, it.favorite, profileRepository.tema())
+            SettingsState(it, it.name, it.username, it.bio, it.favorite, profileRepository.tema(), metricas = metricas.activadas)
         },
     )
     val state: StateFlow<SettingsState> = _state.asStateFlow()
@@ -91,6 +96,10 @@ class SettingsViewModel(
             SettingsAction.OnGuardarClicked -> guardar()
             // el tutorial se abre solo encima de todo en cuanto vuelve a estar pendiente
             SettingsAction.OnVerTutorialClicked -> tutorialRepository.volverAVer()
+            is SettingsAction.OnMetricasChanged -> {
+                metricas.activadas = action.activadas
+                _state.update { it.copy(metricas = action.activadas) }
+            }
             SettingsAction.OnCerrarSesionClicked -> authRepository.cerrarSesion()
             SettingsAction.OnBorrarCuentaClicked -> _state.update { it.copy(confirmandoBorrado = true) }
             SettingsAction.OnBorrarCuentaCancelado -> _state.update { it.copy(confirmandoBorrado = false) }

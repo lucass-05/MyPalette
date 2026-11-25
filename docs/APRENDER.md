@@ -138,6 +138,24 @@ pantallas sin estado propio, basta con darles un estado hecho a mano. Ese estado
 `PrepararEjemplosUseCase` con mi perfil real y, si tengo menos de 6 logs, contenidos inventados. No pasa por el
 almacén, así que nada de lo inventado acaba guardado.
 
+## Métricas y monetización
+
+**Métricas** (`core/metricas`). La app apunta eventos anónimos ("abrir_app", "buscar", "clic_afiliado"…) con
+`metricas.registrar(Evento.X, datos)`. `MetricasSupabase` los junta y los sube cada 30 segundos a la tabla
+`events` (supabase/007). Cada dispositivo tiene un id inventado; nunca se manda la cuenta ni lo que se escribe
+en reseñas o mensajes. Se pueden apagar en Perfil y cuenta. Casi todos se apuntan en `PaletteStore`, que es por
+donde pasa todo lo que hace el usuario; los de pantallas (descubrir, ficha, búsqueda) en su ViewModel.
+Para leerlos: en Supabase, `select * from metricas_diarias` (y `metricas_origen`, `metricas_retencion`,
+`metricas_anuncios`, `metricas_afiliados`, `metricas_busquedas`, `metricas_descubrir`).
+
+**Monetización** (`core/monetizacion`). Todo está apagado. Para encenderlo:
+- Enlaces de afiliado: `Monetizacion.AFILIADOS_ACTIVOS = true` y los ids en `Afiliados` (Apple, Amazon,
+  Instant Gaming). Salen botones de escuchar/comprar en la ficha y cada plataforma de "Dónde verlo" lleva a su web.
+- Anuncios: `Monetizacion.ANUNCIOS_ACTIVOS = true` y el anuncio en `features/anuncios/data/repository/AnunciosContratados.kt`.
+  Hay dos huecos en Descubrir: el cartel de arriba y una fila patrocinada después de la primera recomendación.
+- Para enseñárselo a una empresa sin tocar nada: abrir la web con `?demo` al final. Salen los dos huecos con
+  anuncios de ejemplo y los botones de afiliado, todo marcado como ejemplo.
+
 ## Pruebas y capturas
 
 - `shared/src/commonTest` tiene pruebas de la lógica que no depende de la pantalla: formatos, el orden de

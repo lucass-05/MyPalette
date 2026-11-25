@@ -30,12 +30,19 @@ import com.example.palette.core.model.ProfileLayout
 import com.example.palette.core.model.ProfileWidget
 import com.example.palette.core.model.User
 import com.example.palette.core.model.WidgetKind
+import com.example.palette.core.monetizacion.Monetizacion
 import com.example.palette.core.ui.PaletteTheme
 import com.example.palette.core.ui.Pigment
 import com.example.palette.core.util.DAY
+import com.example.palette.features.anuncios.data.repository.AnunciosRepositoryImpl
+import com.example.palette.features.anuncios.domain.usecases.ElegirAnunciosUseCase
+import com.example.palette.features.catalog.domain.model.FilaRecomendada
+import com.example.palette.features.catalog.domain.model.TipoDeFila
 import com.example.palette.features.catalog.presentation.DetailState
+import com.example.palette.features.catalog.presentation.DiscoverState
 import com.example.palette.features.catalog.presentation.LogState
 import com.example.palette.features.catalog.ui.DetailScreen
+import com.example.palette.features.catalog.ui.DiscoverScreen
 import com.example.palette.features.catalog.ui.LogScreen
 import com.example.palette.features.home.domain.model.Feed
 import com.example.palette.features.home.domain.model.Historia
@@ -99,6 +106,17 @@ class CapturasTest {
         capturar("inicio", ancho = null) { HomeScreen(HomeState(d.feed), {}) }
         capturar("registrar", ancho = null) { LogScreen(LogState(consulta = "dune", resultados = d.contenidos), {}) }
         capturar("ficha", ancho = 820.dp) { DetailScreen(d.ficha, {}) }
+
+        // modo demostracion: los huecos de publicidad y los enlaces de afiliado con ejemplos
+        Monetizacion.forzarDemostracion = true
+        val filas = listOf(
+            FilaRecomendada("Porque te gustó Dune: parte dos", d.contenidos[0], d.contenidos.drop(1)),
+            FilaRecomendada("Lo más visto esta semana", null, d.contenidos.reversed(), TipoDeFila.TENDENCIAS),
+        )
+        val anuncios = ElegirAnunciosUseCase(AnunciosRepositoryImpl())(d.contenidos)
+        capturar("descubrir_demo", ancho = 820.dp) { DiscoverScreen(DiscoverState(filas, cargando = false, hayFavoritos = true, anuncios = anuncios), {}) }
+        capturar("ficha_demo", ancho = 820.dp) { DetailScreen(d.ficha.copy(media = d.contenidos[3]), {}) }
+        Monetizacion.forzarDemostracion = false
         capturar("resena", ancho = 760.dp) { ReviewDetailScreen(ReviewDetailState(d.resena, cargada = true), {}) }
         capturar("actividad", ancho = 760.dp) { ActivityScreen(ActivityState(seccion = 1, avisos = d.avisos), {}) }
         capturar("lista", ancho = 820.dp) { ListScreen(ListState(vista = d.listas.first()), {}) }

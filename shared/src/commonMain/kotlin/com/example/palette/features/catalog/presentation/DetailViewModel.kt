@@ -2,9 +2,13 @@ package com.example.palette.features.catalog.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.palette.core.metricas.Evento
+import com.example.palette.core.metricas.Metricas
 import com.example.palette.core.model.Extras
 import com.example.palette.core.model.LogEntry
 import com.example.palette.core.model.Media
+import com.example.palette.core.monetizacion.Afiliados
+import com.example.palette.core.monetizacion.Oferta
 import com.example.palette.features.catalog.domain.usecases.GetMediaDetailUseCase
 import com.example.palette.features.library.domain.model.LogDeAmigo
 import com.example.palette.features.library.domain.repository.LibraryRepository
@@ -36,12 +40,16 @@ sealed interface DetailAction {
     data class OnMediaClicked(val media: Media) : DetailAction
     data class OnUserClicked(val userId: String) : DetailAction
     data class OnResenaClicked(val logId: String) : DetailAction
+    // salir de la app: a una plataforma de "dónde verlo" o a una tienda (enlaces de afiliado)
+    data class OnPlataformaClicked(val plataforma: String, val enlace: String) : DetailAction
+    data class OnOfertaClicked(val oferta: Oferta) : DetailAction
 }
 
 class DetailViewModel(
     inicial: Media,
     private val getMediaDetailUseCase: GetMediaDetailUseCase,
     private val libraryRepository: LibraryRepository,
+    private val metricas: Metricas,
 ) : ViewModel() {
 
     // la ficha se pinta al momento con lo que ya se sabe del contenido...
@@ -49,6 +57,7 @@ class DetailViewModel(
     val state: StateFlow<DetailState> = _state.asStateFlow()
 
     init {
+        metricas.registrar(Evento.ABRIR_FICHA, mapOf("tipo" to inicial.type.name))
         // ...y se completa cuando llegan los detalles de la red
         viewModelScope.launch {
             val ficha = getMediaDetailUseCase(inicial)
@@ -73,6 +82,15 @@ class DetailViewModel(
         when (action) {
             is DetailAction.OnWatchlistClicked -> libraryRepository.alternarPendiente(_state.value.media)
             is DetailAction.OnShareClicked -> avisarDeCopiado()
+            // abrir el enlace lo hace la pantalla; aqui se apunta, que es lo que se cobra
+            is DetailAction.OnPlataformaClicked -> metricas.registrar(
+                Evento.CLIC_PLATAFORMA,
+                mapOf("plataforma" to action.plataforma, "tipo" to _state.value.media.type.name, "afiliado" to Afiliados.esDeAfiliado(action.enlace).toString()),
+            )
+            is DetailAction.OnOfertaClicked -> metricas.registrar(
+                Evento.CLIC_AFILIADO,
+                mapOf("tienda" to action.oferta.tienda, "tipo" to _state.value.media.type.name, "afiliado" to Afiliados.esDeAfiliado(action.oferta.enlace).toString()),
+            )
             // el resto son navegacion o abrir hojas: lo resuelve DetailScreenRoot
             else -> {}
         }

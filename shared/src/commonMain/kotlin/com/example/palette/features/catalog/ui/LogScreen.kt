@@ -59,7 +59,7 @@ import com.example.palette.navigation.BarSpace
 fun LogScreenRoot(onOpenMedia: (Media) -> Unit, modifier: Modifier = Modifier) {
     val container = LocalAppContainer.current
     // viewModel { } crea el viewmodel la primera vez y devuelve el mismo en las siguientes recomposiciones
-    val viewModel = viewModel { LogViewModel(container.searchMediaUseCase, container.catalogRepository.noDisponibles) }
+    val viewModel = viewModel { LogViewModel(container.searchMediaUseCase, container.catalogRepository.noDisponibles, container.metricas) }
     // el estado es un flujo: collectAsStateWithLifecycle lo convierte en estado de compose para que la ui se repinte
     val state by viewModel.state.collectAsStateWithLifecycle()
 

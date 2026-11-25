@@ -7,12 +7,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -27,6 +27,8 @@ import com.example.palette.core.ui.ScreenTitle
 import com.example.palette.core.ui.SectionTitle
 import com.example.palette.core.ui.icon
 import com.example.palette.di.LocalAppContainer
+import com.example.palette.features.anuncios.ui.CartelPatrocinado
+import com.example.palette.features.anuncios.ui.FilaPatrocinada
 import com.example.palette.features.catalog.domain.model.FilaRecomendada
 import com.example.palette.features.catalog.presentation.DiscoverAction
 import com.example.palette.features.catalog.presentation.DiscoverState
@@ -39,8 +41,11 @@ import com.example.palette.navigation.BarSpace
 @Composable
 fun DiscoverScreenRoot(onOpenMedia: (Media) -> Unit, onRegistrar: () -> Unit, modifier: Modifier = Modifier) {
     val container = LocalAppContainer.current
-    val viewModel = viewModel { DiscoverViewModel(container.getRecommendationsUseCase, container.libraryRepository) }
+    val viewModel = viewModel {
+        DiscoverViewModel(container.getRecommendationsUseCase, container.libraryRepository, container.elegirAnunciosUseCase, container.metricas)
+    }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val abrirEnlace = LocalUriHandler.current
 
     DiscoverScreen(
         state = state,
@@ -48,7 +53,10 @@ fun DiscoverScreenRoot(onOpenMedia: (Media) -> Unit, onRegistrar: () -> Unit, mo
             when (action) {
                 is DiscoverAction.OnMediaClicked -> onOpenMedia(action.media)
                 DiscoverAction.OnRegistrarClicked -> onRegistrar()
+                is DiscoverAction.OnAnuncioClicked -> abrirEnlace.openUri(action.anuncio.enlace)
+                else -> {}
             }
+            viewModel.onAction(action)
         },
         modifier = modifier,
     )
@@ -75,16 +83,41 @@ fun DiscoverScreen(state: DiscoverState, onAction: (DiscoverAction) -> Unit, mod
                     PillButton("Registrar algo", { onAction(DiscoverAction.OnRegistrarClicked) }, icon = Icons.Plus)
                 }
             }
-            else -> items(state.filas) { fila -> DiscoverRow(fila, onAction) }
+            else -> {
+                // hueco 1 de publicidad: el cartel, arriba del todo
+                state.anuncios.cartel?.let { cartel ->
+                    item(key = "cartel") {
+                        Spacer(Modifier.height(8.dp))
+                        CartelPatrocinado(cartel, { onAction(DiscoverAction.OnAnuncioVisto(it)) }, { onAction(DiscoverAction.OnAnuncioClicked(it)) })
+                    }
+                }
+                state.filas.forEachIndexed { indice, fila ->
+                    item { DiscoverRow(fila, indice, onAction) }
+                    // hueco 2 de publicidad: una fila patrocinada despues de la primera recomendacion
+                    if (indice == 0) state.anuncios.fila?.let { patrocinada ->
+                        item(key = "fila-patrocinada") {
+                            Spacer(Modifier.height(18.dp))
+                            FilaPatrocinada(
+                                patrocinada,
+                                onVisto = { onAction(DiscoverAction.OnAnuncioVisto(it)) },
+                                onClick = { onAction(DiscoverAction.OnAnuncioClicked(it)) },
+                                onMediaClick = { onAction(DiscoverAction.OnMediaClicked(it, fila = "patrocinada")) },
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun DiscoverRow(fila: FilaRecomendada, onAction: (DiscoverAction) -> Unit) {
+private fun DiscoverRow(fila: FilaRecomendada, indice: Int, onAction: (DiscoverAction) -> Unit) {
     Spacer(Modifier.height(18.dp))
     // el punto de color es el del tipo de contenido de la fila
     SectionTitle(fila.titulo, dot = Pigment.of(fila.contenidos.first().type))
     Spacer(Modifier.height(12.dp))
-    MediaRow(fila.contenidos, onClick = { onAction(DiscoverAction.OnMediaClicked(it)) })
+    MediaRow(fila.contenidos, onClick = { media ->
+        onAction(DiscoverAction.OnMediaClicked(media, fila = "${fila.tipo.name.lowercase()}_$indice", posicion = fila.contenidos.indexOf(media)))
+    })
 }

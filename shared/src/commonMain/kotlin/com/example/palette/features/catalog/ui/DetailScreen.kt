@@ -1,12 +1,6 @@
 package com.example.palette.features.catalog.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.layout.ContentScale
-import coil3.compose.AsyncImage
-import androidx.compose.material3.Icon
-import com.example.palette.core.model.Plataforma
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,10 +14,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,7 +29,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -42,7 +40,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil3.compose.AsyncImage
 import com.example.palette.core.model.Media
+import com.example.palette.core.model.Plataforma
+import com.example.palette.core.monetizacion.Afiliados
+import com.example.palette.core.monetizacion.Monetizacion
+import com.example.palette.core.monetizacion.Oferta
 import com.example.palette.core.ui.Avatar
 import com.example.palette.core.ui.BackBar
 import com.example.palette.core.ui.CoverByHeight
@@ -88,9 +91,10 @@ fun DetailScreenRoot(
     // a la pantalla solo le llega el id; el contenido lo tiene apuntado el repositorio.
     // la ficha se pinta al momento con eso y el viewmodel pide el resto a la red
     val viewModel = viewModel {
-        DetailViewModel(container.catalogRepository.recordado(mediaId), container.getMediaDetailUseCase, container.libraryRepository)
+        DetailViewModel(container.catalogRepository.recordado(mediaId), container.getMediaDetailUseCase, container.libraryRepository, container.metricas)
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val abrirEnlace = LocalUriHandler.current
 
     DetailScreen(
         state = state,
@@ -103,6 +107,8 @@ fun DetailScreenRoot(
                 is DetailAction.OnMediaClicked -> onOpenMedia(action.media)
                 is DetailAction.OnUserClicked -> onOpenUser(action.userId)
                 is DetailAction.OnResenaClicked -> onOpenReview(action.logId)
+                is DetailAction.OnPlataformaClicked -> abrirEnlace.openUri(action.enlace)
+                is DetailAction.OnOfertaClicked -> abrirEnlace.openUri(action.oferta.enlace)
                 else -> {}
             }
             // el viewmodel se entera de todas: el decide cuales cambian el estado
@@ -174,6 +180,11 @@ fun DetailScreen(state: DetailState, onAction: (DetailAction) -> Unit, modifier:
                     )
                 }
 
+                // enlaces de afiliado: escuchar, comprar... (solo con Monetizacion.afiliados encendido)
+                if (Monetizacion.afiliados) {
+                    Ofertas(Afiliados.ofertas(media), onAction)
+                }
+
                 if (mio != null && mio.review.isNotBlank()) {
                     Spacer(Modifier.height(18.dp))
                     Text(mio.review, fontSize = 15.sp, lineHeight = 22.sp, modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp))
@@ -209,7 +220,7 @@ fun DetailScreen(state: DetailState, onAction: (DetailAction) -> Unit, modifier:
 
             // donde verlo ahora mismo (pelis y series). tocar abre la pagina con todas las opciones
             if (extras.plataformas.isNotEmpty()) item {
-                DondeVerlo(extras.plataformas, extras.enlacePlataformas)
+                DondeVerlo(media, extras.plataformas, extras.enlacePlataformas, onAction)
             }
 
             // una cancion enlaza con su album
@@ -292,13 +303,31 @@ fun DetailScreen(state: DetailState, onAction: (DetailAction) -> Unit, modifier:
     }
 }
 
-/** los servicios donde se puede ver, agrupados por como (suscripcion, alquiler...). */
+/** los botones para salir a escuchar o comprar. en modo demostracion se marcan como ejemplo. */
 @Composable
-private fun DondeVerlo(plataformas: List<Plataforma>, enlace: String?) {
-    val abrirEnlace = LocalUriHandler.current
+private fun Ofertas(ofertas: List<Oferta>, onAction: (DetailAction) -> Unit) {
+    if (ofertas.isEmpty()) return
+    Spacer(Modifier.height(10.dp))
+    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        ofertas.forEach { oferta ->
+            PillButton(oferta.texto, { onAction(DetailAction.OnOfertaClicked(oferta)) }, Modifier.fillMaxWidth(), filled = false, icon = Icons.ExternalLink)
+        }
+        if (Monetizacion.demostracion) {
+            Text("Enlace de afiliado · ejemplo", color = Pigment.Accent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.align(Alignment.CenterHorizontally))
+        }
+    }
+}
+
+/**
+ * los servicios donde se puede ver, agrupados por como (suscripcion, alquiler...).
+ * con los afiliados encendidos cada plataforma lleva a su buscador; si no, todo lleva a justwatch.
+ */
+@Composable
+private fun DondeVerlo(media: Media, plataformas: List<Plataforma>, enlace: String?, onAction: (DetailAction) -> Unit) {
+    val porPlataforma = Monetizacion.afiliados
     Column(
         Modifier.fillMaxWidth().padding(top = 24.dp)
-            .then(if (enlace != null) Modifier.clickable { abrirEnlace.openUri(enlace) } else Modifier)
+            .then(if (enlace != null && !porPlataforma) Modifier.clickable { onAction(DetailAction.OnPlataformaClicked("justwatch", enlace)) } else Modifier)
             .padding(vertical = 4.dp),
     ) {
         Row(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -310,7 +339,11 @@ private fun DondeVerlo(plataformas: List<Plataforma>, enlace: String?) {
             Text(modo.label, color = Pigment.Graphite, fontSize = 13.sp, modifier = Modifier.padding(start = 20.dp, top = 4.dp, bottom = 6.dp))
             LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(deEseModo, key = { it.nombre }) { plataforma ->
-                    Column(Modifier.width(64.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    val destino = if (porPlataforma) Afiliados.enlaceDePlataforma(plataforma.nombre, media) ?: enlace else null
+                    Column(
+                        Modifier.width(64.dp).then(if (destino != null) Modifier.clickable { onAction(DetailAction.OnPlataformaClicked(plataforma.nombre, destino)) } else Modifier),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
                         Box(Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)).background(Pigment.Mist), contentAlignment = Alignment.Center) {
                             Text(plataforma.nombre.take(1), style = titular(18.sp))
                             plataforma.logoUrl?.let {

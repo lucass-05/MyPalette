@@ -16,6 +16,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -91,7 +93,7 @@ private fun ColorSheet(hueco: ColorSlot, onDone: () -> Unit) {
 @Composable
 fun SettingsScreenRoot(onBack: () -> Unit, modifier: Modifier = Modifier) {
     val container = LocalAppContainer.current
-    val viewModel = viewModel { SettingsViewModel(container.profileRepository, container.authRepository, container.tutorialRepository) }
+    val viewModel = viewModel { SettingsViewModel(container.profileRepository, container.authRepository, container.tutorialRepository, container.metricas) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val elegirFoto = recordarSelectorDeFotos { viewModel.onAction(SettingsAction.OnFotoElegida(it)) }
 
@@ -188,6 +190,22 @@ fun SettingsScreen(state: SettingsState, onAction: (SettingsAction) -> Unit, onE
             Text("Ayuda", style = titular(21.sp))
             Text("Un repaso de todo lo que se puede hacer en la app y en tu perfil.", color = Pigment.Graphite, fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp, bottom = 10.dp))
             PillButton("Ver el tutorial otra vez", { onAction(SettingsAction.OnVerTutorialClicked) }, filled = false)
+
+            Spacer(Modifier.height(30.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                    Text("Estadísticas de uso", style = titular(21.sp))
+                    Text(
+                        "Datos anónimos de qué pantallas se usan y qué se busca, para mejorar Palette. Nunca incluyen tu cuenta ni lo que escribes en reseñas o mensajes.",
+                        color = Pigment.Graphite, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+                Switch(
+                    checked = state.metricas,
+                    onCheckedChange = { onAction(SettingsAction.OnMetricasChanged(it)) },
+                    colors = SwitchDefaults.colors(checkedTrackColor = Pigment.Accent, checkedThumbColor = Color.White),
+                )
+            }
 
             Spacer(Modifier.height(30.dp))
             PillButton("Cerrar sesión", { onAction(SettingsAction.OnCerrarSesionClicked) }, filled = false)

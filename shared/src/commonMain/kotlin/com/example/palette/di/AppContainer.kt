@@ -3,6 +3,12 @@ package com.example.palette.di
 import androidx.compose.runtime.staticCompositionLocalOf
 import com.example.palette.App
 import com.example.palette.core.data.PaletteStore
+import com.example.palette.core.metricas.Metricas
+import com.example.palette.core.metricas.MetricasSupabase
+import com.example.palette.core.network.supabase
+import com.example.palette.features.anuncios.data.repository.AnunciosRepositoryImpl
+import com.example.palette.features.anuncios.domain.repository.AnunciosRepository
+import com.example.palette.features.anuncios.domain.usecases.ElegirAnunciosUseCase
 import com.example.palette.features.auth.data.repository.AuthRepositoryImpl
 import com.example.palette.features.auth.domain.repository.AuthRepository
 import com.example.palette.features.catalog.data.repository.CatalogRepositoryImpl
@@ -47,6 +53,8 @@ interface AppContainer {
     val reviewsRepository: ReviewsRepository
     val listsRepository: ListsRepository
     val tutorialRepository: TutorialRepository
+    val anunciosRepository: AnunciosRepository
+    val metricas: Metricas
 
     // casos de uso: solo donde hay una regla que no es ni de pantalla ni de datos
     val searchMediaUseCase: SearchMediaUseCase
@@ -55,13 +63,17 @@ interface AppContainer {
     val searchPeopleUseCase: SearchPeopleUseCase
     val sortProfileLogsUseCase: SortProfileLogsUseCase
     val prepararEjemplosUseCase: PrepararEjemplosUseCase
+    val elegirAnunciosUseCase: ElegirAnunciosUseCase
 }
 
 class DefaultAppContainer : AppContainer {
 
     // la fuente de datos (copia local + supabase) es una sola y la comparten todos los repositorios.
     // es privada: fuera del contenedor nadie puede saltarse los repositorios
-    private val almacen: PaletteStore by lazy { PaletteStore() }
+    private val almacen: PaletteStore by lazy { PaletteStore(metricas) }
+
+    // las estadisticas de uso se suben a la misma base de datos (tabla events, supabase/007)
+    override val metricas: Metricas by lazy { MetricasSupabase(supabase) }
 
     // by lazy: cada cosa se crea la primera vez que alguien la pide y despues se reutiliza
     override val authRepository: AuthRepository by lazy { AuthRepositoryImpl(almacen) }
@@ -74,6 +86,7 @@ class DefaultAppContainer : AppContainer {
     override val reviewsRepository: ReviewsRepository by lazy { ReviewsRepositoryImpl(almacen) }
     override val listsRepository: ListsRepository by lazy { ListsRepositoryImpl(almacen) }
     override val tutorialRepository: TutorialRepository by lazy { TutorialRepositoryImpl(almacen) }
+    override val anunciosRepository: AnunciosRepository by lazy { AnunciosRepositoryImpl() }
 
     override val searchMediaUseCase: SearchMediaUseCase by lazy { SearchMediaUseCase(catalogRepository) }
     override val getMediaDetailUseCase: GetMediaDetailUseCase by lazy { GetMediaDetailUseCase(catalogRepository) }
@@ -81,6 +94,7 @@ class DefaultAppContainer : AppContainer {
     override val searchPeopleUseCase: SearchPeopleUseCase by lazy { SearchPeopleUseCase() }
     override val sortProfileLogsUseCase: SortProfileLogsUseCase by lazy { SortProfileLogsUseCase() }
     override val prepararEjemplosUseCase: PrepararEjemplosUseCase by lazy { PrepararEjemplosUseCase(sortProfileLogsUseCase) }
+    override val elegirAnunciosUseCase: ElegirAnunciosUseCase by lazy { ElegirAnunciosUseCase(anunciosRepository) }
 }
 
 /** el contenedor, al alcance de cualquier pantalla. lo pone App al arrancar. */

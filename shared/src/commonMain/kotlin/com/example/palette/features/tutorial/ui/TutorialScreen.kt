@@ -77,7 +77,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun TutorialScreenRoot(onPersonalizar: () -> Unit) {
     val container = LocalAppContainer.current
-    val viewModel = viewModel { TutorialViewModel(container.tutorialRepository, container.prepararEjemplosUseCase) }
+    val viewModel = viewModel { TutorialViewModel(container.tutorialRepository, container.prepararEjemplosUseCase, container.metricas) }
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     TutorialScreen(
@@ -121,7 +121,7 @@ fun TutorialScreen(state: TutorialState, onAction: (TutorialAction) -> Unit, mod
                 Text(
                     if (ultimo) "" else "Saltar",
                     color = Pigment.Graphite, fontSize = 14.sp, fontWeight = FontWeight.Medium,
-                    modifier = Modifier.clip(RoundedCornerShape(50)).clickable(enabled = !ultimo) { onAction(TutorialAction.OnSaltarClicked) }
+                    modifier = Modifier.clip(RoundedCornerShape(50)).clickable(enabled = !ultimo) { onAction(TutorialAction.OnSaltarClicked(pager.currentPage)) }
                         .padding(horizontal = 12.dp, vertical = 10.dp).widthIn(min = 44.dp),
                 )
             }
