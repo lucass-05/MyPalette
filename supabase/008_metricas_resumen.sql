@@ -1,13 +1,16 @@
 -- palette: opcional. que la tabla events no crezca sin limite.
 -- se ejecuta una vez, despues de 007, en sql editor > new query.
 --
--- antes hay que activar la extension pg_cron: database > extensions > pg_cron.
+-- la primera linea activa pg_cron (el programador de tareas de postgres). si da error de permisos,
+-- se activa a mano en database > extensions > pg_cron y se vuelve a ejecutar el resto.
 --
 -- cada noche se guarda el resumen del dia anterior en metricas_por_dia (una fila por dia y evento,
 -- ocupa casi nada) y se borran los eventos de hace mas de 180 dias. las vistas de 007 siguen
 -- funcionando con los ultimos 6 meses; para mirar mas atras, metricas_por_dia.
 
-create table public.metricas_por_dia (
+create extension if not exists pg_cron;
+
+create table if not exists public.metricas_por_dia (
   dia date not null,
   name text not null,
   eventos integer not null,
@@ -32,5 +35,5 @@ $$;
 
 revoke all on function public.resumir_metricas() from anon, authenticated;
 
--- todas las noches a las 3:10 (hora utc)
+-- todas las noches a las 3:10 (hora utc). si ya existia con este nombre, se sustituye
 select cron.schedule('resumir-metricas', '10 3 * * *', 'select public.resumir_metricas()');
