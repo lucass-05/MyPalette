@@ -25,8 +25,8 @@ object Afiliados {
         val busqueda = listOfNotNull(media.title, media.creator.takeIf { media.type == MediaType.BOOK }).joinToString(" ").encodeURLParameter()
         return when (media.type) {
             // el enlace de itunes ya lleva a apple music; solo falta el id
-            MediaType.SONG, MediaType.ALBUM -> listOfNotNull(
-                media.link?.let { Oferta("Apple Music", "Escuchar en Apple Music", conParametro(it, "at", APPLE, "ct" to "palette")) },
+            MediaType.SONG, MediaType.ALBUM -> listOf(
+                Oferta("Apple Music", "Escuchar en Apple Music", conParametro(media.link ?: "https://music.apple.com/es/search?term=$busqueda", "at", APPLE, "ct" to "palette")),
             )
             MediaType.BOOK -> listOf(
                 Oferta("Amazon", "Comprar en Amazon", conParametro("https://www.amazon.es/s?k=$busqueda&i=stripbooks", "tag", AMAZON)),

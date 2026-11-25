@@ -103,7 +103,7 @@ fun FilaPatrocinada(
 // "patrocinado · marca". en los de ejemplo deja claro que es un hueco a la venta
 @Composable
 private fun Etiqueta(anuncio: Anuncio, modifier: Modifier = Modifier) {
-    val texto = if (anuncio.ejemplo) "Espacio publicitario · ejemplo" else "Patrocinado · ${anuncio.anunciante}"
+    val texto = if (anuncio.ejemplo) "Anuncio de ejemplo" else "Patrocinado · ${anuncio.anunciante}"
     Row(
         modifier.widthIn(max = 280.dp).clip(RoundedCornerShape(50)).background(if (anuncio.ejemplo) Pigment.Accent else Color.Black.copy(alpha = 0.55f))
             .padding(horizontal = 10.dp, vertical = 4.dp),
