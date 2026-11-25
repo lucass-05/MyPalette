@@ -190,17 +190,17 @@ fun TarjetaPerfil(user: User, logs: List<LogEntry>, favoritos: List<LogEntry>) {
 
     Box(Modifier.fillMaxSize().background(fondo ?: Pigment.Paper)) {
         Splat(user.id.hashCode(), Color(user.favorite).copy(alpha = 0.3f), Modifier.size(280.dp).offset(x = 170.dp, y = (-120).dp))
-        Column(Modifier.fillMaxSize().padding(vertical = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(Modifier.fillMaxSize().padding(vertical = 22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Marca(ink)
-            Spacer(Modifier.height(18.dp))
-            Avatar(user, 80.dp)
+            Spacer(Modifier.height(12.dp))
+            Avatar(user, 72.dp)
             Spacer(Modifier.height(10.dp))
             Text(user.name, style = titular(28.sp), color = ink, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 24.dp))
             Text("@${user.username}", color = suave, fontSize = 13.sp)
             if (user.bio.isNotBlank()) {
                 Text(
                     user.bio, color = ink, fontSize = 13.sp, lineHeight = 18.sp, textAlign = TextAlign.Center, maxLines = 2,
-                    overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 30.dp, vertical = 8.dp),
+                    overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 30.dp, vertical = 6.dp),
                 )
             }
             Text(resumen, color = ink, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
