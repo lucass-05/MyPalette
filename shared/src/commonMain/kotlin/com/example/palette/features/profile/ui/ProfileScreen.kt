@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -29,6 +30,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
@@ -67,7 +69,9 @@ import com.example.palette.core.ui.Icons
 import com.example.palette.core.ui.PaintBlob
 import com.example.palette.core.ui.Pigment
 import com.example.palette.core.ui.PillButton
+import com.example.palette.core.ui.Sheet
 import com.example.palette.core.ui.Stars
+import com.example.palette.core.ui.UserRow
 import com.example.palette.core.ui.compartirImagenDisponible
 import com.example.palette.core.ui.legible
 import com.example.palette.core.ui.proporcion
@@ -75,6 +79,7 @@ import com.example.palette.core.ui.titular
 import com.example.palette.di.LocalAppContainer
 import com.example.palette.features.compartir.ui.CompartirSheet
 import com.example.palette.features.compartir.ui.TarjetaPerfil
+import com.example.palette.features.profile.domain.model.Perfil
 import com.example.palette.features.profile.presentation.ProfileAction
 import com.example.palette.features.profile.presentation.ProfileState
 import com.example.palette.features.profile.presentation.ProfileViewModel
@@ -93,6 +98,7 @@ fun ProfileScreenRoot(
     onOpenList: (String) -> Unit,
     onNewList: () -> Unit,
     onCustomize: () -> Unit,
+    onOpenUser: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val container = LocalAppContainer.current
@@ -116,6 +122,10 @@ fun ProfileScreenRoot(
                 ProfileAction.OnNuevaListaClicked -> onNewList()
                 is ProfileAction.OnEditarListaClicked -> onOpenList(action.listId)
                 ProfileAction.OnCompartirClicked -> compartiendo = true
+                is ProfileAction.OnUserClicked -> {
+                    viewModel.onAction(ProfileAction.OnAmigosCerrados)
+                    onOpenUser(action.userId)
+                }
                 else -> viewModel.onAction(action)
             }
         },
@@ -159,6 +169,7 @@ fun ProfileScreen(state: ProfileState, onAction: (ProfileAction) -> Unit, modifi
                 LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = BarSpace), horizontalAlignment = Alignment.CenterHorizontally) {
                     item {
                         Cabecera(user, fondo ?: Pigment.Paper, ink, suave, arriba)
+                        Contadores(perfil, state.verDiario, ink, suave, onAction)
                         Column(Modifier.anchoDeLectura().padding(horizontal = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             if (user.bio.isNotBlank()) {
                                 Spacer(Modifier.height(8.dp))
@@ -205,6 +216,67 @@ fun ProfileScreen(state: ProfileState, onAction: (ProfileAction) -> Unit, modifi
                 if (propio) {
                     Spacer(Modifier.width(8.dp))
                     BotonFlotante(Icons.Brush, "Personalizar perfil y ajustes") { onAction(ProfileAction.OnPersonalizarClicked) }
+                }
+            }
+        }
+    }
+    if (state.viendoAmigos) HojaDeAmigos(perfil.amigos, onAction)
+}
+
+/**
+ * debajo del nombre: "12 amigos · 30 publicaciones". amigos solo sale en mi perfil y abre la lista;
+ * publicaciones lleva al diario, si se puede ver (en el de otro, solo si lo tiene publico).
+ */
+@Composable
+private fun Contadores(perfil: Perfil, verDiario: Boolean, ink: Color, suave: Color, onAction: (ProfileAction) -> Unit) {
+    Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (perfil.propio) {
+            Contador(perfil.amigos.size, if (perfil.amigos.size == 1) "amigo" else "amigos", ink, suave) { onAction(ProfileAction.OnAmigosClicked) }
+            Text("·", color = suave, fontSize = 14.sp)
+        }
+        Contador(
+            perfil.publicaciones, if (perfil.publicaciones == 1) "publicación" else "publicaciones", ink, suave,
+            onClick = if (verDiario) ({ onAction(ProfileAction.OnPublicacionesClicked) }) else null,
+        )
+    }
+}
+
+@Composable
+private fun Contador(numero: Int, texto: String, ink: Color, suave: Color, onClick: (() -> Unit)?) {
+    Row(
+        Modifier.clip(RoundedCornerShape(50)).then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(numero.toString(), color = ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.width(4.dp))
+        Text(texto, color = suave, fontSize = 14.sp)
+    }
+}
+
+/**
+ * mis amigos (me siguen y los sigo). desde aqui se puede dejar de seguir a alguien: se queda en la
+ * lista hasta cerrar la hoja, con el boton en "seguir", por si fue sin querer.
+ */
+@Composable
+private fun HojaDeAmigos(amigos: List<User>, onAction: (ProfileAction) -> Unit) {
+    val alAbrir = remember { amigos }
+    val siguen = amigos.map { it.id }.toSet()
+    Sheet({ onAction(ProfileAction.OnAmigosCerrados) }) {
+        Text("Amigos", style = titular(22.sp), modifier = Modifier.padding(horizontal = 20.dp))
+        Text(
+            "Gente a la que sigues y que te sigue.",
+            color = Pigment.Graphite, fontSize = 13.sp, modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 2.dp, bottom = 8.dp),
+        )
+        if (alAbrir.isEmpty()) {
+            Text(
+                "Todavía no tienes amigos: cuando alguien a quien sigues te siga también, aparecerá aquí.",
+                color = Pigment.Graphite, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+            )
+        }
+        LazyColumn(Modifier.heightIn(max = 520.dp)) {
+            items(alAbrir, key = { it.id }) { amigo ->
+                UserRow(amigo, onClick = { onAction(ProfileAction.OnUserClicked(amigo.id)) }) {
+                    FollowButton(amigo.id in siguen, { onAction(ProfileAction.OnSeguirAmigoClicked(amigo.id)) })
                 }
             }
         }

@@ -14,4 +14,9 @@ data class Perfil(
     // null si esa persona tiene sus pendientes en privado
     val pendientes: List<Media>?,
     val loSigo: Boolean,
-)
+    // solo en mi perfil: los que me siguen y a los que sigo
+    val amigos: List<User> = emptyList(),
+) {
+    /** cuantas reseñas ha publicado (las ocultas no cuentan). */
+    val publicaciones: Int get() = logs.count { !it.hidden }
+}

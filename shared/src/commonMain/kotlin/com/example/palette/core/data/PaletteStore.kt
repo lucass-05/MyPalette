@@ -213,6 +213,7 @@ class PaletteStore(private val metricas: Metricas = SinMetricas) {
                         watchlist = recibido.watchlist,
                         peopleWatchlists = recibido.peopleWatchlists,
                         following = recibido.following,
+                        followers = recibido.followers.map { it.first }.toSet(),
                         messages = recibido.messages,
                         liked = recibido.liked,
                         likes = recibido.likes,
@@ -263,6 +264,9 @@ class PaletteStore(private val metricas: Metricas = SinMetricas) {
     fun sigoA(id: String) = id in estado.following
 
     val amigos: List<User> get() = estado.people.filter { it.id in estado.following }
+
+    /** los que me siguen y a los que sigo: mis amigos de verdad. */
+    val amigosMutuos: List<User> get() = estado.people.filter { it.id in estado.following && it.id in estado.followers }.sortedBy { it.name.lowercase() }
 
     fun alternarSeguir(id: String) {
         val follow = id !in estado.following

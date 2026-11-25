@@ -36,6 +36,8 @@ data class ProfileState(
     // las listas que se ven en este perfil (en el mio, todas)
     val listas: List<ListaVista> = emptyList(),
     val seccion: Seccion = Seccion.Paleta,
+    // true con la hoja de amigos abierta
+    val viendoAmigos: Boolean = false,
 ) {
     // las paginas que puede abrir quien mira: en mi perfil todas, en el de otro solo las que deja ver
     val verFavoritos: Boolean get() = perfil?.let { it.propio || it.user.layout.favoritesVisible } == true
@@ -57,6 +59,11 @@ sealed interface ProfileAction {
     data object OnNuevaListaClicked : ProfileAction
     data class OnEditarListaClicked(val listId: String) : ProfileAction
     data object OnCompartirClicked : ProfileAction
+    data object OnAmigosClicked : ProfileAction
+    data object OnAmigosCerrados : ProfileAction
+    data class OnSeguirAmigoClicked(val userId: String) : ProfileAction
+    data object OnPublicacionesClicked : ProfileAction
+    data class OnUserClicked(val userId: String) : ProfileAction
 }
 
 class ProfileViewModel(
@@ -87,6 +94,12 @@ class ProfileViewModel(
         when (action) {
             is ProfileAction.OnSeccionChanged -> _state.update { it.copy(seccion = action.seccion).conSeccionValida() }
             ProfileAction.OnFollowClicked -> peopleRepository.alternarSeguir(userId)
+            ProfileAction.OnAmigosClicked -> _state.update { it.copy(viendoAmigos = true) }
+            ProfileAction.OnAmigosCerrados -> _state.update { it.copy(viendoAmigos = false) }
+            // dejar de seguir (o volver a seguir) desde la lista de amigos
+            is ProfileAction.OnSeguirAmigoClicked -> peopleRepository.alternarSeguir(action.userId)
+            // las publicaciones llevan al diario, si se puede ver
+            ProfileAction.OnPublicacionesClicked -> if (_state.value.verDiario) _state.update { it.copy(seccion = Seccion.Diario) }
             // el resto es navegacion: lo resuelve ProfileScreenRoot
             else -> {}
         }

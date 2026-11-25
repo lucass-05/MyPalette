@@ -277,6 +277,8 @@ data class Snapshot(
     val logs: List<LogEntry> = emptyList(),
     val watchlist: List<Media> = emptyList(),
     val following: Set<String> = emptySet(),
+    // quien me sigue a mi. amigos son los que estan en las dos (me siguen y los sigo)
+    val followers: Set<String> = emptySet(),
     val messages: List<Message> = emptyList(),
     val notices: List<Notice> = emptyList(),
     val liked: Set<String> = emptySet(),

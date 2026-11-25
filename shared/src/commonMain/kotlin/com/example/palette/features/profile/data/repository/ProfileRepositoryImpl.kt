@@ -16,7 +16,7 @@ class ProfileRepositoryImpl(private val almacen: PaletteStore) : ProfileReposito
         almacen.user(userId)?.let { user ->
             val propio = userId == ME
             val logs = if (propio) almacen.estado.logs else almacen.estado.peopleLogs.filter { it.userId == userId && !it.hidden }
-            Perfil(user, propio, logs, almacen.pendientesDe(userId), almacen.sigoA(userId))
+            Perfil(user, propio, logs, almacen.pendientesDe(userId), almacen.sigoA(userId), if (propio) almacen.amigosMutuos else emptyList())
         }
     }
 

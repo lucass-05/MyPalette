@@ -248,6 +248,7 @@ private fun Shell(sinLeer: Int, tutorial: Boolean) {
                     onOpenList = ::abrirLista,
                     onNewList = { hojas.creandoLista = true },
                     onCustomize = { navController.abrir(CustomizeRoute) },
+                    onOpenUser = ::abrirPerfil,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -281,6 +282,7 @@ private fun Shell(sinLeer: Int, tutorial: Boolean) {
                     onOpenList = ::abrirLista,
                     onNewList = { hojas.creandoLista = true },
                     onCustomize = { navController.abrir(CustomizeRoute) },
+                    onOpenUser = ::abrirPerfil,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
