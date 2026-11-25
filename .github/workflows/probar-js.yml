@@ -17,7 +17,7 @@ jobs:
               p.on('pageerror', e => console.log('ERROR', e.message.slice(0, 200)));
               await p.goto(url + '?v=' + Date.now(), {waitUntil: 'networkidle0', timeout: 90000});
               await new Promise(r => setTimeout(r, 15000));
-              const info = await p.evaluate(() => ({url: location.href, shadow: !!document.body.shadowRoot, diag: getComputedStyle(document.getElementById('diagnostico')).display}));
+              const info = await p.evaluate(async () => { const d = document.getElementById('diagnostico'); const html = await (await fetch(location.pathname + '?x=' + Date.now())).text(); return {url: location.href, shadow: !!document.body.shadowRoot, diag: d ? getComputedStyle(d).display : 'sin elemento', nuevo: html.includes('diagnostico'), hijos: [...document.body.children].map(e => e.tagName).join(',')}; });
               console.log('INFO', JSON.stringify(info));
               await p.close();
             }
