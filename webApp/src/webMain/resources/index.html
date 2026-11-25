@@ -61,6 +61,13 @@
         <p>Para usar Palette hace falta activar JavaScript. <a href="sobre/">Más sobre Palette</a></p>
     </noscript>
     <p id="aviso" style="display: none; font-family: sans-serif; max-width: 320px; margin: 16px auto; color: #555"></p>
+    <div id="diagnostico" style="display: none; font-family: sans-serif; max-width: 360px; margin: 16px auto; padding: 16px; text-align: left; color: #333; background: #f6f5f2; border-radius: 14px; font-size: 13px; line-height: 1.45">
+        <b style="font-size: 15px">Palette no ha podido arrancar</b>
+        <p id="diagnostico-texto" style="margin: 8px 0"></p>
+        <pre id="diagnostico-datos" style="white-space: pre-wrap; word-break: break-word; font-size: 11px; background: #fff; padding: 10px; border-radius: 8px; margin: 8px 0"></pre>
+        <button id="diagnostico-copiar" style="padding: 8px 14px; border-radius: 99px; border: 0; background: #17171a; color: #fff; font-weight: 600">Copiar estos datos</button>
+        <a id="diagnostico-otra" href="#" style="margin-left: 10px; color: #2d5bf0"></a>
+    </div>
     <script>
         // la version normal es webassembly con gc (safari 18.2 o mas nuevo). este modulo minimo solo
         // es valido si el navegador lo soporta; si no, se pasa a la copia en javascript de la carpeta js/
@@ -69,6 +76,64 @@
         const hayWasm = typeof WebAssembly === "object" && typeof WebAssembly.validate === "function";
         const hayWasmGc = hayWasm && WebAssembly.validate(moduloDePrueba);
         const enCopiaJs = /\/js\/(index\.html)?$/.test(location.pathname);
+
+        // la app ha arrancado en cuanto compose pinta: lo hace dentro de un shadow root del body
+        // (por eso el circulo de carga desaparece solo). se mira tambien por si mete un elemento
+        let hayElemento = false;
+        new MutationObserver((cambios) => {
+            for (const c of cambios) for (const n of c.addedNodes) if (n.nodeType === 1 && n.tagName !== "SCRIPT") hayElemento = true;
+        }).observe(document.body, { childList: true });
+        const yaArranco = () => hayElemento || !!document.body.shadowRoot;
+
+        function guardadoFunciona() {
+            try { localStorage.setItem("palette.prueba", "1"); localStorage.removeItem("palette.prueba"); return "sí"; } catch (e) { return "no (" + e.name + ")"; }
+        }
+
+        // si algo falla antes de arrancar, se enseña que ha pasado y los datos del navegador, para poder
+        // mandarlos y saber que arreglar (en vez de una pantalla en blanco)
+        function mostrarFallo(motivo) {
+            if (yaArranco()) return;
+            document.querySelector("svg").style.display = "none";
+            document.getElementById("diagnostico-texto").textContent = motivo;
+            const datos = [
+                "Error: " + motivo,
+                "Versión: " + (enCopiaJs ? "javascript" : "webassembly"),
+                "WebAssembly: " + (hayWasm ? "sí" : "no") + " · con GC: " + (hayWasmGc ? "sí" : "no"),
+                "Guardado local: " + guardadoFunciona(),
+                "Navegador: " + navigator.userAgent,
+                "Pantalla: " + screen.width + "x" + screen.height + " · táctil: " + (navigator.maxTouchPoints || 0),
+            ].join("\n");
+            document.getElementById("diagnostico-datos").textContent = datos;
+            document.getElementById("diagnostico-copiar").onclick = () => navigator.clipboard && navigator.clipboard.writeText(datos);
+            const otra = document.getElementById("diagnostico-otra");
+            otra.textContent = enCopiaJs ? "Probar la versión normal" : "Probar la versión compatible";
+            otra.href = (enCopiaJs ? "../?normal" : "js/") + (location.hash || "");
+            document.getElementById("diagnostico").style.display = "block";
+        }
+
+        // si la version normal falla al arrancar (por ejemplo, un safari al que le falta algo de
+        // webassembly que la prueba de arriba no mira), se pasa sola a la compatible, una sola vez
+        function falloAlArrancar(motivo) {
+            if (yaArranco()) return;
+            const forzada = location.search.indexOf("normal") >= 0;
+            if (!enCopiaJs && !forzada && !sessionStorageSeguro("palette.probadaJs")) {
+                marcarSessionStorage("palette.probadaJs");
+                location.replace("js/" + location.search + location.hash);
+            } else {
+                mostrarFallo(motivo);
+            }
+        }
+        function sessionStorageSeguro(k) { try { return sessionStorage.getItem(k) === "1"; } catch (e) { return false; } }
+        function marcarSessionStorage(k) { try { sessionStorage.setItem(k, "1"); } catch (e) {} }
+
+        window.addEventListener("error", (e) => {
+            // de los archivos que no cargan solo importan los scripts (una imagen o un icono no rompe nada)
+            if (e.target && e.target !== window && e.target.tagName !== "SCRIPT") return;
+            falloAlArrancar(e.message || "no se ha podido cargar " + ((e.target && e.target.src) || "un archivo"));
+        }, true);
+        window.addEventListener("unhandledrejection", (e) => falloAlArrancar(String((e.reason && (e.reason.message || e.reason)) || "error")));
+        // si tarda muchisimo tampoco se queda en blanco: avisa y deja probar la otra version
+        setTimeout(() => { if (!yaArranco()) mostrarFallo("Está tardando demasiado en cargar (más de 40 segundos)."); }, 40000);
 
         if (!hayWasm) {
             // sin webassembly no va ninguna de las dos (pasa con el modo de aislamiento del iphone)
