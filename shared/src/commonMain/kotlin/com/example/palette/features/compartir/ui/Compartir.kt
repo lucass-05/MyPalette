@@ -142,8 +142,8 @@ fun TarjetaResena(log: LogEntry, autor: User) {
     val color = Pigment.of(log.media.type)
     Box(Modifier.fillMaxSize().background(Pigment.Paper)) {
         // manchas del color del tipo de contenido al fondo
-        Splat(log.media.id.hashCode(), color.copy(alpha = 0.9f), Modifier.size(360.dp).offset(x = 120.dp, y = (-90).dp))
-        Splat(autor.id.hashCode(), Color(autor.favorite).copy(alpha = 0.85f), Modifier.size(220.dp).offset(x = (-90).dp, y = 470.dp))
+        Splat(log.media.id.hashCode(), color.copy(alpha = 0.3f), Modifier.size(300.dp).offset(x = 170.dp, y = (-110).dp))
+        Splat(autor.id.hashCode(), Color(autor.favorite).copy(alpha = 0.25f), Modifier.size(200.dp).offset(x = (-110).dp, y = 500.dp))
         Column(Modifier.fillMaxSize().padding(horizontal = 26.dp, vertical = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Marca()
             Spacer(Modifier.height(26.dp))
@@ -189,12 +189,12 @@ fun TarjetaPerfil(user: User, logs: List<LogEntry>, favoritos: List<LogEntry>) {
     ).joinToString(" · ")
 
     Box(Modifier.fillMaxSize().background(fondo ?: Pigment.Paper)) {
-        Splat(user.id.hashCode(), Color(user.favorite).copy(alpha = 0.9f), Modifier.size(300.dp).offset(x = 150.dp, y = (-110).dp))
+        Splat(user.id.hashCode(), Color(user.favorite).copy(alpha = 0.3f), Modifier.size(280.dp).offset(x = 170.dp, y = (-120).dp))
         Column(Modifier.fillMaxSize().padding(vertical = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Marca(ink)
-            Spacer(Modifier.height(22.dp))
-            Avatar(user, 96.dp)
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(18.dp))
+            Avatar(user, 80.dp)
+            Spacer(Modifier.height(10.dp))
             Text(user.name, style = titular(28.sp), color = ink, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 24.dp))
             Text("@${user.username}", color = suave, fontSize = 13.sp)
             if (user.bio.isNotBlank()) {
@@ -203,8 +203,8 @@ fun TarjetaPerfil(user: User, logs: List<LogEntry>, favoritos: List<LogEntry>) {
                     overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 30.dp, vertical = 8.dp),
                 )
             }
-            Text(resumen, color = ink, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp, bottom = 16.dp))
-            Cuadricula(favoritos.take(6).map { it.pieza() }, blob = user.layout.favoritesBlob, ink = ink, onClick = {})
+            Text(resumen, color = ink, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
+            Cuadricula(favoritos.take(6).map { it.pieza() }, blob = user.layout.favoritesBlob, ink = ink, onClick = {}, modifier = Modifier.padding(horizontal = 18.dp))
             Spacer(Modifier.weight(1f))
             Text("Mi paleta en Palette · $DIRECCION", color = suave, fontSize = 11.sp)
         }
