@@ -20,6 +20,9 @@ object Monetizacion {
     const val ANUNCIOS_ACTIVOS = false
     const val DEMOSTRACION_SIEMPRE = false
 
+    /** a donde escriben las marcas que quieren anunciarse (sale en la demostracion y en la pagina de presentacion). */
+    const val CONTACTO = "lucassuarez1605@gmail.com"
+
     private val enlaceConDemo: Boolean by lazy { parametroDelEnlace("demo") != null }
 
     // solo para las capturas de las pruebas

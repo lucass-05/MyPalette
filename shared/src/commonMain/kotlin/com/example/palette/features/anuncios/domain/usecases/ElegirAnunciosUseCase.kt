@@ -11,8 +11,9 @@ import com.example.palette.features.anuncios.domain.repository.AnunciosRepositor
  * que anuncios salen en descubrir.
  * - con los anuncios apagados, ninguno.
  * - si hay contratados, el primero de cada hueco.
- * - en modo demostracion y sin contratados, una fila de ejemplo hecha con contenidos que ya se ven en
- *   descubrir. el cartel no tiene ejemplo: el carrusel de estrenos ya enseña como se veria.
+ * - en modo demostracion (?demo, el enlace de la pagina de presentacion para marcas) y sin contratados:
+ *   "vuestro posible anuncio" como primera diapositiva de los estrenos, y una fila patrocinada con un
+ *   hueco para el producto de la marca entre contenidos reales.
  */
 class ElegirAnunciosUseCase(private val anunciosRepository: AnunciosRepository) {
 
@@ -22,7 +23,7 @@ class ElegirAnunciosUseCase(private val anunciosRepository: AnunciosRepository) 
         val cartel = contratados.firstOrNull { it.hueco == Hueco.CARTEL }
         val fila = contratados.firstOrNull { it.hueco == Hueco.FILA }
         if (!Monetizacion.demostracion) return AnunciosDeDescubrir(cartel, fila)
-        return AnunciosDeDescubrir(cartel, fila ?: filaDeEjemplo(populares))
+        return AnunciosDeDescubrir(cartel ?: CARTEL_DE_EJEMPLO, fila ?: filaDeEjemplo(populares))
     }
 
     private fun filaDeEjemplo(populares: List<Media>): Anuncio? {
@@ -31,12 +32,26 @@ class ElegirAnunciosUseCase(private val anunciosRepository: AnunciosRepository) 
         return Anuncio(
             id = "ejemplo-fila",
             hueco = Hueco.FILA,
-            anunciante = "Tu plataforma",
+            anunciante = "Vuestra marca",
             titulo = "Novedades de este mes",
             boton = "Ver catálogo",
-            enlace = "https://www.themoviedb.org",
+            enlace = CONTACTO_POR_CORREO,
             contenidos = contenidos,
             ejemplo = true,
         )
     }
 }
+
+private const val CONTACTO_POR_CORREO = "mailto:${Monetizacion.CONTACTO}?subject=Anunciarse%20en%20Palette"
+
+// sin imagen: el carrusel le pone un degradado de la marca
+private val CARTEL_DE_EJEMPLO = Anuncio(
+    id = "ejemplo-cartel",
+    hueco = Hueco.CARTEL,
+    anunciante = "Vuestra marca",
+    titulo = "Vuestro posible anuncio",
+    texto = "Lo primero que ve cada persona al abrir Descubrir: vuestro estreno, con imagen, texto y enlace.",
+    boton = "Hablemos",
+    enlace = CONTACTO_POR_CORREO,
+    ejemplo = true,
+)

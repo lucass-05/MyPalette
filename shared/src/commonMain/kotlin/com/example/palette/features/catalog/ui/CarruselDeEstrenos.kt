@@ -31,7 +31,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -47,9 +49,9 @@ import com.example.palette.features.anuncios.ui.Etiqueta
 import com.example.palette.features.catalog.domain.model.Estreno
 import com.example.palette.features.catalog.presentation.DiscoverAction
 import com.example.palette.navigation.LocalWide
+import kotlin.math.absoluteValue
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.math.absoluteValue
 
 /** cada cuanto pasa sola a la siguiente diapositiva. */
 private const val CADA = 6_000L
@@ -102,6 +104,7 @@ fun CarruselDeEstrenos(estrenos: List<Estreno>, patrocinado: Anuncio?, onAction:
                     texto = patrocinado.texto,
                     etiqueta = { Etiqueta(patrocinado) },
                     boton = patrocinado.boton,
+                    icono = if (patrocinado.ejemplo) Icons.Send else Icons.ExternalLink,
                     onClick = { onAction(DiscoverAction.OnAnuncioClicked(patrocinado)) },
                     onBoton = { onAction(DiscoverAction.OnAnuncioClicked(patrocinado)) },
                     modifier = capa,
@@ -114,6 +117,7 @@ fun CarruselDeEstrenos(estrenos: List<Estreno>, patrocinado: Anuncio?, onAction:
                     texto = estreno.media.overview.orEmpty(),
                     etiqueta = { EtiquetaDeEstreno(estreno.media) },
                     boton = if (estreno.trailer != null) "Ver tráiler" else null,
+                    icono = Icons.Play,
                     onClick = { onAction(DiscoverAction.OnMediaClicked(estreno.media, fila = "estrenos", posicion = indice)) },
                     onBoton = { onAction(DiscoverAction.OnTrailerClicked(estreno)) },
                     modifier = capa,
@@ -145,11 +149,13 @@ private fun Diapositiva(
     texto: String,
     etiqueta: @Composable () -> Unit,
     boton: String?,
+    icono: ImageVector,
     onClick: () -> Unit,
     onBoton: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(modifier.fillMaxSize().clip(RoundedCornerShape(22.dp)).background(Pigment.Ink).clickable(onClick = onClick)) {
+    val fondo = if (imagen == null) Brush.linearGradient(listOf(Pigment.Accent, Pigment.Violet, Pigment.Magenta)) else SolidColor(Pigment.Ink)
+    Box(modifier.fillMaxSize().clip(RoundedCornerShape(22.dp)).background(fondo).clickable(onClick = onClick)) {
         if (imagen != null) {
             AsyncImage(imagen, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         }
@@ -168,7 +174,7 @@ private fun Diapositiva(
                     Modifier.clip(RoundedCornerShape(50)).background(Color.White).clickable(onClick = onBoton).padding(horizontal = 14.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Play, contentDescription = null, tint = Pigment.Ink, modifier = Modifier.size(14.dp))
+                    Icon(icono, contentDescription = null, tint = Pigment.Ink, modifier = Modifier.size(14.dp))
                     Spacer(Modifier.width(6.dp))
                     Text(boton, color = Pigment.Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 }

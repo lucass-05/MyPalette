@@ -53,16 +53,30 @@ fun SectionTitle(text: String, modifier: Modifier = Modifier, dot: Color? = null
 
 /** tira horizontal de portadas con su titulo debajo. */
 @Composable
-fun MediaRow(items: List<Media>, modifier: Modifier = Modifier, coverHeight: Int = 168, onClick: (Media) -> Unit) {
+fun MediaRow(
+    items: List<Media>,
+    modifier: Modifier = Modifier,
+    coverHeight: Int = 168,
+    // algo mas que meter en la fila (el hueco de un anuncio en la demostracion), en la posicion [extraEn]
+    extra: (@Composable () -> Unit)? = null,
+    extraEn: Int = 1,
+    onClick: (Media) -> Unit,
+) {
+    val posicion = extraEn.coerceIn(0, items.size)
     LazyRow(modifier, contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        items(items, key = { it.id }) { media ->
-            Column(Modifier.width((coverHeight * media.type.proporcion).dp).clickable { onClick(media) }) {
-                CoverByHeight(media, coverHeight.dp)
-                Spacer(Modifier.height(7.dp))
-                Text(media.title, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 2, lineHeight = 16.sp, overflow = TextOverflow.Ellipsis)
-                media.creator?.let { Text(it, fontSize = 12.sp, color = Pigment.Graphite, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-            }
-        }
+        items(items.take(posicion), key = { it.id }) { media -> PortadaDeFila(media, coverHeight, onClick) }
+        if (extra != null) item(key = "extra") { extra() }
+        items(items.drop(posicion), key = { it.id }) { media -> PortadaDeFila(media, coverHeight, onClick) }
+    }
+}
+
+@Composable
+private fun PortadaDeFila(media: Media, coverHeight: Int, onClick: (Media) -> Unit) {
+    Column(Modifier.width((coverHeight * media.type.proporcion).dp).clickable { onClick(media) }) {
+        CoverByHeight(media, coverHeight.dp)
+        Spacer(Modifier.height(7.dp))
+        Text(media.title, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 2, lineHeight = 16.sp, overflow = TextOverflow.Ellipsis)
+        media.creator?.let { Text(it, fontSize = 12.sp, color = Pigment.Graphite, maxLines = 1, overflow = TextOverflow.Ellipsis) }
     }
 }
 
